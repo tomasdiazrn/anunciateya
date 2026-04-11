@@ -1,0 +1,51 @@
+<div id="register-container">
+  <form method="post" class="stack-form" aria-label="Crear cuenta (Paso 2)">
+    {% csrf_token %}
+    <input type="hidden" name="step" value="2">
+    {% include "components/ui/form_non_field_errors.html" %}
+
+    {% for field in step2_form %}
+      {% if field.name == "phone_country_code" %}
+        {% include "components/ui/phone_input.html" with country_field=field number_field=step2_form.phone_number countries=country_phone_codes %}
+      {% elif field.name == "phone_number" %}
+        {# rendered together with phone_country_code #}
+      {% elif field.name == "password1" or field.name == "password2" %}
+        <div class="field">
+          {{ field.label_tag }}
+          <div class="auth-password">
+            {{ field }}
+            <button
+              type="button"
+              class="auth-password__toggle"
+              aria-label="Mostrar contraseña"
+              data-toggle-password="#{{ field.id_for_label }}"
+            >
+              <i class="fa-regular fa-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+          {% if field.help_text %}<span class="small muted" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
+          {% if field.errors %}
+            <div class="form-errors" role="alert" aria-live="assertive">{{ field.errors }}</div>
+          {% endif %}
+        </div>
+      {% elif field.name == "accept_terms" %}
+        <div class="field auth-terms-field">
+          <label class="auth-terms">
+            {{ field }}
+            <span class="auth-terms__text">{{ field.label|safe }}</span>
+          </label>
+          {% if field.errors %}
+            <div class="form-errors" role="alert" aria-live="assertive">{{ field.errors }}</div>
+          {% endif %}
+        </div>
+      {% else %}
+        {% include "components/ui/form_field.html" with field=field %}
+      {% endif %}
+    {% endfor %}
+
+    <div class="form-actions-row">
+      <button type="submit" class="button btn-primary auth-submit">Crear cuenta</button>
+    </div>
+  </form>
+</div>
+

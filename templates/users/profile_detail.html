@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile_user.get_full_name|default:profile_user.email }} · {{ site_name }}{% endblock %}
+{% block meta_description %}Perfil público en {{ site_name }}: confianza del vendedor y señales de verificación.{% endblock %}
+
+{% block content %}
+  <div class="container narrow">
+    <h1 class="page-title">{{ profile_user.get_full_name|default:profile_user.email }}</h1>
+    <div class="profile-trust card">
+      {% if seller_trust.verified %}
+        <p class="trust-badge">✔ Verificado</p>
+      {% else %}
+        <p class="small muted">Teléfono no verificado</p>
+      {% endif %}
+
+      {% if seller_trust.review_count %}
+        <p class="seller-rating-lg">
+          ⭐ {{ seller_trust.avg_rating|default:seller_trust.rating_avg }}
+          <span class="muted">({{ seller_trust.review_count }} opiniones)</span>
+        </p>
+      {% else %}
+        <p class="small muted">Sin opiniones aún</p>
+      {% endif %}
+
+      <p class="member-since">{{ seller_trust.member_since_display }}</p>
+
+      <p class="trust-level-row">
+        <span class="trust-label trust-{{ seller_trust.trust_label }} trust-level-pill">
+          {% if seller_trust.trust_label == "high" %}
+            Confianza alta
+          {% elif seller_trust.trust_label == "medium" %}
+            Confianza media
+          {% else %}
+            Confianza baja
+          {% endif %}
+        </span>
+      </p>
+
+      {% if user.is_authenticated and user.pk == profile_user.pk and not seller_trust.verified %}
+        <a class="button btn-primary" href="{% url 'users:verify_phone' %}">Verificar teléfono</a>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

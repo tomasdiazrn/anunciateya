@@ -1,0 +1,74 @@
+/*
+ * anunciateya.com — tokens de diseño
+ * Neuromarketing: teal = confianza (trust, enlaces secundarios); naranja = acción (CTA, contacto).
+ */
+:root {
+  /* Marca */
+  --brand-name-display: "anunciateya.com";
+
+  /* Color — confianza / profesional (primario de marca en UI) */
+  --color-primary: #007aab;
+  --color-primary-hover: #006694;
+  --color-primary-muted: rgba(0, 122, 171, 0.12);
+  --color-primary-border: #4a9fb8;
+
+  /* Color — acción / CTA (botones principales, “contactar”) */
+  --color-cta: #ff6a00;
+  --color-cta-hover: #e65f00;
+  --color-cta-shadow: rgba(255, 106, 0, 0.35);
+
+  /* Texto */
+  --color-text: #1f2937;
+  --color-muted: #6b7280;
+  --color-placeholder: #6b7280;
+
+  /* Superficies */
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-border: #e5e7eb;
+  --color-border-strong: #d1d5db;
+
+  /* Estados */
+  --color-error: #dc2626;
+  --color-error-bg: #fef2f2;
+  --color-success-border: #86efac;
+  --color-success-bg: #f0fdf4;
+
+  /* Tipografía: Inter titulares, Roboto cuerpo */
+  --font-display: "Inter", system-ui, -apple-system, sans-serif;
+  --font-body: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --font-h1: 600 1.875rem/1.2 var(--font-display);
+  --font-h2: 600 1.375rem/1.25 var(--font-display);
+  --font-h3: 600 1.125rem/1.3 var(--font-display);
+  --font-body-size: 1rem;
+  --font-body-lh: 1.5;
+  --font-label: 500 0.875rem/1.4 var(--font-body);
+
+  /* Ancho máximo del contenido (header, main, pie, .container) */
+  --layout-content-max-width: 1200px;
+
+  /* Espaciado */
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+  --space-5: 2.5rem;
+  --card-padding: clamp(1rem, 2.5vw, 1.5rem);
+
+  /* Radio — bordes suaves 4–6px (usamos escala) */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+
+  /* Sombras — microinteracciones */
+  --shadow-sm: 0 1px 2px rgba(31, 41, 55, 0.06);
+  --shadow-md: 0 4px 12px rgba(31, 41, 55, 0.08);
+  --shadow-card-hover: 0 8px 24px rgba(31, 41, 55, 0.1);
+
+  /* Transiciones */
+  --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --duration-fast: 160ms;
+  --duration-image: 280ms;
+}

@@ -1,0 +1,12 @@
+{# Wrapper with consistent vertical rhythm. #}
+<section class="page-section{% if class_name %} {{ class_name }}{% endif %}"{% if aria_labelledby %} aria-labelledby="{{ aria_labelledby }}"{% endif %}>
+  {% if title %}
+    <h2 class="page-section__title h-section"{% if aria_labelledby %} id="{{ aria_labelledby }}"{% endif %}>{{ title }}</h2>
+  {% endif %}
+  {% if subtitle %}
+    <p class="page-section__subtitle small muted">{{ subtitle }}</p>
+  {% endif %}
+  <div class="page-section__body">
+    {{ body|safe }}
+  </div>
+</section>

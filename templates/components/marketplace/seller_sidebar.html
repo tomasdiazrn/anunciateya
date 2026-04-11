@@ -1,0 +1,70 @@
+{% load humanize %}
+<aside class="card seller-box" id="listing-sidebar" aria-label="Información del vendedor">
+  <h2 class="h-aside">Vendedor</h2>
+  <p class="seller-name">
+    <a href="{{ listing.seller.get_absolute_url }}">{{ listing.seller.get_full_name|default:listing.seller.email }}</a>
+  </p>
+
+  <p class="seller-activity-badge small muted">Última actividad: hoy</p>
+
+  <div class="seller-trust-block">
+    {% if seller_trust.verified %}
+      <p class="trust-badge" data-event="trust_label_click" data-event-detail="verified">✔ Verificado</p>
+    {% else %}
+      <p class="small muted">Teléfono no verificado</p>
+    {% endif %}
+
+    {% if seller_trust.review_count %}
+      <p class="seller-rating-lg" data-event="trust_label_click" data-event-detail="rating">
+        ⭐ {{ seller_trust.avg_rating|default:seller_trust.rating_avg }}
+        <span class="muted">({{ seller_trust.review_count }} opiniones)</span>
+      </p>
+    {% else %}
+      <p class="small muted">Sin opiniones aún</p>
+    {% endif %}
+
+    <p class="member-since">{{ seller_trust.member_since_display }}</p>
+
+    <p class="trust-level-row">
+      <span class="trust-label trust-{{ seller_trust.trust_label }} trust-level-pill" data-event="trust_label_click" data-event-detail="level_{{ seller_trust.trust_label }}">
+        {% if seller_trust.trust_label == "high" %}
+          Confianza alta
+        {% elif seller_trust.trust_label == "medium" %}
+          Confianza media
+        {% else %}
+          Confianza baja
+        {% endif %}
+      </span>
+    </p>
+
+    <p class="seller-safety-microcopy small muted">
+      Nunca envíes dinero por adelantado sin verificar al vendedor.
+    </p>
+  </div>
+
+  {% if is_owner %}
+    <p class="small muted">Tú vendes este artículo.</p>
+    <p class="owner-actions">
+      <a class="button btn-secondary" href="{% url 'users:account_listing_edit' slug=listing.slug %}">Editar anuncio</a>
+      <a class="button btn-danger btn-compact" href="{% url 'listings:delete' listing.slug %}">Eliminar anuncio</a>
+    </p>
+  {% else %}
+    <div id="contact-panel-mount">
+      <p class="listing-contact-nudge small muted">Este vendedor responde rápido ⚡</p>
+      <button
+        type="button"
+        class="button btn-primary"
+        hx-get="{% url 'listings:contact' listing.slug %}"
+        hx-target="#contact-panel-mount"
+        hx-swap="innerHTML"
+        hx-indicator="#contact-htmx-spinner"
+        aria-label="Contactar vendedor"
+        data-event="contact_click"
+        data-event-detail="open_contact_panel"
+      >
+        Contactar vendedor
+      </button>
+      <span id="contact-htmx-spinner" class="htmx-indicator muted small" aria-live="polite">Cargando…</span>
+    </div>
+  {% endif %}
+</aside>

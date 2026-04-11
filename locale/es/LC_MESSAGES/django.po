@@ -1,0 +1,759 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-04-08 00:50+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apps/chat/templates/chat/placeholder.html:4
+#: apps/chat/templates/chat/placeholder.html:8
+msgid "Messages"
+msgstr "Mensajes"
+
+#: apps/chat/templates/chat/placeholder.html:10
+msgid ""
+"Buyer–seller chat will live here. For now, contact is handled from the HTMX "
+"panel on each listing."
+msgstr ""
+"El chat entre comprador y vendedor estará aquí. Por ahora el contacto se "
+"gestiona desde el panel HTMX de cada anuncio."
+
+#: apps/chat/templates/chat/placeholder.html:13
+msgid "Go to listings"
+msgstr "Ir a anuncios"
+
+#: apps/core/templates/core/home.html:4
+msgid "Home"
+msgstr "Inicio"
+
+#: apps/core/templates/core/home.html:10
+msgid ""
+"AnunciateYa with Django and HTMX: clear listings, visible trust, and safer "
+"contact."
+msgstr ""
+"AnunciateYa con Django y HTMX: anuncios claros, confianza visible y contacto"
+" más seguro."
+
+#: apps/core/templates/core/home.html:12
+msgid "Browse listings"
+msgstr "Ver anuncios"
+
+#: apps/listings/forms.py:13
+msgid "Message to the seller"
+msgstr "Mensaje para el vendedor"
+
+#: apps/listings/forms.py:19
+msgid "Example: Hi, is this still available? Can we meet in Guayaquil?"
+msgstr "Ejemplo: Hola, ¿sigue disponible? ¿Podemos vernos en Guayaquil?"
+
+#: apps/listings/forms.py:43
+#: apps/listings/templates/listings/my_listings.html:17
+msgid "Title"
+msgstr "Título"
+
+#: apps/listings/forms.py:44
+#: apps/listings/templates/listings/listing_detail.html:48
+msgid "Description"
+msgstr "Descripción"
+
+#: apps/listings/forms.py:45
+msgid "Price"
+msgstr "Precio"
+
+#: apps/listings/forms.py:46
+msgid "Currency"
+msgstr "Moneda"
+
+#: apps/listings/forms.py:47
+msgid "Category"
+msgstr "Categoría"
+
+#: apps/listings/forms.py:48
+msgid "Location"
+msgstr "Ubicación"
+
+#: apps/listings/forms.py:49
+msgid "Visible on the site"
+msgstr "Visible en el sitio"
+
+#: apps/listings/forms.py:52
+msgid "A short, clear headline (e.g. model, year, condition)."
+msgstr "Un titular breve y claro (p. ej. modelo, año, estado)."
+
+#: apps/listings/forms.py:53
+msgid "Describe the item, defects, delivery or pickup."
+msgstr "Describe el artículo, defectos, entrega o retiro."
+
+#: apps/listings/forms.py:54
+msgid "Amount in the selected currency."
+msgstr "Importe en la moneda seleccionada."
+
+#: apps/listings/forms.py:55
+msgid "City, area or meeting point (required)."
+msgstr "Ciudad, zona o punto de encuentro (obligatorio)."
+
+#: apps/listings/forms.py:57
+msgid "If unchecked, the listing is hidden from public listings."
+msgstr "Si está desmarcado, el anuncio no aparece en el listado público."
+
+#: apps/listings/forms.py:61
+msgid "Please choose a category."
+msgstr "Elige una categoría."
+
+#: apps/listings/forms.py:69
+msgid "e.g. Toyota Corolla 2018, automatic"
+msgstr "p. ej. Toyota Corolla 2018, automático"
+
+#: apps/listings/forms.py:77
+msgid "Condition, accessories, reason for sale, payment terms…"
+msgstr "Estado, accesorios, motivo de venta, forma de pago…"
+
+#: apps/listings/forms.py:88
+msgid "e.g. Urdesa, Guayaquil"
+msgstr "p. ej. Urdesa, Guayaquil"
+
+#: apps/listings/forms.py:105
+msgid "Enter a price greater than zero."
+msgstr "Introduce un precio mayor que cero."
+
+#: apps/listings/forms.py:111
+msgid "Location is required."
+msgstr "La ubicación es obligatoria."
+
+#: apps/listings/forms.py:120
+msgid "Reason for report"
+msgstr "Motivo del reporte"
+
+#: apps/listings/models.py:20
+msgid "Draft"
+msgstr "Borrador"
+
+#: apps/listings/models.py:21
+msgid "Published"
+msgstr "Publicado"
+
+#: apps/listings/models.py:22
+msgid "Archived"
+msgstr "Archivado"
+
+#: apps/listings/templates/listings/category_detail.html:16
+msgid "There are no listings in this category yet."
+msgstr "Aún no hay anuncios en esta categoría."
+
+#: apps/listings/templates/listings/category_detail.html:18
+#: apps/listings/templates/listings/listing_list.html:15
+#: apps/listings/templates/listings/my_listings.html:10
+#: apps/listings/templates/listings/my_listings.html:55
+#: apps/listings/views.py:349 templates/components/nav.html:8
+msgid "Create listing"
+msgstr "Crear anuncio"
+
+#: apps/listings/templates/listings/category_detail.html:23
+#: apps/listings/templates/listings/listing_list.html:20
+#: apps/listings/templates/listings/my_listings.html:41
+msgid "Pagination"
+msgstr "Paginación"
+
+#: apps/listings/templates/listings/category_detail.html:25
+#: apps/listings/templates/listings/listing_list.html:22
+#: apps/listings/templates/listings/my_listings.html:43
+msgid "Previous"
+msgstr "Anterior"
+
+#: apps/listings/templates/listings/category_detail.html:28
+#: apps/listings/templates/listings/listing_list.html:25
+#: apps/listings/templates/listings/my_listings.html:46
+#, python-format
+msgid "Page %(num)s of %(total)s"
+msgstr "Página %(num)s de %(total)s"
+
+#: apps/listings/templates/listings/category_detail.html:31
+#: apps/listings/templates/listings/listing_list.html:28
+#: apps/listings/templates/listings/my_listings.html:49
+msgid "Next"
+msgstr "Siguiente"
+
+#: apps/listings/templates/listings/listing_confirm_delete.html:4
+#: apps/listings/templates/listings/listing_confirm_delete.html:8
+#: apps/listings/templates/listings/listing_confirm_delete.html:16
+#: apps/listings/templates/listings/my_listings.html:33
+#: templates/components/marketplace/seller_sidebar.html:47
+msgid "Delete listing"
+msgstr "Eliminar anuncio"
+
+#: apps/listings/templates/listings/listing_confirm_delete.html:10
+#, python-format
+msgid ""
+"Are you sure you want to delete the listing “%(title)s”? This cannot be "
+"undone."
+msgstr ""
+"¿Seguro que quieres eliminar el anuncio «%(title)s»? Esta acción no se puede "
+"deshacer."
+
+#: apps/listings/templates/listings/listing_confirm_delete.html:14
+msgid "Confirm delete listing"
+msgstr "Confirmar eliminación del anuncio"
+
+#: apps/listings/templates/listings/listing_confirm_delete.html:17
+#: apps/listings/templates/listings/listing_form.html:53
+#: apps/listings/templates/listings/listing_form.html:55
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: apps/listings/templates/listings/listing_detail.html:18
+msgid ""
+"This listing was reported by several users. Be careful before you contact "
+"the seller."
+msgstr ""
+"⚠️ Este anuncio ha sido reportado por varios usuarios. Ten precaución antes "
+"de contactar al vendedor."
+
+#: apps/listings/templates/listings/listing_detail.html:24
+msgid "Only you can see this listing — it is not shown in public search."
+msgstr "Solo tú ves este anuncio: no aparece en el listado público."
+
+#: apps/listings/templates/listings/listing_detail.html:38
+#: templates/components/marketplace/listing_card.html:8
+#, python-format
+msgid "Photo for listing: %(t)s"
+msgstr "Foto del anuncio: %(t)s"
+
+#: apps/listings/templates/listings/listing_detail.html:55
+msgid "Report listing"
+msgstr "Reportar anuncio"
+
+#: apps/listings/templates/listings/listing_detail.html:56
+msgid "Help us keep AnunciateYa safe."
+msgstr "Ayúdanos a mantener AnunciateYa seguro."
+
+#: apps/listings/templates/listings/listing_detail.html:67
+msgid "Submit report"
+msgstr "Enviar reporte"
+
+#: apps/listings/templates/listings/listing_form.html:9
+msgid "Listing form"
+msgstr "Formulario de anuncio"
+
+#: apps/listings/templates/listings/listing_form.html:16
+msgid "Photos"
+msgstr "Fotos"
+
+#: apps/listings/templates/listings/listing_form.html:27
+msgid "Optional. Up to 10 images, 5 MB each. PNG or JPEG."
+msgstr "Opcional. Hasta 10 imágenes, 5 MB cada una. PNG o JPEG."
+
+#: apps/listings/templates/listings/listing_form.html:32
+msgid "Current photos:"
+msgstr "Fotos actuales:"
+
+#: apps/listings/templates/listings/listing_form.html:38
+msgid "Current listing photo"
+msgstr "Foto actual del anuncio"
+
+#: apps/listings/templates/listings/listing_form.html:47
+msgid "Upload more below (within the limit)."
+msgstr "Puedes subir más abajo (dentro del límite)."
+
+#: apps/listings/templates/listings/listing_list.html:4
+#: apps/listings/templates/listings/listing_list.html:8
+#: templates/components/nav.html:6
+msgid "Listings"
+msgstr "Anuncios"
+
+#: apps/listings/templates/listings/listing_list.html:13
+msgid "There are no listings yet."
+msgstr "Aún no hay anuncios publicados."
+
+#: apps/listings/templates/listings/my_listings.html:4
+#: apps/listings/templates/listings/my_listings.html:9
+#: templates/components/nav.html:9
+msgid "My listings"
+msgstr "Mis anuncios"
+
+#: apps/listings/templates/listings/my_listings.html:13
+msgid "Your listings table"
+msgstr "Tabla de tus anuncios"
+
+#: apps/listings/templates/listings/my_listings.html:18
+msgid "Status"
+msgstr "Estado"
+
+#: apps/listings/templates/listings/my_listings.html:19
+msgid "Visible"
+msgstr "Visible"
+
+#: apps/listings/templates/listings/my_listings.html:20
+msgid "Updated"
+msgstr "Actualizado"
+
+#: apps/listings/templates/listings/my_listings.html:21
+msgid "Actions"
+msgstr "Acciones"
+
+#: apps/listings/templates/listings/my_listings.html:29
+msgid "Yes"
+msgstr "Sí"
+
+#: apps/listings/templates/listings/my_listings.html:29
+msgid "No"
+msgstr "No"
+
+#: apps/listings/templates/listings/my_listings.html:32
+#: apps/listings/views.py:406
+#: templates/components/marketplace/seller_sidebar.html:46
+msgid "Edit listing"
+msgstr "Editar anuncio"
+
+#: apps/listings/templates/listings/my_listings.html:54
+msgid "You have not published any listings yet."
+msgstr "Todavía no publicaste ningún anuncio."
+
+#: apps/listings/templates/listings/partials/contact_auth_required.html:4
+msgid "Sign in to contact the seller. This helps reduce spam and fraud."
+msgstr ""
+"Inicia sesión para contactar al vendedor. Así reducimos spam y fraude."
+
+#: apps/listings/templates/listings/partials/contact_auth_required.html:6
+#: templates/components/nav.html:16 templates/users/login.html:4
+#: templates/users/login.html:8 templates/users/login.html:10
+#: templates/users/login.html:18
+#: templates/users/password_reset_complete.html:11
+msgid "Log in"
+msgstr "Entrar"
+
+#: apps/listings/templates/listings/partials/contact_auth_required.html:7
+#: templates/components/nav.html:17 templates/users/login.html:24
+#: templates/users/register.html:4 templates/users/register.html:8
+#: templates/users/register.html:10
+msgid "Create account"
+msgstr "Crear cuenta"
+
+#: apps/listings/templates/listings/partials/contact_self.html:3
+msgid ""
+"This is your listing — verified buyers will be able to send you a message "
+"from here when they contact you."
+msgstr ""
+"Este es tu anuncio: los compradores verificados podrán enviarte un mensaje "
+"desde aquí cuando te contacten."
+
+#: apps/listings/templates/listings/partials/contact_success.html:3
+msgid "Message sent"
+msgstr "Mensaje enviado"
+
+#: apps/listings/templates/listings/partials/contact_success.html:5
+msgid ""
+"The seller will reply when they can. Always check trust (verified, reviews) "
+"on future contacts."
+msgstr ""
+"El vendedor responderá cuando pueda. Revisa siempre la confianza "
+"(verificado, opiniones) en futuros contactos."
+
+#: apps/listings/templates/listings/partials/contact_success.html:8
+msgid "Back to listing"
+msgstr "Volver al anuncio"
+
+#: apps/listings/templates/listings/partials/contact_verify_required.html:5
+#: templates/users/verify_phone.html:8
+msgid "Verify your phone"
+msgstr "Verifica tu teléfono"
+
+#: apps/listings/templates/listings/partials/contact_verify_required.html:6
+msgid ""
+"to contact the seller. Verified buyers help keep AnunciateYa safer."
+msgstr ""
+"para contactar al vendedor. Los compradores verificados hacen AnunciateYa"
+" más seguro."
+
+#: apps/listings/templates/listings/partials/contact_verify_required.html:12
+#: templates/users/profile_detail.html:39 templates/users/verify_phone.html:4
+msgid "Verify phone"
+msgstr "Verificar teléfono"
+
+#: apps/listings/templates/listings/partials/contact_verify_required.html:14
+msgid "In this demo verification is simulated (no SMS charges)."
+msgstr "En esta demo la verificación es simulada (sin coste SMS)."
+
+#: apps/listings/views.py:63
+msgid "Verified AnunciateYa seller"
+msgstr "Vendedor verificado en AnunciateYa"
+
+#: apps/listings/views.py:155
+msgid "You cannot send a message to yourself."
+msgstr "No puedes enviarte un mensaje a ti mismo."
+
+#: apps/listings/views.py:239
+#, python-format
+msgid "Your message about \"%(title)s\" was sent to the seller."
+msgstr "Tu mensaje sobre «%(title)s» se envió al vendedor."
+
+#: apps/listings/views.py:255
+msgid "Please correct the errors below."
+msgstr "Corrige los errores indicados abajo."
+
+#: apps/listings/views.py:258
+msgid "Method not allowed"
+msgstr "Método no permitido"
+
+#: apps/listings/views.py:292
+msgid "You cannot report your own listing."
+msgstr "No puedes reportar tu propio anuncio."
+
+#: apps/listings/views.py:303
+msgid "Thanks — we received your report."
+msgstr "Gracias — hemos recibido tu reporte."
+
+#: apps/listings/views.py:305
+msgid "You already reported this listing."
+msgstr "Ya reportaste este anuncio."
+
+#: apps/listings/views.py:308
+msgid "Please choose a valid reason."
+msgstr "Elige un motivo válido."
+
+#: apps/listings/views.py:322
+#, python-format
+msgid "You can upload at most %(max)d images."
+msgstr "Puedes subir como máximo %(max)d imágenes."
+
+#: apps/listings/views.py:329 apps/listings/views.py:386
+msgid "Each image must be 5 MB or smaller."
+msgstr "Cada imagen debe pesar 5 MB o menos."
+
+#: apps/listings/views.py:340
+msgid "Your listing is live."
+msgstr "Tu anuncio ya está publicado."
+
+#: apps/listings/views.py:350
+msgid "Publish listing"
+msgstr "Publicar anuncio"
+
+#: apps/listings/views.py:378
+#, python-format
+msgid "You can have at most %(max)d images per listing."
+msgstr "Puedes tener como máximo %(max)d imágenes por anuncio."
+
+#: apps/listings/views.py:396
+msgid "Listing updated."
+msgstr "Anuncio actualizado."
+
+#: apps/listings/views.py:407
+msgid "Save changes"
+msgstr "Guardar cambios"
+
+#: apps/listings/views.py:420
+#, python-format
+msgid "Deleted \"%(title)s\"."
+msgstr "Se eliminó «%(title)s»."
+
+#: apps/trust/models.py:53
+msgid "Scam or fraud"
+msgstr "Estafa o fraude"
+
+#: apps/trust/models.py:54
+msgid "Spam"
+msgstr "Spam"
+
+#: apps/trust/models.py:55
+msgid "Incorrect or misleading information"
+msgstr "Información incorrecta o engañosa"
+
+#: apps/trust/services.py:91
+#, python-format
+msgid "Member since %(year)s"
+msgstr "Miembro desde %(year)s"
+
+#: apps/trust/services.py:91
+msgid "New account"
+msgstr "Cuenta nueva"
+
+#: apps/users/forms.py:15 apps/users/forms.py:30
+msgid "Email"
+msgstr "Correo electrónico"
+
+#: apps/users/forms.py:31
+msgid "Display name"
+msgstr "Nombre público"
+
+#: apps/users/forms.py:44
+msgid "How you appear to buyers"
+msgstr "Cómo te ven los compradores"
+
+#: apps/users/forms.py:66
+msgid "Mobile phone number"
+msgstr "Número de móvil"
+
+#: apps/users/forms.py:77
+msgid "I received the verification code (simulated for demo)"
+msgstr "Recibí el código de verificación (simulado en la demo)"
+
+#: apps/users/forms.py:81
+msgid "Check this box to simulate a successful SMS verification."
+msgstr "Marca esta casilla para simular una verificación SMS correcta."
+
+#: apps/users/forms.py:91
+msgid "Enter a valid phone number (at least 10 digits)."
+msgstr "Introduce un teléfono válido (al menos 10 dígitos)."
+
+#: apps/users/views.py:94
+msgid "Your phone is already verified."
+msgstr "Tu teléfono ya está verificado."
+
+#: apps/users/views.py:106
+msgid "Your phone number is verified."
+msgstr "Tu número de teléfono está verificado."
+
+#: templates/base.html:8
+#, python-format
+msgid "Buy and sell on %(name)s."
+msgstr "Compra y vende en %(name)s."
+
+#: templates/base.html:17
+msgid "Skip to main content"
+msgstr "Saltar al contenido principal"
+
+#: templates/components/footer.html:6
+msgid "Built with Django and HTMX."
+msgstr "Hecho con Django y HTMX."
+
+#: templates/components/footer.html:12 templates/components/footer.html:16
+msgid "Language"
+msgstr "Idioma"
+
+#: templates/components/marketplace/contact_panel_form.html:3
+msgid "Contact with confidence"
+msgstr "Contacta con confianza"
+
+#: templates/components/marketplace/contact_panel_form.html:9
+msgid "Message to seller"
+msgstr "Mensaje al vendedor"
+
+#: templates/components/marketplace/contact_panel_form.html:12
+#, python-format
+msgid "Message for %(name)s"
+msgstr "Mensaje para %(name)s"
+
+#: templates/components/marketplace/contact_panel_form.html:19
+msgid "Send secure message"
+msgstr "Enviar mensaje seguro"
+
+#: templates/components/marketplace/contact_seller_trust.html:3
+msgid "Seller trust"
+msgstr "Confianza del vendedor"
+
+#: templates/components/marketplace/contact_seller_trust.html:6
+#: templates/components/marketplace/listing_card.html:22
+#: templates/components/marketplace/seller_sidebar.html:10
+#: templates/users/profile_detail.html:11
+msgid "Verified"
+msgstr "Verificado"
+
+#: templates/components/marketplace/contact_seller_trust.html:8
+#: templates/components/marketplace/seller_sidebar.html:12
+#: templates/users/profile_detail.html:13
+msgid "Phone not verified"
+msgstr "Teléfono no verificado"
+
+#: templates/components/marketplace/contact_seller_trust.html:11
+#: templates/components/marketplace/seller_sidebar.html:18
+#: templates/users/profile_detail.html:18
+msgid "reviews"
+msgstr "opiniones"
+
+#: templates/components/marketplace/contact_seller_trust.html:13
+#: templates/components/marketplace/seller_sidebar.html:21
+#: templates/users/profile_detail.html:21
+msgid "No reviews yet"
+msgstr "Sin opiniones aún"
+
+#: templates/components/marketplace/contact_seller_trust.html:19
+#: templates/components/marketplace/seller_sidebar.html:29
+#: templates/users/profile_detail.html:27
+msgid "High trust"
+msgstr "Confianza alta"
+
+#: templates/components/marketplace/contact_seller_trust.html:21
+#: templates/components/marketplace/seller_sidebar.html:31
+#: templates/users/profile_detail.html:29
+msgid "Medium trust"
+msgstr "Confianza media"
+
+#: templates/components/marketplace/contact_seller_trust.html:23
+#: templates/components/marketplace/seller_sidebar.html:33
+#: templates/users/profile_detail.html:31
+msgid "Low trust"
+msgstr "Confianza baja"
+
+#: templates/components/marketplace/listing_card.html:24
+msgid "Average rating"
+msgstr "Valoración media"
+
+#: templates/components/marketplace/listing_card.html:27
+msgid "High"
+msgstr "Alta"
+
+#: templates/components/marketplace/listing_card.html:27
+msgid "Medium"
+msgstr "Media"
+
+#: templates/components/marketplace/listing_card.html:27
+msgid "Low"
+msgstr "Baja"
+
+#: templates/components/marketplace/report_trust_note.html:3
+msgid ""
+"Reports from several users flag this listing for review. Check the seller’s "
+"trust (verified, reviews, High/Medium/Low) before you contact them."
+msgstr ""
+"Los reportes de varios usuarios marcan este anuncio para revisión. Revisa la"
+" confianza del vendedor (verificado, opiniones, Alta/Media/Baja) antes de "
+"contactar."
+
+#: templates/components/marketplace/seller_sidebar.html:2
+msgid "Seller information"
+msgstr "Información del vendedor"
+
+#: templates/components/marketplace/seller_sidebar.html:3
+msgid "Seller"
+msgstr "Vendedor"
+
+#: templates/components/marketplace/seller_sidebar.html:39
+msgid "Never send money in advance without verifying the seller."
+msgstr "Nunca envíes dinero por adelantado sin verificar al vendedor."
+
+#: templates/components/marketplace/seller_sidebar.html:44
+msgid "You are selling this item."
+msgstr "Tú vendes este artículo."
+
+#: templates/components/marketplace/seller_sidebar.html:58
+#: templates/components/marketplace/seller_sidebar.html:60
+msgid "Contact seller"
+msgstr "Contactar vendedor"
+
+#: templates/components/marketplace/seller_sidebar.html:62
+msgid "Loading…"
+msgstr "Cargando…"
+
+#: templates/components/messages.html:3
+msgid "Notifications"
+msgstr "Avisos"
+
+#: templates/components/nav.html:5
+msgid "Main navigation"
+msgstr "Navegación principal"
+
+#: templates/components/nav.html:13
+msgid "Log out"
+msgstr "Salir"
+
+#: templates/users/login.html:9
+msgid "Use the email address for your account."
+msgstr "Usa el correo de tu cuenta."
+
+#: templates/users/login.html:22
+msgid "Forgot password?"
+msgstr "¿Olvidaste tu contraseña?"
+
+#: templates/users/password_reset_complete.html:4
+#: templates/users/password_reset_complete.html:8
+msgid "Password updated"
+msgstr "Contraseña actualizada"
+
+#: templates/users/password_reset_complete.html:9
+msgid "You can sign in with your new password."
+msgstr "Ya puedes entrar con tu nueva contraseña."
+
+#: templates/users/password_reset_confirm.html:4
+#: templates/users/password_reset_confirm.html:8
+#: templates/users/password_reset_confirm.html:10
+msgid "Set new password"
+msgstr "Nueva contraseña"
+
+#: templates/users/password_reset_confirm.html:17
+msgid "Save password"
+msgstr "Guardar contraseña"
+
+#: templates/users/password_reset_confirm.html:21
+msgid "This reset link is invalid or has expired. Request a new one."
+msgstr "Este enlace no es válido o ha caducado. Solicita uno nuevo."
+
+#: templates/users/password_reset_confirm.html:22
+msgid "Request new link"
+msgstr "Solicitar nuevo enlace"
+
+#: templates/users/password_reset_done.html:4
+msgid "Email sent"
+msgstr "Correo enviado"
+
+#: templates/users/password_reset_done.html:8
+msgid "Check your email"
+msgstr "Revisa tu correo"
+
+#: templates/users/password_reset_done.html:10
+msgid ""
+"If an account exists for that address, you will receive instructions to "
+"reset your password."
+msgstr ""
+"Si existe una cuenta con esa dirección, recibirás instrucciones para "
+"restablecer la contraseña."
+
+#: templates/users/password_reset_done.html:13
+#: templates/users/password_reset_form.html:18
+msgid "Back to log in"
+msgstr "Volver a entrar"
+
+#: templates/users/password_reset_form.html:4
+#: templates/users/password_reset_form.html:8
+msgid "Reset password"
+msgstr "Restablecer contraseña"
+
+#: templates/users/password_reset_form.html:9
+msgid "We will email you a link to choose a new password."
+msgstr "Te enviaremos un enlace por correo para elegir una nueva contraseña."
+
+#: templates/users/password_reset_form.html:10
+msgid "Request password reset"
+msgstr "Solicitar restablecimiento de contraseña"
+
+#: templates/users/password_reset_form.html:17
+msgid "Send link"
+msgstr "Enviar enlace"
+
+#: templates/users/register.html:9
+msgid "By registering you agree to use AnunciateYa responsibly."
+msgstr "Al registrarte aceptas usar AnunciateYa con responsabilidad."
+
+#: templates/users/register.html:17
+msgid "Register"
+msgstr "Registrarme"
+
+#: templates/users/register.html:20
+msgid "Already have an account? Log in"
+msgstr "¿Ya tienes cuenta? Entrar"
+
+#: templates/users/verify_phone.html:10
+msgid ""
+"In this demo SMS is simulated: check the box to complete. This helps protect"
+" contacts between buyers and sellers."
+msgstr ""
+"En esta demo el SMS está simulado: marca la casilla para completar. Así "
+"protegemos mejor los contactos entre compradores y vendedores."
+
+#: templates/users/verify_phone.html:12
+msgid "Phone verification"
+msgstr "Verificación de teléfono"
+
+#: templates/users/verify_phone.html:21
+msgid "Complete verification"
+msgstr "Completar verificación"

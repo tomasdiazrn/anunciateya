@@ -1,0 +1,11 @@
+{# name, placeholder, value (opcional) #}
+<div class="admin-search">
+  <input
+    class="admin-search__input"
+    type="search"
+    name="{{ name|default:'q' }}"
+    placeholder="{{ placeholder|default:'Buscar…' }}"
+    value="{{ value|default:'' }}"
+    autocomplete="off"
+  >
+</div>

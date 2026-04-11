@@ -1,0 +1,13 @@
+<div class="contact-gate contact-gate-verify">
+  <p class="small muted">
+    <strong>Verifica tu teléfono</strong>
+    para contactar al vendedor. Los compradores verificados hacen {{ seo_brand_name }} más seguro.
+  </p>
+  <p>
+    <a
+      class="button btn-primary"
+      href="{% url 'users:verify_phone' %}?next={{ login_next|urlencode }}"
+    >Verificar teléfono</a>
+  </p>
+  <p class="small muted">En esta demo la verificación es simulada (sin costo de SMS).</p>
+</div>

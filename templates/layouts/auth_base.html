@@ -1,0 +1,161 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  {% include "components/analytics/gtm_head.html" %}
+  {% include "components/analytics/meta_pixel_head.html" %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% include "components/analytics/facebook_domain_verification_meta.html" %}
+  <title>{% block title %}{{ meta_title|default:default_page_title }}{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}{{ meta_description|default:seo_default_description }}{% endblock %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" referrerpolicy="no-referrer">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="site-body auth-body">
+  {% include "components/analytics/gtm_body.html" %}
+  <main class="auth-main" id="main-content">
+    {% block content %}{% endblock %}
+  </main>
+  <div class="auth-corner-brand" aria-hidden="true">anunciateya.com</div>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
+  <script>
+    (function () {
+      function initPasswordToggles() {
+        document.querySelectorAll("[data-toggle-password]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var sel = btn.getAttribute("data-toggle-password");
+            if (!sel) return;
+            var input = document.querySelector(sel);
+            if (!input) return;
+
+            var isPassword = input.getAttribute("type") === "password";
+            input.setAttribute("type", isPassword ? "text" : "password");
+            btn.setAttribute("aria-label", isPassword ? "Ocultar contraseña" : "Mostrar contraseña");
+
+            var icon = btn.querySelector("i");
+            if (icon) {
+              icon.classList.toggle("fa-eye", !isPassword);
+              icon.classList.toggle("fa-eye-slash", isPassword);
+            }
+          });
+        });
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initPasswordToggles);
+      } else {
+        initPasswordToggles();
+      }
+    })();
+  </script>
+  <script>
+    (function () {
+      function initPhoneInputs() {
+        document.querySelectorAll("[data-phone-input]").forEach(function (root) {
+          var codeInput = root.querySelector('input[name="phone_country_code"]');
+          var trigger = root.querySelector("[data-phone-country-trigger]");
+          var dropdown = root.querySelector("[data-phone-country-dropdown]");
+          var search = root.querySelector("[data-phone-country-search]");
+          var list = root.querySelector("[data-phone-country-list]");
+          var flagEl = root.querySelector("[data-phone-country-flag]");
+          var codeEl = root.querySelector("[data-phone-country-code]");
+
+          if (!codeInput || !trigger || !dropdown || !list || !flagEl || !codeEl) return;
+
+          function setExpanded(isOpen) {
+            trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+            dropdown.hidden = !isOpen;
+            if (isOpen && search) {
+              search.value = "";
+              filterOptions("");
+              search.focus();
+            }
+          }
+
+          function close() {
+            setExpanded(false);
+          }
+
+          function open() {
+            setExpanded(true);
+          }
+
+          function toggle() {
+            var isOpen = trigger.getAttribute("aria-expanded") === "true";
+            setExpanded(!isOpen);
+          }
+
+          function filterOptions(q) {
+            var query = (q || "").toLowerCase().trim();
+            list.querySelectorAll("[data-phone-country-option]").forEach(function (opt) {
+              var country = (opt.getAttribute("data-country") || "").toLowerCase();
+              var code = (opt.getAttribute("data-code") || "").toLowerCase();
+              var show = !query || country.indexOf(query) !== -1 || code.indexOf(query) !== -1;
+              opt.hidden = !show;
+            });
+          }
+
+          function selectOption(opt) {
+            var code = opt.getAttribute("data-code") || "+593";
+            var flag = opt.getAttribute("data-flag") || "🇪🇨";
+            codeInput.value = code;
+            flagEl.textContent = flag;
+            codeEl.textContent = code;
+            close();
+          }
+
+          // Initialize UI from current value (server-side default/validation).
+          if (!codeInput.value) codeInput.value = "+593";
+          codeEl.textContent = codeInput.value;
+          var match = list.querySelector('[data-phone-country-option][data-code="' + codeInput.value + '"]');
+          if (match) {
+            flagEl.textContent = match.getAttribute("data-flag") || flagEl.textContent;
+          }
+
+          trigger.addEventListener("click", function (e) {
+            e.preventDefault();
+            toggle();
+          });
+
+          document.addEventListener("click", function (e) {
+            if (!root.contains(e.target)) close();
+          });
+
+          document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") close();
+          });
+
+          if (search) {
+            search.addEventListener("input", function () {
+              filterOptions(search.value);
+            });
+          }
+
+          list.querySelectorAll("[data-phone-country-option]").forEach(function (opt) {
+            opt.addEventListener("click", function () {
+              selectOption(opt);
+            });
+            opt.addEventListener("keydown", function (e) {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectOption(opt);
+              }
+            });
+          });
+        });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initPhoneInputs);
+      } else {
+        initPhoneInputs();
+      }
+    })();
+  </script>
+</body>
+</html>
+

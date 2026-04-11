@@ -1,0 +1,68 @@
+{% load static %}
+<aside class="account-sidebar" id="account-sidebar" aria-label="Menú de cuenta">
+  <div class="account-sidebar__header">
+    <a class="account-sidebar__logo" href="{% url 'core:home' %}" aria-label="{{ site_name }} — Ir al inicio">
+      <img class="account-sidebar__logo-img" src="{% static 'img/AnunciateYa_Logo.png' %}" alt="" decoding="async" loading="lazy">
+    </a>
+    <button
+      type="button"
+      class="account-sidebar__collapse"
+      data-account-sidebar-collapse
+      aria-expanded="true"
+      aria-controls="account-sidebar-nav"
+      aria-label="Contraer menú lateral"
+      title="Contraer menú"
+    >
+      <i class="fa-solid fa-angles-left account-sidebar__collapse-icon account-sidebar__collapse-icon--open" aria-hidden="true"></i>
+      <i class="fa-solid fa-angles-right account-sidebar__collapse-icon account-sidebar__collapse-icon--closed" aria-hidden="true"></i>
+    </button>
+  </div>
+  <nav class="account-nav" id="account-sidebar-nav" aria-label="Secciones">
+    <a
+      href="{% url 'users:account' %}"
+      class="account-nav__link {% if section == 'overview' %}is-active{% endif %}"
+      data-account-nav-link
+      title="Mi cuenta"
+      hx-get="{% url 'users:account' %}"
+      hx-target="#account-dashboard-main"
+      hx-swap="innerHTML"
+      hx-push-url="true"
+    >
+      <i class="fa-solid fa-house" aria-hidden="true"></i>
+      <span class="account-nav__label">Mi cuenta</span>
+    </a>
+    <a
+      href="{% url 'users:account_listings' %}"
+      class="account-nav__link {% if section == 'listings' %}is-active{% endif %}"
+      data-account-nav-link
+      title="Mis anuncios"
+      hx-get="{% url 'users:account_listings' %}"
+      hx-target="#account-dashboard-main"
+      hx-swap="innerHTML"
+      hx-push-url="true"
+    >
+      <i class="fa-solid fa-rectangle-list" aria-hidden="true"></i>
+      <span class="account-nav__label">Mis anuncios</span>
+    </a>
+    <a
+      href="{% url 'users:account_publish' %}"
+      class="account-nav__link {% if section == 'create' %}is-active{% endif %}"
+      data-account-nav-link
+      title="Crear anuncio"
+      hx-get="{% url 'users:account_publish' %}"
+      hx-target="#account-dashboard-main"
+      hx-swap="innerHTML"
+      hx-push-url="true"
+    >
+      <i class="fa-solid fa-circle-plus" aria-hidden="true"></i>
+      <span class="account-nav__label">Crear anuncio</span>
+    </a>
+  </nav>
+  <form method="post" action="{% url 'users:logout' %}" class="account-nav__logout">
+    {% csrf_token %}
+    <button type="submit" class="account-nav__link account-nav__link--button" title="Cerrar sesión">
+      <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+      <span class="account-nav__label">Cerrar sesión</span>
+    </button>
+  </form>
+</aside>

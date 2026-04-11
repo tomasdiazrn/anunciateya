@@ -1,0 +1,109 @@
+{# Filtros GET para inmuebles: action = /anuncios/ (browse) o "" (/inmuebles/, /guayaquil/inmuebles/, …) #}
+<form
+  class="browse-filter-form browse-filter-form--sidebar"
+  method="get"
+  action="{{ property_filters_form_action }}"
+  aria-label="Filtrar anuncios de inmuebles"
+>
+  {% if property_filters_include_category %}
+    <input type="hidden" name="category" value="inmuebles">
+  {% endif %}
+  {% if request.GET.q %}
+    <input type="hidden" name="q" value="{{ request.GET.q }}">
+  {% endif %}
+  {% if request.GET.location %}
+    <input type="hidden" name="location" value="{{ request.GET.location }}">
+  {% endif %}
+
+  <aside class="browse-filters-sidebar">
+    <details class="browse-filters-accordion" open>
+      <summary class="browse-filters-summary">Filtrar inmuebles</summary>
+      <div class="browse-filters-inner">
+        <div class="form-group">
+          <label for="id_browse_prop_tipo">Tipo de propiedad</label>
+          <select class="form-control" name="tipo" id="id_browse_prop_tipo">
+            <option value="">Todos</option>
+            <option value="casa" {% if property_filter_params.property_type == "casa" %}selected{% endif %}>Casa</option>
+            <option value="departamento" {% if property_filter_params.property_type == "departamento" %}selected{% endif %}>Departamento</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="id_browse_prop_operation">Operación</label>
+          <select class="form-control" name="operation" id="id_browse_prop_operation">
+            <option value="">Todas</option>
+            <option value="venta" {% if property_filter_params.operation_type == "venta" %}selected{% endif %}>Venta</option>
+            <option value="alquiler" {% if property_filter_params.operation_type == "alquiler" %}selected{% endif %}>Alquiler</option>
+          </select>
+        </div>
+
+        <div class="form-group browse-filter-row">
+          <div>
+            <label for="id_browse_prop_rooms">Habitaciones (mín.)</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="number"
+              name="rooms"
+              id="id_browse_prop_rooms"
+              min="1"
+              max="99"
+              step="1"
+              inputmode="numeric"
+              placeholder="Ej. 3"
+              value="{{ request.GET.rooms|default:'' }}"
+            >
+          </div>
+          <div>
+            <label for="id_browse_prop_bathrooms">Baños (mín.)</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="number"
+              name="bathrooms"
+              id="id_browse_prop_bathrooms"
+              min="1"
+              max="99"
+              step="1"
+              inputmode="numeric"
+              placeholder="Ej. 2"
+              value="{{ request.GET.bathrooms|default:'' }}"
+            >
+          </div>
+        </div>
+
+        <div class="form-group browse-filter-row">
+          <div>
+            <label for="id_browse_prop_price_from">Precio desde (USD)</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="text"
+              name="price_from"
+              id="id_browse_prop_price_from"
+              inputmode="decimal"
+              placeholder="Ej. 50000"
+              value="{{ request.GET.price_from|default:'' }}"
+              autocomplete="off"
+            >
+          </div>
+          <div>
+            <label for="id_browse_prop_price_to">Precio hasta (USD)</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="text"
+              name="price_to"
+              id="id_browse_prop_price_to"
+              inputmode="decimal"
+              placeholder="Ej. 150000"
+              value="{{ request.GET.price_to|default:'' }}"
+              autocomplete="off"
+            >
+          </div>
+        </div>
+
+        <div class="browse-filter-actions">
+          <button type="submit" class="button btn-primary">Aplicar filtros</button>
+          <a class="button btn-secondary" href="{{ filter_clear_url }}">Limpiar</a>
+        </div>
+      </div>
+    </details>
+  </aside>
+</form>

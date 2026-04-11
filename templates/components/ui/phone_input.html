@@ -1,0 +1,61 @@
+{# Reusable phone input: expects `country_field`, `number_field`, `countries` #}
+<div class="field">
+  <label class="label">Teléfono *</label>
+  <div class="phone-input" data-phone-input>
+    {{ country_field }}
+    <div class="phone-input__country">
+      <button
+        type="button"
+        class="phone-country-trigger"
+        data-phone-country-trigger
+        aria-haspopup="listbox"
+        aria-expanded="false"
+      >
+        <span class="phone-country-trigger__flag" data-phone-country-flag>🇪🇨</span>
+        <span class="phone-country-trigger__code" data-phone-country-code>+593</span>
+        <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+      </button>
+
+      <div class="phone-country-dropdown" data-phone-country-dropdown hidden>
+        <div class="phone-country-dropdown__search">
+          <input
+            type="text"
+            class="form-control"
+            placeholder="Buscar país..."
+            data-phone-country-search
+            autocomplete="off"
+          >
+        </div>
+        <ul class="phone-country-dropdown__list" role="listbox" tabindex="-1" data-phone-country-list>
+          {% for item in countries %}
+            <li
+              class="phone-country-option"
+              role="option"
+              tabindex="0"
+              data-phone-country-option
+              data-code="{{ item.code }}"
+              data-flag="{{ item.flag }}"
+              data-country="{{ item.country }}"
+            >
+              <span class="phone-country-option__flag">{{ item.flag }}</span>
+              <span class="phone-country-option__name">{{ item.country }}</span>
+              <span class="phone-country-option__code">{{ item.code }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="phone-input__number">
+      {{ number_field }}
+    </div>
+  </div>
+  {% if number_field.help_text %}<span class="small muted" id="{{ number_field.auto_id }}_helptext">{{ number_field.help_text }}</span>{% endif %}
+  {% if country_field.errors or number_field.errors %}
+    <div class="form-errors" role="alert" aria-live="assertive">
+      {{ country_field.errors }}
+      {{ number_field.errors }}
+    </div>
+  {% endif %}
+</div>
+

@@ -1,0 +1,107 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  {% include "components/analytics/gtm_head.html" %}
+  {% include "components/analytics/meta_pixel_head.html" %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% include "components/analytics/facebook_domain_verification_meta.html" %}
+  <title>{% block title %}{{ meta_title|default:default_page_title }}{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}{{ meta_description|default:seo_default_description }}{% endblock %}">
+  <link rel="canonical" href="{% block canonical_href %}{% if canonical_href_override %}{{ canonical_href_override }}{% else %}{{ site_url }}{{ request.path }}{% endif %}{% endblock %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" referrerpolicy="no-referrer">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="site-body">
+  {% include "components/analytics/gtm_body.html" %}
+  <a class="visually-hidden skip-link" href="#main-content">Saltar al contenido principal</a>
+  {% if debug %}
+    <div class="debug-mode-banner" role="status" aria-label="Entorno de prueba">MODO PRUEBA</div>
+  {% endif %}
+  {% block site_header %}
+    {% include "components/nav.html" %}
+  {% endblock %}
+  <main class="site-main" id="main-content">
+    {% block site_messages %}
+      {% include "components/messages.html" %}
+    {% endblock %}
+    {% block content %}{% endblock %}
+  </main>
+  {% block site_footer %}
+    {% include "components/layout/footer.html" %}
+  {% endblock %}
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
+  <script>
+    (function () {
+      function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+          var cookies = document.cookie.split(";");
+          for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === name + "=") {
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
+      document.addEventListener(
+        "click",
+        function (ev) {
+          var el = ev.target.closest("[data-event]");
+          if (!el) return;
+          var type = el.getAttribute("data-event");
+          if (!type) return;
+          var token = getCookie("csrftoken");
+          if (!token) return;
+          var payload = JSON.stringify({
+            event_type: type,
+            event_detail: el.getAttribute("data-event-detail") || "",
+            path: window.location.pathname + window.location.search,
+          });
+          fetch("{% url 'analytics:track' %}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": token,
+            },
+            body: payload,
+            credentials: "same-origin",
+            keepalive: true,
+          }).catch(function () {});
+        },
+        true
+      );
+
+      function initOverlayHeader() {
+        var header = document.querySelector(".site-header");
+        var hero = document.querySelector(".home-hero-full");
+        if (!header || !hero) return;
+
+        function update() {
+          var isTop = (window.scrollY || window.pageYOffset || 0) < 8;
+          header.classList.toggle("site-header--overlay", isTop);
+        }
+
+        update();
+        window.addEventListener("scroll", update, { passive: true });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initOverlayHeader);
+      } else {
+        initOverlayHeader();
+      }
+
+    })();
+  </script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

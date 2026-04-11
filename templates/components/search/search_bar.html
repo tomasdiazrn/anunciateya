@@ -1,0 +1,57 @@
+{# Componente reutilizable: buscador de anuncios (GET) #}
+<div class="search-bar" aria-label="Buscador principal">
+  <div class="search-bar__panel" aria-label="Filtros de búsqueda">
+    <form class="search-bar__form" action="{% url 'browse' %}" method="get" role="search">
+      <div class="search-bar__field search-bar__field--q">
+        <label class="search-bar__label" for="search-q">Buscar</label>
+        <input
+          class="form-control"
+          id="search-q"
+          name="q"
+          type="search"
+          inputmode="search"
+          placeholder="Buscar en anuncios locales…"
+          value="{{ request.GET.q|default:'' }}"
+          autocomplete="off"
+        >
+      </div>
+
+      <div class="search-bar__field search-bar__field--category">
+        <label class="search-bar__label" for="search-category">Categoría</label>
+        <select class="form-control" id="search-category" name="category">
+          <option value="" {% if not request.GET.category %}selected{% endif %}>Todas</option>
+          {% firstof search_categories categories as cats %}
+          {% for cat in cats %}
+            <option value="{{ cat.slug }}" {% if request.GET.category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="search-bar__field search-bar__field--location">
+        <label class="search-bar__label" for="search-location">Ubicación</label>
+        <select class="form-control" id="search-location" name="location">
+          <option value="" {% if not request.GET.location %}selected{% endif %}>Ubicación</option>
+          <option value="guayaquil" {% if request.GET.location == "guayaquil" %}selected{% endif %}>Guayaquil</option>
+          <option value="samborondon" {% if request.GET.location == "samborondon" %}selected{% endif %}>Samborondón</option>
+        </select>
+      </div>
+
+      <div class="search-bar__actions">
+        <button class="button btn-primary search-bar__submit" type="submit" data-event="search_submit" data-event-detail="hero">
+          Buscar
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="search-bar__popular" aria-label="Búsquedas populares">
+    <span class="search-bar__popular-title muted">Búsquedas populares</span>
+    <div class="search-bar__popular-links">
+      <a class="search-bar__chip" href="{% url 'category_landing' 'autos' %}" data-event="search_popular" data-event-detail="autos_hub">Autos usados</a>
+      <a class="search-bar__chip" href="{% url 'category_landing' 'inmuebles' %}?tipo=departamento&amp;operation=alquiler" data-event="search_popular" data-event-detail="depas_alquiler">Departamentos en alquiler</a>
+      <a class="search-bar__chip" href="{% url 'browse' %}?q=iPhone" data-event="search_popular" data-event-detail="iphone">iPhone</a>
+      <a class="search-bar__chip" href="{% url 'browse' %}?q=Motos" data-event="search_popular" data-event-detail="motos">Motos</a>
+    </div>
+  </div>
+</div>
+

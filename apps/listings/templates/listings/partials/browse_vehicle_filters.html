@@ -1,0 +1,166 @@
+{# Filtros GET para autos: action = /anuncios/ (browse) o "" (/autos/, /guayaquil/autos/, …) #}
+<form
+  class="browse-filter-form browse-filter-form--sidebar"
+  method="get"
+  action="{{ vehicle_filters_form_action }}"
+  aria-label="Filtrar anuncios de autos"
+>
+  {% if vehicle_filters_include_category %}
+    <input type="hidden" name="category" value="autos">
+  {% endif %}
+  {% if request.GET.q %}
+    <input type="hidden" name="q" value="{{ request.GET.q }}">
+  {% endif %}
+  {% if request.GET.location %}
+    <input type="hidden" name="location" value="{{ request.GET.location }}">
+  {% endif %}
+
+  <aside class="browse-filters-sidebar">
+    <details class="browse-filters-accordion" open>
+      <summary class="browse-filters-summary">Filtrar autos</summary>
+      <div class="browse-filters-inner">
+        <div class="form-group">
+          <label for="id_browse_marca">Marca</label>
+          <select
+            class="form-control"
+            name="marca"
+            id="id_browse_marca"
+            hx-get="{% url 'vehicle_model_options' %}"
+            hx-target="#id_browse_modelo"
+            hx-swap="innerHTML"
+            hx-trigger="change"
+          >
+            <option value="">Todas las marcas</option>
+            {% for b in browse_brands %}
+              <option value="{{ b.pk }}" {% if vehicle_filter_params.marca_id == b.pk %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="id_browse_modelo">Modelo</label>
+          <select
+            class="form-control"
+            name="modelo"
+            id="id_browse_modelo"
+            {% if not vehicle_filter_params.marca_id %}disabled{% endif %}
+          >
+            <option value="">Todos los modelos</option>
+            {% for pk, name in browse_model_choices %}
+              <option value="{{ pk }}" {% if vehicle_filter_params.modelo_id == pk %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group browse-filter-row">
+          <div>
+            <label for="id_browse_year_from">Año desde</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="number"
+              name="year_from"
+              id="id_browse_year_from"
+              min="1980"
+              max="2100"
+              step="1"
+              inputmode="numeric"
+              placeholder="Ej. 2015"
+              value="{{ request.GET.year_from|default:'' }}"
+            >
+          </div>
+          <div>
+            <label for="id_browse_year_to">Año hasta</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="number"
+              name="year_to"
+              id="id_browse_year_to"
+              min="1980"
+              max="2100"
+              step="1"
+              inputmode="numeric"
+              placeholder="Ej. 2024"
+              value="{{ request.GET.year_to|default:'' }}"
+            >
+          </div>
+        </div>
+
+        <div class="form-group browse-filter-row">
+          <div>
+            <label for="id_browse_price_from">Precio desde (USD)</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="text"
+              name="price_from"
+              id="id_browse_price_from"
+              inputmode="decimal"
+              placeholder="Ej. 5000"
+              value="{{ request.GET.price_from|default:'' }}"
+              autocomplete="off"
+            >
+          </div>
+          <div>
+            <label for="id_browse_price_to">Precio hasta (USD)</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="text"
+              name="price_to"
+              id="id_browse_price_to"
+              inputmode="decimal"
+              placeholder="Ej. 25000"
+              value="{{ request.GET.price_to|default:'' }}"
+              autocomplete="off"
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="id_browse_transmission">Transmisión</label>
+          <select class="form-control" name="transmission" id="id_browse_transmission">
+            <option value="">Todas</option>
+            {% for val, label in vehicle_transmission_choices %}
+              <option value="{{ val }}" {% if request.GET.transmission == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="browse-filter-actions">
+          <button type="submit" class="button btn-primary">Aplicar filtros</button>
+          <a class="button btn-secondary" href="{{ filter_clear_url }}">Limpiar</a>
+        </div>
+      </div>
+    </details>
+  </aside>
+</form>
+
+<script>
+  (function () {
+    function syncBrowseModelSelect() {
+      var brand = document.getElementById("id_browse_marca");
+      var model = document.getElementById("id_browse_modelo");
+      if (!brand || !model) return;
+      if (!brand.value) {
+        model.disabled = true;
+        model.innerHTML = '<option value="">Todos los modelos</option>';
+      }
+    }
+    document.getElementById("id_browse_marca")?.addEventListener("change", function () {
+      var brand = document.getElementById("id_browse_marca");
+      var model = document.getElementById("id_browse_modelo");
+      if (!brand || !model) return;
+      if (!brand.value) {
+        syncBrowseModelSelect();
+        return;
+      }
+      model.disabled = false;
+    });
+    document.body.addEventListener("htmx:afterSwap", function (ev) {
+      if (!ev.target || ev.target.id !== "id_browse_modelo") return;
+      var brand = document.getElementById("id_browse_marca");
+      var model = document.getElementById("id_browse_modelo");
+      if (!model || !brand) return;
+      model.disabled = !brand.value;
+    });
+    syncBrowseModelSelect();
+  })();
+</script>

@@ -1,0 +1,5 @@
+{% load humanize marketplace %}
+{# Base de cards: un solo <article>. En card_inner, orden recomendado marketplace: precio → titular (SEO) → subtítulo → badges → métricas → ubicación → pie (trust). #}
+<article class="card card-listing {% block card_modifier %}{% endblock %}">
+  {% block card_inner %}{% endblock %}
+</article>

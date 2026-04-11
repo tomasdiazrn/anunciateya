@@ -1,0 +1,5 @@
+{# Reusable image placeholder: ratio 43 | 11 | card (matches listing cards thumb height). #}
+<div class="ui-image-placeholder ui-image-placeholder--{{ ratio|default:'43' }}"{% if alt_text %} aria-label="{{ alt_text }}"{% else %} aria-hidden="true"{% endif %}>
+  <span class="ui-image-placeholder__icon" aria-hidden="true"><i class="fa-regular fa-image"></i></span>
+  {% if text %}<span class="ui-image-placeholder__text">{{ text }}</span>{% endif %}
+</div>

@@ -1,0 +1,654 @@
+"""
+Genera datos de demostración en español para probar confianza, reseñas y anuncios marcados.
+
+Uso:
+  python manage.py seed_mvp_data
+  python manage.py seed_mvp_data --clear   # elimina usuarios @mvp-seed.local y datos ligados
+  python manage.py seed_mvp_data --password mi_clave
+"""
+
+from __future__ import annotations
+
+import random
+from datetime import timedelta
+from django.core.management.base import BaseCommand
+from django.db import transaction
+from django.utils.text import slugify
+from django.utils import timezone
+
+from apps.categories.models import Category
+from apps.listings.models import (
+    ElectronicsListing,
+    HomeGoodsListing,
+    HomeItemType,
+    ItemCondition,
+    Listing,
+    MotorcycleListing,
+    PropertyListing,
+    VehicleBrand,
+    VehicleListing,
+    VehicleModel,
+)
+from apps.trust.models import ListingReport, Review
+from apps.trust.services import bulk_seller_trust, sync_listing_flag
+from apps.users.models import User, UserVerification
+
+# Dominio reservado para poder borrar todo con --clear sin tocar cuentas reales.
+SEED_EMAIL_DOMAIN = "mvp-seed.local"
+DEFAULT_PASSWORD = "seedpass123"
+
+# Guayaquil / Samborondón
+LOCATIONS = [
+    "Urdesa Central, Guayaquil",
+    "Puerto Santa Ana, Guayaquil",
+    "Samborondón — La Puntilla",
+    "Samborondón — km 10 vía a Daule",
+    "Garzota, Guayaquil",
+    "Entrada de la 8, Guayaquil",
+    "Ciudadela Kennedy Norte, Guayaquil",
+    "Vía Samborondón, sector Batán",
+]
+
+# (título base, descripción, marca, modelo, año) — coherentes con VehicleListing
+VEHICLES = [
+    ("Toyota Corolla 2018, automático", "Full equipo, revisión al día. Se vende por viaje.", "Toyota", "Corolla", 2018),
+    ("Chevrolet Spark 2016", "Económico, ideal ciudad. Segundo dueño.", "Chevrolet", "Spark", 2016),
+    ("Hyundai Tucson 2019", "SUV familiar, mantenimiento en agencia.", "Hyundai", "Tucson", 2019),
+    ("Mitsubishi L200 2017", "4x4, trabajo y ciudad.", "Mitsubishi", "L200", 2017),
+    ("Nissan Versa 2020", "Bajo kilometraje, único dueño.", "Nissan", "Versa", 2020),
+]
+
+INMUEBLES = [
+    ("Suite amoblada — alquiler Puerto Santa Ana", "Vista al río, seguridad 24h. Contrato mínimo 6 meses."),
+    ("Departamento 3 dormitorios — Urdesa", "Iluminación natural, parqueo cubierto."),
+    ("Terreno 500 m² — vía Samborondón", "Plano, servicios cerca. Escritura al día."),
+    ("Oficina pequeña — centro norte", "Ideal emprendimiento, baño y recepción."),
+    ("Bodega 120 m² — norte de Guayaquil", "Acceso camión, techo zinc nuevo."),
+]
+
+MOTOS = [
+    ("Yamaha NMAX 155", "Scooter urbano, revisiones al día."),
+    ("Honda CB500F", "Naked, ideal ciudad y ruta corta."),
+    ("Suzuki GSX-R 150", "Deportiva liviana, segundo dueño."),
+    ("KTM Duke 200", "Uso mixto, escape homologado."),
+    ("Italika FT150", "Trabajo y ciudad, económica."),
+]
+
+ELECTRONICA = [
+    ("Samsung Galaxy A54 128 GB", "Pantalla impecable, funda y cargador."),
+    ("Laptop Dell Inspiron 15", "SSD 256 GB, Windows actualizado."),
+    ("iPad 9ª gen Wi‑Fi", "Ideal estudio, batería sana."),
+    ("Smart TV 50\" 4K", "Caja y control, sin rayones en panel."),
+    ("Auriculares Sony WH-CH720N", "Cancelación de ruido, poco uso."),
+]
+
+HOGAR = [
+    ("Sofá 3 cuerpos gris", "Tela fácil de limpiar, desarmable para mudanza."),
+    ("Mesa comedor 6 puestos", "Madera maciza, patas reforzadas."),
+    ("Cama queen con colchón", "Colchón ortopédico, menos de 2 años de uso."),
+    ("Estantería modular blanca", "4 módulos, fijación a pared incluida."),
+    ("Juego de ollas antiadherentes", "7 piezas, aptas inducción."),
+]
+
+REVIEW_COMMENTS = [
+    "Muy buena comunicación y entrega puntual.",
+    "Producto tal como en fotos. Recomendado.",
+    "Vendedor serio, sin problemas.",
+    "Todo correcto, volvería a comprar.",
+    "Rápido en responder mensajes.",
+]
+
+
+class Command(BaseCommand):
+    help = "Crea usuarios, categorías, anuncios, reseñas y reportes de prueba (español, confianza variada)."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--clear",
+            action="store_true",
+            help=f'Elimina usuarios con correo @{SEED_EMAIL_DOMAIN} y datos asociados.',
+        )
+        parser.add_argument(
+            "--password",
+            default=DEFAULT_PASSWORD,
+            help=f"Contraseña para todos los usuarios semilla (default: {DEFAULT_PASSWORD}).",
+        )
+        parser.add_argument(
+            "--listings",
+            type=int,
+            default=75,
+            help="Número aproximado de anuncios (50–100 recomendado).",
+        )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Vuelve a insertar aunque ya existan anuncios semilla (sin --clear duplica datos).",
+        )
+    def handle(self, *args, **options):
+        if options["clear"]:
+            self._clear_seed_data()
+            self.stdout.write(self.style.WARNING("Datos semilla eliminados."))
+            return
+
+        pwd = options["password"]
+        n_listings = max(50, min(100, options["listings"]))
+        random.seed(42)
+
+        seed_domain = f"@{SEED_EMAIL_DOMAIN}"
+        if (
+            Listing.objects.filter(seller__email__endswith=seed_domain).exists()
+            and not options["force"]
+        ):
+            self.stderr.write(
+                self.style.ERROR(
+                    "Ya existen anuncios semilla. Ejecute con --clear o añada --force (duplicará datos)."
+                )
+            )
+            return
+
+        with transaction.atomic():
+            categories = self._seed_categories()
+            vehicle_taxonomy = self._seed_vehicle_taxonomy()
+            users = self._seed_users(pwd)
+            self._apply_user_profiles(users)
+            listings = self._seed_listings(users, categories, n_listings, vehicle_taxonomy)
+            self._seed_reviews(users, listings)
+            self._seed_flagged_listings(users, listings)
+
+        # Refresca banderas por si el conteo de reportes lo requiere
+        for lid in Listing.objects.filter(seller__email__endswith=f"@{SEED_EMAIL_DOMAIN}").values_list(
+            "id", flat=True
+        ):
+            sync_listing_flag(lid)
+
+        user_ids = list(
+            User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").values_list("pk", flat=True)
+        )
+        bulk_seller_trust(user_ids)
+
+        self._print_summary(users, listings, categories, pwd)
+
+    def _clear_seed_data(self):
+        """Borra en orden seguro respetando PROTECT y FKs."""
+        qs = User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}")
+        user_ids = list(qs.values_list("pk", flat=True))
+        if not user_ids:
+            self.stdout.write("No hay usuarios semilla que borrar.")
+            return
+
+        ListingReport.objects.filter(reporter_id__in=user_ids).delete()
+        ListingReport.objects.filter(listing__seller_id__in=user_ids).delete()
+        Review.objects.filter(reviewer_id__in=user_ids).delete()
+        Review.objects.filter(seller_id__in=user_ids).delete()
+        Listing.objects.filter(seller_id__in=user_ids).delete()
+        UserVerification.objects.filter(user_id__in=user_ids).delete()
+        qs.delete()
+
+    def _seed_categories(self) -> dict[str, Category]:
+        """Categorías raíz en español (alineadas con iconos en migración 0003)."""
+        specs = [
+            ("Autos", "autos", "Autos, motos y camionetas en Guayaquil y Samborondón."),
+            ("Inmuebles", "inmuebles", "Alquiler y venta de propiedades."),
+            ("Electrónica", "electronica", "Celulares, laptops y gadgets. Ofertas locales."),
+            ("Motos", "motos", "Motos urbanas y de trabajo. Publicaciones claras."),
+            ("Hogar", "hogar", "Muebles y artículos para tu casa."),
+        ]
+        out = {}
+        for name, slug, desc in specs:
+            cat, _ = Category.objects.get_or_create(
+                slug=slug,
+                defaults={"name": name, "description": desc},
+            )
+            out[slug] = cat
+        return out
+
+    def _seed_users(self, password: str) -> list[User]:
+        """18 usuarios vendedor/comprador con nombres en español."""
+        names = [
+            "María José Villamar",
+            "Carlos Mendoza",
+            "Ana Lucía Correa",
+            "Roberto Sánchez",
+            "Daniela Pincay",
+            "Luis Fernando Aguilar",
+            "Patricia Ruiz",
+            "Miguel Ángel Vera",
+            "Sofía Torres",
+            "Javier Macías",
+            "Carmen Noboa",
+            "Diego Ordóñez",
+            "Valentina Castro",
+            "Andrés Cevallos",
+            "Lucía Espinoza",
+            "Fernando Baquerizo",
+            "Gabriela Reyes",
+            "Esteban Salinas",
+        ]
+        users = []
+        for i, full_name in enumerate(names):
+            email = f"vendedor{i+1:02d}@{SEED_EMAIL_DOMAIN}"
+            parts = (full_name or "").strip().split()
+            first_name = parts[0] if parts else ""
+            last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={"first_name": first_name, "last_name": last_name},
+            )
+            if created or not user.has_usable_password():
+                user.set_password(password)
+                user.save(update_fields=["password"])
+            changed = False
+            if user.first_name != first_name:
+                user.first_name = first_name
+                changed = True
+            if user.last_name != last_name:
+                user.last_name = last_name
+                changed = True
+            if changed:
+                user.save(update_fields=["first_name", "last_name"])
+            users.append(user)
+        return users
+
+    def _apply_user_profiles(self, users: list[User]) -> None:
+        """
+        Perfiles para cubrir Alta / Media / Baja confianza:
+        - índices 0–1: cuenta >30 d, verificados (reseñas después)
+        - 2–3: >30 d, verificados
+        - 4–6: >30 d, sin verificar
+        - 7–8: recientes, verificados
+        - 9–17: recientes, sin verificar
+        """
+        now = timezone.now()
+        old = now - timedelta(days=45)
+        recent = now - timedelta(days=5)
+
+        verified_phones = [
+            "+593 98 100 0001",
+            "+593 98 100 0002",
+            "+593 98 100 0003",
+            "+593 98 100 0004",
+            "+593 98 100 0007",
+            "+593 98 100 0008",
+        ]
+
+        for idx, user in enumerate(users):
+            is_old = idx <= 6
+            User.objects.filter(pk=user.pk).update(date_joined=old if is_old else recent)
+
+        UserVerification.objects.filter(user__in=users).delete()
+
+        for idx, user in enumerate(users):
+            want_verified = idx <= 8 and idx not in (4, 5, 6)
+            if want_verified:
+                phone = verified_phones[idx % len(verified_phones)]
+                UserVerification.objects.create(
+                    user=user,
+                    phone_number=phone,
+                    phone_verified=True,
+                    verification_date=now - timedelta(days=1),
+                )
+
+    def _seed_listings(
+        self,
+        users: list[User],
+        categories: dict[str, Category],
+        n_listings: int,
+        vehicle_taxonomy: dict[str, list[str]],
+    ) -> list[Listing]:
+        """Anuncios repartidos entre vendedores; títulos y ubicaciones realistas."""
+        cat_cycle = [
+            categories["autos"],
+            categories["inmuebles"],
+            categories["electronica"],
+            categories["motos"],
+            categories["hogar"],
+        ]
+        templates = [
+            VEHICLES,
+            INMUEBLES,
+            ELECTRONICA,
+            MOTOS,
+            HOGAR,
+        ]
+        listings: list[Listing] = []
+        # Solo los primeros 15 usuarios publican más anuncios; el resto puede ser solo reseñadores
+        seller_pool = users[:15]
+        seq = 0
+        n_cats = len(cat_cycle)
+        while len(listings) < n_listings:
+            seller = random.choice(seller_pool)
+            cat_idx = seq % n_cats
+            cat = cat_cycle[cat_idx]
+            row = random.choice(templates[cat_idx])
+            if cat.slug == "autos":
+                title, desc_base, seed_v_brand, seed_v_model, seed_v_year = row
+            else:
+                title, desc_base = row
+                seed_v_brand = seed_v_model = ""
+                seed_v_year = 0
+            seq += 1
+            title = f"{title} #{seq}"
+            desc = f"{desc_base}\n\nUbicación para retiro o visita acordada. Precio negociable leve."
+            price = random.randint(80, 45000)
+            if cat.slug == "autos":
+                price = random.randint(5000, 28000)
+            elif cat.slug == "inmuebles":
+                price = random.randint(250, 2500) if random.random() < 0.4 else random.randint(35000, 180000)
+            elif cat.slug == "motos":
+                price = random.randint(1200, 14000)
+            elif cat.slug == "electronica":
+                price = random.randint(80, 2200)
+            elif cat.slug == "hogar":
+                price = random.randint(45, 2800)
+
+            listing = Listing.objects.create(
+                title=title[:200],
+                description=desc,
+                price_amount=price,
+                currency="USD",
+                location=random.choice(LOCATIONS),
+                seller=seller,
+                category=cat,
+                status=Listing.Status.PUBLISHED,
+                is_active=True,
+                is_flagged=False,
+            )
+            if cat.slug == "autos":
+                brand_name = seed_v_brand
+                model_name = seed_v_model
+                brand_obj, _ = VehicleBrand.objects.get_or_create(
+                    name=brand_name,
+                    defaults={"slug": slugify(brand_name)},
+                )
+                model_obj, _ = VehicleModel.objects.get_or_create(
+                    brand=brand_obj,
+                    name=model_name,
+                    defaults={"slug": slugify(model_name)},
+                )
+                VehicleListing.objects.create(
+                    listing=listing,
+                    brand=brand_name,
+                    model=model_name,
+                    brand_fk=brand_obj,
+                    model_fk=model_obj,
+                    year=int(seed_v_year),
+                    mileage=random.choice([None, 0, 35000, 68000, 85000, 120000]),
+                    doors=random.choice([3, 4, 5]),
+                    transmission=random.choice(
+                        [
+                            VehicleListing.Transmission.MANUAL,
+                            VehicleListing.Transmission.AUTOMATICO,
+                            VehicleListing.Transmission.CVT,
+                        ]
+                    ),
+                    fuel_type=random.choice(
+                        [
+                            "",
+                            VehicleListing.FuelType.GASOLINA,
+                            VehicleListing.FuelType.DIESEL,
+                            VehicleListing.FuelType.HIBRIDO,
+                            VehicleListing.FuelType.ELECTRICO,
+                        ]
+                    ),
+                )
+            elif cat.slug == "inmuebles":
+                PropertyListing.objects.create(
+                    listing=listing,
+                    property_type=random.choice(
+                        [
+                            PropertyListing.PropertyType.CASA,
+                            PropertyListing.PropertyType.DEPARTAMENTO,
+                        ]
+                    ),
+                    operation_type=random.choice(
+                        [
+                            None,
+                            PropertyListing.OperationType.VENTA,
+                            PropertyListing.OperationType.ALQUILER,
+                        ]
+                    ),
+                    rooms=random.randint(1, 5),
+                    bathrooms=random.randint(1, 4),
+                    area_m2=random.randint(40, 450),
+                    parking_spaces=random.choice([None, 0, 1, 2]),
+                    furnished=random.choice([True, False]),
+                    property_condition=random.choice(
+                        [
+                            None,
+                            PropertyListing.PropertyConditionChoice.NUEVO,
+                            PropertyListing.PropertyConditionChoice.USADO,
+                        ]
+                    ),
+                )
+            elif cat.slug == "motos":
+                MotorcycleListing.objects.create(
+                    listing=listing,
+                    brand=random.choice(
+                        ["Yamaha", "Honda", "Suzuki", "KTM", "Italika", "Bajaj"]
+                    ),
+                    model=random.choice(
+                        ["NMAX 155", "CB500F", "GSX-R 150", "Duke 200", "FT150", "Pulsar"]
+                    ),
+                    year=random.randint(2016, 2023),
+                    mileage=random.choice([None, 0, 3500, 12000, 28000]),
+                    engine_cc=random.choice([None, 125, 155, 200, 390, 650]),
+                    transmission=random.choice(
+                        [
+                            MotorcycleListing.Transmission.MANUAL,
+                            MotorcycleListing.Transmission.AUTOMATICO,
+                            MotorcycleListing.Transmission.OTRO,
+                        ]
+                    ),
+                    fuel_type=random.choice(
+                        [
+                            MotorcycleListing.FuelType.GASOLINA,
+                            MotorcycleListing.FuelType.NAFTA,
+                            MotorcycleListing.FuelType.ELECTRICA,
+                            MotorcycleListing.FuelType.OTRO,
+                        ]
+                    ),
+                    condition=random.choice(
+                        [ItemCondition.NUEVO, ItemCondition.USADO]
+                    ),
+                )
+            elif cat.slug == "electronica":
+                ElectronicsListing.objects.create(
+                    listing=listing,
+                    brand=random.choice(
+                        ["Samsung", "Apple", "Dell", "Sony", "Xiaomi", "LG"]
+                    ),
+                    model=random.choice(
+                        ["Galaxy A54", "iPad 9", "Inspiron 15", "WH-CH720N", "Redmi Note", "Smart TV 50"]
+                    ),
+                    condition=random.choice(
+                        [ItemCondition.NUEVO, ItemCondition.USADO]
+                    ),
+                    warranty=random.choice([True, False]),
+                )
+            elif cat.slug == "hogar":
+                HomeGoodsListing.objects.create(
+                    listing=listing,
+                    item_type=random.choice(
+                        [
+                            HomeItemType.FURNITURE,
+                            HomeItemType.APPLIANCES,
+                            HomeItemType.DECOR,
+                        ]
+                    ),
+                    brand=random.choice(["", "IKEA", "Local", "Artesanal"]),
+                    condition=random.choice(
+                        [
+                            ItemCondition.NUEVO,
+                            ItemCondition.USADO,
+                            ItemCondition.REFURBISHED,
+                        ]
+                    ),
+                    material=random.choice(["", "melamina", "madera", "metal", "tela"]),
+                    dimensions=random.choice(["", "200×100 cm", "180×90 cm", "modular"]),
+                )
+            listings.append(listing)
+        return listings
+
+    def _seed_vehicle_taxonomy(self) -> dict[str, list[str]]:
+        """
+        Marcas/modelos mínimos para autos (normalizados).
+        """
+        taxonomy: dict[str, list[str]] = {
+            "Toyota": ["Corolla", "Yaris", "RAV4", "Hilux"],
+            "Chevrolet": ["Spark", "Aveo", "Tracker", "D-Max"],
+            "Kia": ["Rio", "Sportage", "Seltos", "Picanto"],
+            "Hyundai": ["Tucson", "Elantra", "Accent", "Santa Fe"],
+            "Nissan": ["Versa", "Sentra", "Kicks", "X-Trail"],
+            "Mitsubishi": ["L200", "Outlander", "Mirage"],
+        }
+
+        for brand_name, models in taxonomy.items():
+            brand, _ = VehicleBrand.objects.get_or_create(
+                name=brand_name,
+                defaults={"slug": slugify(brand_name)},
+            )
+            for model_name in models:
+                VehicleModel.objects.get_or_create(
+                    brand=brand,
+                    name=model_name,
+                    defaults={"slug": slugify(model_name)},
+                )
+        return taxonomy
+
+    def _seed_reviews(self, users: list[User], listings: list[Listing]) -> None:
+        """
+        Reseñas únicas (revisor, vendedor). Distribución orientada al trust score:
+        - vendedores 0–1: 6 reseñas, nota 5
+        - 2–3: 3 reseñas, nota 5
+        - 4–6: 6 reseñas, nota 4–5 (media alta sin verificación)
+        - 7–8: sin reseñas (solo verificación + cuenta nueva = media)
+        - 9–12: 2 reseñas, nota 3 (baja)
+        - 13–17: 0 o 1 reseña baja
+        """
+        by_seller = {u.pk: [L for L in listings if L.seller_id == u.pk] for u in users}
+
+        def pick_listing(seller: User) -> Listing:
+            pool = by_seller.get(seller.pk) or listings
+            return random.choice(pool)
+
+        def add_review(reviewer: User, seller: User, rating: int) -> None:
+            if reviewer.pk == seller.pk:
+                return
+            listing = pick_listing(seller)
+            Review.objects.update_or_create(
+                reviewer=reviewer,
+                seller=seller,
+                defaults={
+                    "listing": listing,
+                    "rating": rating,
+                    "comment": random.choice(REVIEW_COMMENTS),
+                },
+            )
+
+        # Grupos de revisores (índices en users)
+        all_indices = list(range(len(users)))
+
+        def other_than(seller_idx: int, count: int) -> list[int]:
+            opts = [i for i in all_indices if i != seller_idx]
+            random.shuffle(opts)
+            return opts[:count]
+
+        # Sellers 0–1: alta confianza
+        for sidx in (0, 1):
+            seller = users[sidx]
+            for ridx in other_than(sidx, 6):
+                add_review(users[ridx], seller, 5)
+
+        # 2–3: borde alto
+        for sidx in (2, 3):
+            seller = users[sidx]
+            for ridx in other_than(sidx, 3):
+                add_review(users[ridx], seller, 5)
+
+        # 4–6: media (sin tel verificado en perfil, muchas reseñas buenas)
+        for sidx in (4, 5, 6):
+            seller = users[sidx]
+            for ridx in other_than(sidx, 6):
+                add_review(users[ridx], seller, random.choice([4, 4, 5]))
+
+        # 7–8: sin reseñas (confianza media por verificación)
+
+        # 9–12: baja media de estrellas
+        for sidx in range(9, 13):
+            seller = users[sidx]
+            for ridx in other_than(sidx, 2):
+                add_review(users[ridx], seller, 3)
+
+        # 13–17: 0–1 reseña débil
+        for sidx in range(13, 18):
+            seller = users[sidx]
+            for ridx in other_than(sidx, 1):
+                add_review(users[ridx], seller, 2)
+
+    def _seed_flagged_listings(self, users: list[User], listings: list[Listing]) -> None:
+        """Varios anuncios con ≥3 reportes distintos → is_flagged vía sync_listing_flag."""
+        candidates = [L for L in listings if L.seller_id != users[0].pk][:8]
+        random.shuffle(candidates)
+        flagged_targets = candidates[:6]
+
+        for listing in flagged_targets:
+            eligible = [u for u in users[:14] if u.pk != listing.seller_id]
+            random.shuffle(eligible)
+            reporters = eligible[:3]
+            if len(reporters) < 3:
+                continue
+            for reason, reporter in zip(
+                [
+                    ListingReport.Reason.SCAM,
+                    ListingReport.Reason.SPAM,
+                    ListingReport.Reason.INCORRECT,
+                ],
+                reporters,
+            ):
+                ListingReport.objects.get_or_create(
+                    reporter=reporter,
+                    listing=listing,
+                    defaults={"reason": reason},
+                )
+            sync_listing_flag(listing.pk)
+
+    def _print_summary(
+        self,
+        users: list[User],
+        listings: list[Listing],
+        categories: dict,
+        password_used: str,
+    ) -> None:
+        from apps.trust.services import seller_trust_bundle
+
+        n_users = len(users)
+        n_listings = len(listings)
+        n_reviews = Review.objects.filter(seller__email__endswith=f"@{SEED_EMAIL_DOMAIN}").count()
+        n_flagged = Listing.objects.filter(
+            seller__email__endswith=f"@{SEED_EMAIL_DOMAIN}",
+            is_flagged=True,
+        ).count()
+        n_reports = ListingReport.objects.filter(
+            listing__seller__email__endswith=f"@{SEED_EMAIL_DOMAIN}"
+        ).count()
+
+        self.stdout.write(self.style.SUCCESS("\n=== Resumen datos MVP (semilla) ==="))
+        self.stdout.write(f"  Usuarios:        {n_users}")
+        self.stdout.write(f"  Categorías:      {len(categories)}")
+        self.stdout.write(f"  Anuncios:        {n_listings}")
+        self.stdout.write(f"  Reseñas:         {n_reviews}")
+        self.stdout.write(f"  Reportes:        {n_reports}")
+        self.stdout.write(f"  Anuncios marcados: {n_flagged}")
+        self.stdout.write(f"  Contraseña:      {password_used}")
+        self.stdout.write(f"  Correo patrón:   vendedorXX@{SEED_EMAIL_DOMAIN}")
+
+        self.stdout.write("\n  Muestra confianza por vendedor (etiqueta + score interno):")
+        for u in users[:6]:
+            b = seller_trust_bundle(u)
+            self.stdout.write(
+                f"    - {u.get_full_name() or u.email}: "
+                f"{b['trust_label']} (score {b['trust_score']}) | "
+                f"verif={'sí' if b['verified'] else 'no'} | "
+                f"opiniones={b['review_count']}"
+            )
+        self.stdout.write(self.style.SUCCESS("=== Fin ===\n"))

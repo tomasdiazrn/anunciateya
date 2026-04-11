@@ -1,0 +1,212 @@
+{# Filtros GET para motos: action = /anuncios/ o "" (/motos/, /guayaquil/motos/, …) #}
+<form
+  class="browse-filter-form browse-filter-form--sidebar"
+  method="get"
+  action="{{ motorcycle_filters_form_action }}"
+  aria-label="Filtrar anuncios de motos"
+>
+  {% if motorcycle_filters_include_category %}
+    <input type="hidden" name="category" value="motos">
+  {% endif %}
+  {% if request.GET.q %}
+    <input type="hidden" name="q" value="{{ request.GET.q }}">
+  {% endif %}
+  {% if request.GET.location %}
+    <input type="hidden" name="location" value="{{ request.GET.location }}">
+  {% endif %}
+
+  <aside class="browse-filters-sidebar">
+    <details class="browse-filters-accordion" open>
+      <summary class="browse-filters-summary">Filtrar motos</summary>
+      <div class="browse-filters-inner">
+        <div class="form-group">
+          <label for="id_browse_moto_brand">Marca</label>
+          <input
+            class="form-control"
+            type="text"
+            name="brand"
+            id="id_browse_moto_brand"
+            maxlength="80"
+            placeholder="Ej. Honda"
+            value="{{ request.GET.brand|default:'' }}"
+            autocomplete="off"
+          >
+        </div>
+        <div class="form-group">
+          <label for="id_browse_moto_model">Modelo</label>
+          <input
+            class="form-control"
+            type="text"
+            name="model"
+            id="id_browse_moto_model"
+            maxlength="80"
+            placeholder="Ej. NMAX"
+            value="{{ request.GET.model|default:'' }}"
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="form-group browse-filter-row">
+          <div>
+            <label for="id_browse_moto_year_from">Año desde</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="number"
+              name="year_from"
+              id="id_browse_moto_year_from"
+              min="1980"
+              max="2100"
+              step="1"
+              inputmode="numeric"
+              placeholder="2015"
+              value="{{ request.GET.year_from|default:'' }}"
+            >
+          </div>
+          <div>
+            <label for="id_browse_moto_year_to">Año hasta</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="number"
+              name="year_to"
+              id="id_browse_moto_year_to"
+              min="1980"
+              max="2100"
+              step="1"
+              inputmode="numeric"
+              placeholder="2024"
+              value="{{ request.GET.year_to|default:'' }}"
+            >
+          </div>
+        </div>
+
+        <div class="form-group browse-filter-row">
+          <div>
+            <label for="id_browse_moto_cc_from">CC desde</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="number"
+              name="engine_cc_from"
+              id="id_browse_moto_cc_from"
+              min="50"
+              max="9999"
+              step="1"
+              inputmode="numeric"
+              placeholder="125"
+              value="{{ request.GET.engine_cc_from|default:'' }}"
+            >
+          </div>
+          <div>
+            <label for="id_browse_moto_cc_to">CC hasta</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="number"
+              name="engine_cc_to"
+              id="id_browse_moto_cc_to"
+              min="50"
+              max="9999"
+              step="1"
+              inputmode="numeric"
+              placeholder="650"
+              value="{{ request.GET.engine_cc_to|default:'' }}"
+            >
+          </div>
+        </div>
+
+        <div class="form-group browse-filter-row">
+          <div>
+            <label for="id_browse_moto_km_from">Km desde</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="number"
+              name="mileage_from"
+              id="id_browse_moto_km_from"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              placeholder="0"
+              value="{{ request.GET.mileage_from|default:'' }}"
+            >
+          </div>
+          <div>
+            <label for="id_browse_moto_km_to">Km hasta</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="number"
+              name="mileage_to"
+              id="id_browse_moto_km_to"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              placeholder="50000"
+              value="{{ request.GET.mileage_to|default:'' }}"
+            >
+          </div>
+        </div>
+
+        <div class="form-group browse-filter-row">
+          <div>
+            <label for="id_browse_moto_price_from">Precio desde (USD)</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="text"
+              name="price_from"
+              id="id_browse_moto_price_from"
+              inputmode="decimal"
+              placeholder="1500"
+              value="{{ request.GET.price_from|default:'' }}"
+              autocomplete="off"
+            >
+          </div>
+          <div>
+            <label for="id_browse_moto_price_to">Precio hasta (USD)</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="text"
+              name="price_to"
+              id="id_browse_moto_price_to"
+              inputmode="decimal"
+              placeholder="8000"
+              value="{{ request.GET.price_to|default:'' }}"
+              autocomplete="off"
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="id_browse_moto_transmission">Transmisión</label>
+          <select class="form-control" name="transmission" id="id_browse_moto_transmission">
+            <option value="">Todas</option>
+            {% for val, label in motorcycle_transmission_choices %}
+              <option value="{{ val }}" {% if request.GET.transmission == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="id_browse_moto_fuel">Combustible</label>
+          <select class="form-control" name="fuel_type" id="id_browse_moto_fuel">
+            <option value="">Todos</option>
+            {% for val, label in motorcycle_fuel_choices %}
+              <option value="{{ val }}" {% if request.GET.fuel_type == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="id_browse_moto_condition">Condición</label>
+          <select class="form-control" name="condition" id="id_browse_moto_condition">
+            <option value="">Todas</option>
+            {% for val, label in motorcycle_condition_choices %}
+              <option value="{{ val }}" {% if request.GET.condition == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="browse-filter-actions">
+          <button type="submit" class="button btn-primary">Aplicar filtros</button>
+          <a class="button btn-secondary" href="{{ filter_clear_url }}">Limpiar</a>
+        </div>
+      </div>
+    </details>
+  </aside>
+</form>

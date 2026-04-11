@@ -1,0 +1,72 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es" class="admin-root">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block admin_title %}{{ admin_page_title|default:"Admin" }} · {{ site_name }}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'adminapp/css/variables.css' %}">
+  <link rel="stylesheet" href="{% static 'adminapp/css/base.css' %}">
+  <link rel="stylesheet" href="{% static 'adminapp/css/components.css' %}">
+  {% block admin_extra_head %}{% endblock %}
+</head>
+<body
+  class="admin-body"
+  hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+>
+  <div class="admin-layout" data-admin-shell>
+    <button
+      type="button"
+      class="admin-backdrop"
+      data-admin-backdrop
+      hidden
+      aria-label="Cerrar menú"
+    ></button>
+
+    {% include "adminapp/components/sidebar.html" %}
+
+    <div class="admin-layout__main">
+      <header class="admin-topbar">
+        <button
+          type="button"
+          class="admin-topbar__menu"
+          data-admin-menu-toggle
+          aria-expanded="false"
+          aria-controls="admin-sidebar"
+        >
+          <span aria-hidden="true">☰</span>
+          <span class="admin-visually-hidden">Abrir menú</span>
+        </button>
+        <h1 class="admin-topbar__title">{{ admin_page_title|default:"Admin" }}</h1>
+      </header>
+
+      {% if messages %}
+        <div class="admin-flash" role="region" aria-label="Avisos">
+          <ul class="admin-messages" role="list">
+            {% for message in messages %}
+              <li class="admin-message admin-message--{{ message.tags|default:'info' }}" role="status">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <div
+        id="admin-main-content"
+        class="admin-main"
+        role="main"
+        tabindex="-1"
+      >
+        {% block admin_main %}{% endblock %}
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
+  <script src="{% static 'adminapp/js/admin.js' %}" defer></script>
+  {% block admin_extra_js %}{% endblock %}
+</body>
+</html>

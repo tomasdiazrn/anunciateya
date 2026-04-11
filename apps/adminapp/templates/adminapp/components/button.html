@@ -1,0 +1,6 @@
+{# label, url (opcional), variant: primary | secondary | ghost, type: button | submit (solo sin url) #}
+{% if url %}
+  <a class="admin-btn admin-btn--{{ variant|default:'secondary' }}" href="{{ url }}">{{ label }}</a>
+{% else %}
+  <button type="{{ type|default:'button' }}" class="admin-btn admin-btn--{{ variant|default:'secondary' }}">{{ label }}</button>
+{% endif %}

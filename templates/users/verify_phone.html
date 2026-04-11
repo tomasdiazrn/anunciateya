@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+  <meta name="robots" content="noindex, nofollow">
+{% endblock %}
+
+{% block title %}Verificar teléfono · {{ site_name }}{% endblock %}
+{% block meta_description %}Verifica tu número en {{ site_name }} para poder contactar vendedores con menos fraude y spam.{% endblock %}
+
+{% block content %}
+  <div class="container narrow">
+    <div class="card account-password-card">
+      <h1 class="page-title">Verifica tu teléfono</h1>
+      <p class="muted">
+        En esta demo el SMS está simulado: marca la casilla para completar. Así protegemos mejor los contactos entre compradores y vendedores.
+      </p>
+      <form method="post" class="stack-form" aria-label="Verificación de teléfono" action="{% url 'users:verify_phone' %}">
+        {% csrf_token %}
+        {% if next_url %}
+          <input type="hidden" name="next" value="{{ next_url }}">
+        {% endif %}
+        {% include "components/ui/form_non_field_errors.html" %}
+        {% for field in form %}
+          {% include "components/ui/form_field.html" with field=field %}
+        {% endfor %}
+        <div class="form-actions-row">
+          <button type="submit" class="button btn-primary">Completar verificación</button>
+          <a class="button btn-secondary" href="{% url 'users:account' %}">Volver a Mi cuenta</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "components/marketplace/listing_card_base.html" %}
+{% block card_modifier %}{{ card.css_modifier }}{% if card.is_featured_top %} card-listing--featured-top{% endif %}{% endblock %}
+{% block card_inner %}
+  <a href="{{ card.link }}" class="card-listing-motorcycle__stretched">
+    <span class="visually-hidden">{{ card.seo_text }}</span>
+  </a>
+  <div class="card-listing-motorcycle__surface" aria-hidden="true">
+    <div class="card-thumb-link card-listing-motorcycle__thumb">
+      {% if card.is_featured_top %}
+        <span class="card-badge card-badge--featured card-badge--featured-top">Top destacado</span>
+      {% elif card.is_featured %}
+        <span class="card-badge card-badge--featured">Destacado</span>
+      {% endif %}
+      {% if card.is_promoted_boost %}
+        <span class="card-badge card-badge--boost">Impulsado</span>
+      {% endif %}
+      {% if card.image_url %}
+        <img src="{{ card.image_url }}" alt="" class="card-thumb" loading="lazy" decoding="async" width="400" height="200">
+      {% else %}
+        {% include "components/ui/image_placeholder.html" with ratio="card" text="" alt_text="" %}
+      {% endif %}
+    </div>
+    <div class="card-listing-motorcycle__body">
+      <p class="card-listing-motorcycle__price">{{ card.price_display }}</p>
+      {% if card.badges %}
+        <div class="card-listing-motorcycle__meta">
+          {% for b in card.badges %}
+            <span class="card-listing-motorcycle__pill card-listing-motorcycle__pill--muted{% if b == 'Recomendado' %} card-badge--recommended{% elif b == 'Buen precio' %} card-badge--deal{% endif %}">{{ b }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <p class="card-listing-motorcycle__headline">
+        <span class="card-listing-motorcycle__headline-inner">
+          <span class="card-listing-motorcycle__headline-main">{{ card.title }}</span>
+        </span>
+      </p>
+      {% if card.attributes %}
+        <ul class="card-listing-property__features card-listing-motorcycle__meta--specs" aria-label="Detalles">
+          {% for a in card.attributes %}
+            <li class="card-listing-property__feature">{{ a }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if card.category_label or card.location %}
+        <p class="card-listing-motorcycle__location">
+          {% if card.category_href %}
+            <a href="{{ card.category_href }}" class="title-link">{{ card.category_label }}</a>
+          {% else %}
+            {{ card.category_label }}
+          {% endif %}
+          {% if card.location %}<span class="card-listing-property__headline-sep"> · </span>{{ card.location }}{% endif %}
+        </p>
+      {% endif %}
+      {% if card.trust_label %}
+        <p class="card-trust small card-listing-motorcycle__trust">{{ card.trust_label }}</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

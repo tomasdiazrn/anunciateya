@@ -1,0 +1,680 @@
+/*
+ * Cards: fondo blanco, sombra ligera, padding 16–24px, hover suave.
+ * Imágenes: fade-in al cargar (microinteracción).
+ */
+.grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+@media (max-width: 799px) {
+  .grid {
+    gap: var(--space-2);
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-strong);
+}
+
+/*
+ * Cards de anuncio: el template unificado usa un <a> con position:absolute/inset:0.
+ * Sin position:relative en la card, el enlace se ancla al body/viewport y tapa la página.
+ */
+.card.card-listing {
+  position: relative;
+  isolation: isolate;
+}
+
+.card h2,
+.card-title-heading {
+  font: var(--font-h3);
+  margin-bottom: var(--space-1);
+}
+
+.card a.title-link {
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.card a.title-link:hover {
+  color: var(--color-primary);
+}
+
+.price {
+  font-weight: 600;
+  font-family: var(--font-display);
+  margin-top: var(--space-1);
+  color: var(--color-text);
+}
+
+.card-thumb-link {
+  display: block;
+  position: relative;
+  margin: calc(-1 * var(--card-padding));
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  overflow: hidden;
+}
+
+.card-thumb-link .ui-image-placeholder--card {
+  border-radius: inherit;
+}
+
+.card-badge--featured {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 3;
+  background: #111;
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.card-badge--featured-top {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+}
+
+.card-badge--boost {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 3;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.card-listing--featured-top {
+  border-color: #111;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
+}
+
+.browse-sort {
+  margin-bottom: var(--space-3);
+}
+
+.browse-sort__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.browse-sort__item {
+  margin: 0;
+}
+
+.browse-sort-pill {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  text-decoration: none;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.browse-sort-pill:hover {
+  border-color: var(--color-border-strong);
+}
+
+.browse-sort-pill--active {
+  font-weight: 600;
+  border-color: #111;
+  background: #111;
+  color: #fff;
+}
+
+.featured-block {
+  margin-bottom: 32px;
+}
+
+.featured-block__title {
+  margin-bottom: var(--space-2);
+}
+
+.listing-results-block__title {
+  margin-bottom: var(--space-2);
+}
+
+.listing-empty-results {
+  margin-bottom: var(--space-3);
+}
+
+.listing-empty-results__hints {
+  margin: var(--space-2) 0;
+  padding-left: 1.25rem;
+}
+
+.listing-suggestions {
+  margin-top: var(--space-4);
+}
+
+.listing-suggestions__title {
+  margin-bottom: var(--space-2);
+}
+
+.card-thumb {
+  width: 100%;
+  height: 168px;
+  object-fit: cover;
+  display: block;
+  background: #f3f4f6;
+  opacity: 0;
+  animation: hm-fade-in var(--duration-image) var(--ease-out) forwards;
+}
+
+.card-thumb[loading="lazy"] {
+  animation-delay: 0.05s;
+}
+
+@keyframes hm-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-thumb,
+  .listing-inline-photo-grid__img {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* Legacy grid de fotos en cuerpo de anuncio (no confundir con .listing-gallery del detalle). */
+.listing-inline-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+}
+
+.listing-inline-photo-grid__img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  opacity: 0;
+  animation: hm-fade-in var(--duration-image) var(--ease-out) forwards;
+}
+
+.listing-body {
+  line-height: var(--font-body-lh);
+  color: var(--color-text);
+}
+
+/* Listing detail — strong hierarchy + CTA */
+.listing-breadcrumb {
+  margin: 0 0 var(--space-1);
+}
+
+.listing-title {
+  margin-bottom: var(--space-1);
+}
+
+.listing-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.listing-price {
+  margin: 0;
+}
+
+.listing-location {
+  margin: 0;
+}
+
+.listing-primary-cta {
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 106, 0, 0.08) 0%,
+    rgba(255, 255, 255, 0.95) 100%
+  );
+  box-shadow: var(--shadow-sm);
+}
+
+.listing-cta-btn {
+  width: 100%;
+  justify-content: center;
+  font-size: 1rem;
+  padding: 0.75rem 1.2rem;
+  border-radius: var(--radius-lg);
+}
+
+@media (min-width: 800px) {
+  .listing-cta-btn {
+    width: auto;
+  }
+}
+
+.listing-cta-sub {
+  margin: var(--space-1) 0 0;
+}
+
+.h-section {
+  font: var(--font-h3);
+  margin: var(--space-3) 0 var(--space-2);
+  color: var(--color-text);
+}
+
+.thumb-sm {
+  border-radius: var(--radius-md);
+}
+
+.listing-extra-specs {
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.listing-extra-specs .h-section {
+  margin-top: 0;
+}
+
+.listing-extra-specs__dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.listing-extra-specs__dl dt {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.listing-extra-specs__dl dd {
+  margin: 0;
+}
+
+/* —— Inmuebles: card marketplace (stretched link + superficie visual) —— */
+.card-listing--property {
+  position: relative;
+  border-color: color-mix(in srgb, var(--color-border) 55%, transparent);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  isolation: isolate;
+}
+
+.card-listing--property:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.09);
+  border-color: color-mix(in srgb, var(--color-border-strong) 40%, transparent);
+}
+
+.card-listing--property:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.card-listing-property__stretched {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  text-decoration: none;
+  color: transparent;
+}
+
+.card-listing-property__stretched:focus {
+  outline: none;
+}
+
+.card-listing-property__surface {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.card-listing-property__thumb.card-thumb-link {
+  margin-bottom: var(--space-2);
+}
+
+.card-listing-property__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.card-listing-property__price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.65rem;
+}
+
+.card-listing-property__price {
+  margin: 0;
+  line-height: 1.1;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: -0.03em;
+  color: var(--color-text);
+}
+
+.card-listing-property__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.3rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.card-listing-property__pill {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.22rem 0.5rem;
+  border-radius: 999px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.card-listing-property__pill--venta {
+  background: rgba(22, 163, 74, 0.12);
+  color: #166534;
+  border: 1px solid rgba(22, 163, 74, 0.28);
+}
+
+.card-listing-property__pill--alquiler {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+}
+
+.card-listing-property__pill--nuevo {
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface));
+  color: var(--color-text);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+.card-listing-property__pill--muted {
+  background: rgba(107, 114, 128, 0.12);
+  color: var(--color-muted);
+  border: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+.card-listing-property__headline {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-text);
+  min-width: 0;
+}
+
+.card-listing-property__headline-inner {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-listing-property__headline-sep {
+  margin: 0 0.3rem;
+  color: var(--color-placeholder);
+  font-weight: 500;
+}
+
+.card-listing-property__headline-loc {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.card-listing-property__features {
+  list-style: none;
+  margin: 0.1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.card-listing-property__feature {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  white-space: nowrap;
+}
+
+.card-listing-property__feature span[aria-hidden="true"] {
+  font-size: 0.95rem;
+  line-height: 1;
+  opacity: 0.88;
+}
+
+.card-listing-property__trust {
+  margin: 0.25rem 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-listing--property:hover {
+    transform: none;
+  }
+}
+
+/* —— Autos / motos / electrónica / hogar: card marketplace (stretched link) —— */
+.card-listing--vehicle,
+.card-listing--motorcycle,
+.card-listing--electronics,
+.card-listing--home {
+  position: relative;
+  border-color: color-mix(in srgb, var(--color-border) 55%, transparent);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  isolation: isolate;
+}
+
+.card-listing--vehicle:hover,
+.card-listing--motorcycle:hover,
+.card-listing--electronics:hover,
+.card-listing--home:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.09);
+  border-color: color-mix(in srgb, var(--color-border-strong) 40%, transparent);
+}
+
+.card-listing--vehicle:focus-within,
+.card-listing--motorcycle:focus-within,
+.card-listing--electronics:focus-within,
+.card-listing--home:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.card-listing-motorcycle__stretched {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  text-decoration: none;
+  color: transparent;
+}
+
+.card-listing-motorcycle__stretched:focus {
+  outline: none;
+}
+
+.card-listing-motorcycle__surface {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.card-listing-motorcycle__thumb.card-thumb-link {
+  margin-bottom: var(--space-2);
+}
+
+.card-listing-motorcycle__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.card-listing-motorcycle__price {
+  margin: 0;
+  line-height: 1.1;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.45rem;
+  letter-spacing: -0.03em;
+  color: var(--color-text);
+}
+
+.card-listing-motorcycle__headline {
+  margin: 0;
+  min-width: 0;
+}
+
+.card-listing-motorcycle__headline-inner {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-text);
+}
+
+.card-listing-motorcycle__meta--specs {
+  margin-top: 0.1rem;
+}
+
+.card-listing-motorcycle__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.card-listing-motorcycle__pill {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(0, 122, 171, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(0, 122, 171, 0.22);
+}
+
+.card-listing-motorcycle__pill--cond {
+  background: rgba(107, 114, 128, 0.1);
+  color: var(--color-muted);
+  border-color: rgba(107, 114, 128, 0.22);
+}
+
+.card-listing-motorcycle__pill--muted {
+  background: rgba(107, 114, 128, 0.08);
+  color: var(--color-muted);
+  border-color: rgba(107, 114, 128, 0.18);
+  text-transform: none;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.card-listing-motorcycle__pill--muted.card-badge--recommended {
+  background: #e6f4ea;
+  color: #137333;
+  border-color: rgba(19, 115, 51, 0.22);
+}
+
+.card-listing-motorcycle__pill--muted.card-badge--deal {
+  background: #fff4e5;
+  color: #b45309;
+  border-color: rgba(180, 83, 9, 0.25);
+}
+
+.card-listing-motorcycle__mileage {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.card-listing-motorcycle__location {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-listing-motorcycle__trust {
+  margin: 0.2rem 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-listing--vehicle:hover,
+  .card-listing--motorcycle:hover,
+  .card-listing--electronics:hover,
+  .card-listing--home:hover {
+    transform: none;
+  }
+}
+
+.card-listing-motorcycle__subtitle {
+  margin: 0.15rem 0 0;
+  pointer-events: none;
+}
+

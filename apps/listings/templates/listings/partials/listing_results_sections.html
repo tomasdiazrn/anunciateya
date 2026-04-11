@@ -1,0 +1,44 @@
+{% if featured_cards %}
+  <section class="featured-block" aria-label="Anuncios destacados">
+    <h2 class="h-section featured-block__title">Destacados</h2>
+    <div class="listing-grid grid">
+      {% for card in featured_cards %}
+        {% include card.template with card=card %}
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+<section class="listing-results-block" aria-label="Resultados">
+  <h2 class="h-section listing-results-block__title">
+    {% if results_count == 1 %}1 resultado{% else %}{{ results_count }} resultados{% endif %}
+  </h2>
+  {% if listings_results_empty %}
+    {% include "listings/partials/listing_empty_results.html" %}
+  {% elif normal_cards %}
+    {% if category %}
+      {% if user.is_authenticated %}
+        {% include "components/marketplace/listing_grid.html" with page_obj=page_obj listing_cards=normal_cards empty_title="Aún no hay anuncios aquí" empty_description="Sé el primero en publicar. Un buen título y buenas fotos ayudan a vender más rápido." empty_cta_label="Crear anuncio" empty_cta_href="/publicar/" empty_cta_event="create_listing" empty_cta_event_detail="category_empty" %}
+      {% else %}
+        {% include "components/marketplace/listing_grid.html" with page_obj=page_obj listing_cards=normal_cards empty_title="Aún no hay anuncios aquí" empty_description="Sé el primero en publicar. Crea tu cuenta y publica en minutos." empty_cta_label="Crear anuncio" empty_cta_href="/accounts/login/?next=/publicar/" empty_cta_event="create_listing" empty_cta_event_detail="category_empty_login" %}
+      {% endif %}
+    {% else %}
+      {% if user.is_authenticated %}
+        {% include "components/marketplace/listing_grid.html" with page_obj=page_obj listing_cards=normal_cards empty_title="Todavía no hay anuncios publicados" empty_description="Sé el primero en publicar. Un buen título y buenas fotos ayudan a vender más rápido." empty_cta_label="Crear anuncio" empty_cta_href="/publicar/" empty_cta_event="create_listing" empty_cta_event_detail="list_empty" %}
+      {% else %}
+        {% include "components/marketplace/listing_grid.html" with page_obj=page_obj listing_cards=normal_cards empty_title="Todavía no hay anuncios publicados" empty_description="Sé el primero en publicar. Crea tu cuenta y publica en minutos." empty_cta_label="Crear anuncio" empty_cta_href="/accounts/login/?next=/publicar/" empty_cta_event="create_listing" empty_cta_event_detail="list_empty_login" %}
+      {% endif %}
+    {% endif %}
+  {% endif %}
+</section>
+
+{% if suggestion_cards %}
+  <section class="listing-suggestions" aria-label="Sugerencias">
+    <h2 class="h-section listing-suggestions__title">{{ listings_suggestions_heading|default:"Sugerencias" }}</h2>
+    <div class="listing-grid grid">
+      {% for card in suggestion_cards %}
+        {% include card.template with card=card %}
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}

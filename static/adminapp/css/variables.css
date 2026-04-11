@@ -1,0 +1,81 @@
+/**
+ * Admin panel — dark theme alineado a la marca (tokens.css):
+ * fondos gris oscuro, CTA naranja #ff6a00, acento teal #007aab.
+ * Editar solo variables; el resto del admin usa var(--admin-*).
+ */
+:root {
+  /* Typography */
+  --admin-font-family: "Inter", system-ui, -apple-system, sans-serif;
+  --admin-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --admin-font-size-xs: 0.75rem;
+  --admin-font-size-sm: 0.8125rem;
+  --admin-font-size-base: 0.9375rem;
+  --admin-font-size-lg: 1.125rem;
+  --admin-font-size-xl: 1.35rem;
+  --admin-line-height: 1.5;
+  --admin-font-weight-normal: 400;
+  --admin-font-weight-medium: 500;
+  --admin-font-weight-semibold: 600;
+
+  /* Surfaces — grises oscuros (sin tinte azulado) */
+  --admin-bg: #18181a;
+  --admin-sidebar-bg: #121214;
+  --admin-bg-elevated: #1f1f22;
+  --admin-surface: #2a2a2e;
+  --admin-surface-hover: #34343a;
+  --admin-border: #3f3f46;
+  --admin-border-strong: #52525b;
+
+  /* Text */
+  --admin-text: #f4f4f5;
+  --admin-text-muted: #a1a1aa;
+  --admin-text-faint: #71717a;
+
+  /* Marca: CTA naranja (mismo que --color-cta) */
+  --admin-primary: #ff6a00;
+  --admin-primary-hover: #e65f00;
+  --admin-primary-muted: rgba(255, 106, 0, 0.14);
+  --admin-primary-border-soft: rgba(255, 106, 0, 0.45);
+  --admin-primary-glow: rgba(255, 106, 0, 0.22);
+  --admin-text-on-primary: #ffffff;
+
+  /* Acento secundario teal (mismo que --color-primary) — enlaces / detalles */
+  --admin-accent: #007aab;
+  --admin-accent-hover: #006694;
+  --admin-accent-muted: rgba(0, 122, 171, 0.12);
+
+  /* Overlays */
+  --admin-backdrop-scrim: rgba(0, 0, 0, 0.45);
+
+  /* Semantic */
+  --admin-success: #22c55e;
+  --admin-success-muted: rgba(34, 197, 94, 0.15);
+  --admin-warning: #eab308;
+  --admin-warning-muted: rgba(234, 179, 8, 0.15);
+  --admin-danger: #ef4444;
+  --admin-danger-muted: rgba(239, 68, 68, 0.15);
+
+  /* Layout */
+  --admin-radius: 8px;
+  --admin-radius-sm: 6px;
+  --admin-sidebar-width: 15.5rem;
+  --admin-sidebar-collapsed-width: 4.25rem;
+  --admin-topbar-height: 3.25rem;
+  --admin-content-max-width: 72rem;
+
+  /* Spacing scale */
+  --admin-space-1: 0.25rem;
+  --admin-space-2: 0.5rem;
+  --admin-space-3: 0.75rem;
+  --admin-space-4: 1rem;
+  --admin-space-5: 1.25rem;
+  --admin-space-6: 1.5rem;
+  --admin-space-8: 2rem;
+
+  /* Effects */
+  --admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --admin-focus-ring: 0 0 0 2px var(--admin-bg), 0 0 0 4px var(--admin-primary);
+
+  /* Motion */
+  --admin-transition: 0.15s ease;
+}

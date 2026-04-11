@@ -1,0 +1,17 @@
+{# Campo reutilizable: label vinculado por Django; errores con role=alert (accesibilidad). #}
+{# field_currency_prefix: solo UI ($) sin tocar valor ni backend #}
+<div class="field{% if field_currency_prefix %} field--currency-prefix{% endif %}">
+  {{ field.label_tag }}
+  {% if field_currency_prefix %}
+    <div class="field__currency-wrap">
+      <span class="field__currency-symbol" aria-hidden="true">$</span>
+      {{ field }}
+    </div>
+  {% else %}
+    {{ field }}
+  {% endif %}
+  {% if field.help_text %}<span class="small muted" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
+  {% if field.errors %}
+    <div class="form-errors" role="alert" aria-live="assertive">{{ field.errors }}</div>
+  {% endif %}
+</div>

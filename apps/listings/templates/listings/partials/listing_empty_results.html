@@ -1,0 +1,18 @@
+<div class="listing-empty-results card" role="status">
+  <h2 class="h-section listing-empty-results__title">{{ listings_empty_title }}</h2>
+  {% if listings_empty_description %}
+    <p class="muted listing-empty-results__desc">{{ listings_empty_description }}</p>
+  {% endif %}
+  {% if listings_empty_hints %}
+    <ul class="listing-empty-results__hints muted small">
+      {% for hint in listings_empty_hints %}
+        <li>{{ hint }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if listings_empty_cta_href and listings_empty_cta_label %}
+    <p class="listing-empty-results__cta">
+      <a class="button btn-primary" href="{{ listings_empty_cta_href }}">{{ listings_empty_cta_label }}</a>
+    </p>
+  {% endif %}
+</div>

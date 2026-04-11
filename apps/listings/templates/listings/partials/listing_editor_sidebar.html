@@ -1,0 +1,22 @@
+{# Sidebar (WordPress-like): publicación + acciones. Expects: form, submit_label, optional listing, optional cancel_url #}
+<aside class="listing-editor__side" aria-label="Opciones de publicación">
+  <div class="listing-editor__side-inner">
+    <section class="card listing-editor__side-card" aria-labelledby="publish-box-title">
+      <h2 id="publish-box-title" class="h-section listing-editor__side-title">Publicación</h2>
+      {% if form.publish_state %}
+        {% include "components/ui/form_field.html" with field=form.publish_state %}
+      {% endif %}
+
+      <div class="listing-editor__actions">
+        <p class="small muted listing-editor__draft-note" id="listing-draft-note" hidden>Borrador guardado automáticamente</p>
+        <button type="submit" class="button btn-primary listing-editor__submit">{{ submit_label }}</button>
+        {% if listing %}
+          <a class="button btn-secondary" href="{{ listing.get_absolute_url }}">Cancelar</a>
+        {% else %}
+          <a class="button btn-secondary" href="{{ cancel_url|default_if_none:''|default:'' }}">Cancelar</a>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</aside>
+

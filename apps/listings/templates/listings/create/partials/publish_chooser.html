@@ -1,0 +1,36 @@
+{# use_account_urls: enlaces a Mi cuenta con HTMX #}
+{# publish_categories: queryset Category raíz #}
+<section class="home-categories home-block publish-chooser-section" aria-label="Categorías para publicar">
+  <div class="home-cat-grid publish-chooser-grid" role="list">
+    {% for category in publish_categories %}
+      <a
+        class="home-cat-card home-category-card publish-chooser-card"
+        role="listitem"
+        href="{% if use_account_urls %}{% url 'users:account_publish_in_category' category_slug=category.slug %}{% else %}{% url 'publish_in_category' category_slug=category.slug %}{% endif %}"
+        {% if use_account_urls %}
+          hx-get="{% url 'users:account_publish_in_category' category_slug=category.slug %}"
+          hx-target="#account-dashboard-main"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+        {% endif %}
+        data-event="publish_choose"
+        data-event-detail="{{ category.slug }}"
+      >
+        <span class="home-cat-card__icon" aria-hidden="true">
+          {% include "components/category/category_card_media.html" with category=category %}
+        </span>
+        <span class="home-cat-card__title">{{ category.name }}</span>
+        <p class="home-cat-card__desc">
+          {% if category.description %}
+            {{ category.description|truncatewords:22 }}
+          {% else %}
+            Publicá en {{ category.name }} con título, fotos y precio claros.
+          {% endif %}
+        </p>
+        <span class="home-cat-card__cta button btn-secondary">Publicar en esta categoría</span>
+      </a>
+    {% empty %}
+      <p class="muted">No hay categorías configuradas. Contactá al administrador.</p>
+    {% endfor %}
+  </div>
+</section>

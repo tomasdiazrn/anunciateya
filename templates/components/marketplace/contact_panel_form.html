@@ -1,0 +1,22 @@
+<p class="contact-cta-trust">Contacta con confianza</p>
+<form
+  method="post"
+  action="{% url 'listings:contact' listing.slug %}"
+  hx-post="{% url 'listings:contact' listing.slug %}"
+  hx-target="#contact-panel-mount"
+  hx-swap="innerHTML"
+  class="stack-form contact-interest-form"
+  aria-label="Mensaje al vendedor"
+>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="form-errors" role="alert" aria-live="assertive">{{ form.non_field_errors }}</div>
+  {% endif %}
+  <p class="small muted">Mensaje para {{ listing.seller.get_full_name|default:listing.seller.email }}</p>
+  {% for field in form %}
+    {% include "components/ui/form_field.html" with field=field %}
+  {% endfor %}
+  <p class="form-actions-row">
+    <button type="submit" class="button btn-primary" data-event="contact_click" data-event-detail="submit_secure_message">Enviar mensaje seguro</button>
+  </p>
+</form>

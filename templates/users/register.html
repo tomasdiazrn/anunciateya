@@ -1,0 +1,78 @@
+{% extends "layouts/auth_base.html" %}
+{% load static %}
+
+{% block title %}Crear cuenta · {{ site_name }}{% endblock %}
+{% block meta_description %}Regístrate en {{ site_name }} para publicar anuncios y chatear de forma más segura con compradores y vendedores.{% endblock %}
+
+{% block content %}
+  <div class="auth-page auth-page--image">
+    <div class="auth-shell">
+    <div class="auth-card">
+      <a class="auth-brand" href="{% url 'core:home' %}" aria-label="Ir al inicio">
+        <img class="auth-logo" src="{% static 'img/AnunciateYa_Logo.png' %}" alt="{{ site_name }}">
+      </a>
+      <h1 class="auth-title">Crea tu cuenta</h1>
+      <p class="auth-subtitle">
+        o <a href="{% url 'users:login' %}">ingresa a tu cuenta</a>
+      </p>
+      {% include "users/partials/register_step1.html" with step1_form=step1_form %}
+
+      <noscript>
+        <form method="post" class="stack-form" aria-label="Crear cuenta">
+          {% csrf_token %}
+          {% include "components/ui/form_non_field_errors.html" %}
+          {% for field in full_form %}
+            {% if field.name == "first_name" %}
+              <div class="auth-name-row">
+                {% include "components/ui/form_field.html" with field=field %}
+                {% include "components/ui/form_field.html" with field=full_form.last_name %}
+              </div>
+            {% elif field.name == "last_name" %}
+              {# rendered together with first_name #}
+            {% elif field.name == "phone_country_code" %}
+              {% include "components/ui/phone_input.html" with country_field=field number_field=full_form.phone_number countries=country_phone_codes %}
+            {% elif field.name == "phone_number" %}
+              {# rendered together with phone_country_code #}
+            {% elif field.name == "password1" or field.name == "password2" %}
+              <div class="field">
+                {{ field.label_tag }}
+                <div class="auth-password">
+                  {{ field }}
+                  <button
+                    type="button"
+                    class="auth-password__toggle"
+                    aria-label="Mostrar contraseña"
+                    data-toggle-password="#{{ field.id_for_label }}"
+                  >
+                    <i class="fa-regular fa-eye" aria-hidden="true"></i>
+                  </button>
+                </div>
+                {% if field.help_text %}<span class="small muted" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
+                {% if field.errors %}
+                  <div class="form-errors" role="alert" aria-live="assertive">{{ field.errors }}</div>
+                {% endif %}
+              </div>
+            {% elif field.name == "accept_terms" %}
+              <div class="field auth-terms-field">
+                <label class="auth-terms">
+                  {{ field }}
+                  <span class="auth-terms__text">{{ field.label|safe }}</span>
+                </label>
+                {% if field.errors %}
+                  <div class="form-errors" role="alert" aria-live="assertive">{{ field.errors }}</div>
+                {% endif %}
+              </div>
+            {% else %}
+              {% include "components/ui/form_field.html" with field=field %}
+            {% endif %}
+          {% endfor %}
+          <div class="form-actions-row">
+            <button type="submit" class="button btn-primary auth-submit">Crear cuenta</button>
+          </div>
+        </form>
+      </noscript>
+    </div>
+    {% include "components/ui/auth_back_home.html" %}
+    </div>
+  </div>
+{% endblock %}

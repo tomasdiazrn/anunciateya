@@ -1,0 +1,318 @@
+/* Auth pages — minimal, conversion-first (Apple/Stripe-ish) */
+.auth-body {
+  height: 100%;
+}
+
+.auth-main {
+  min-height: 100vh;
+}
+
+.auth-corner-brand {
+  position: fixed;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  font: 700 0.95rem/1 var(--font-display);
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (max-width: 640px) {
+  .auth-corner-brand {
+    font-size: 0.875rem;
+    right: var(--space-1);
+    bottom: var(--space-1);
+  }
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(var(--space-3), 5vw, var(--space-5)) var(--space-2);
+  background: #f9fafb;
+}
+
+.auth-page--image {
+  position: relative;
+  background-image: url("/static/img/AnunciateYa_HeroBackground.webp");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.auth-page--image::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 122, 171, 0.58);
+}
+
+.auth-page--image > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Tarjeta + acciones debajo (fuera de la caja blanca) */
+.auth-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: min(420px, 100%);
+}
+
+@media (max-width: 799px) {
+  .auth-page {
+    padding: var(--space-3) var(--space-1);
+  }
+}
+
+.auth-card {
+  width: min(420px, 100%);
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: clamp(var(--space-3), 3.5vw, var(--space-4));
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.auth-card:hover {
+  box-shadow: 0 10px 28px rgba(31, 41, 55, 0.12);
+}
+
+.auth-title {
+  margin: 0 0 var(--space-3);
+  font: 600 1.5rem/1.2 var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.auth-subtitle {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-3);
+  text-align: center;
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+
+.auth-subtitle a {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-subtitle a:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.auth-brand {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-2);
+  text-decoration: none;
+}
+
+.auth-logo {
+  display: block;
+  height: 44px;
+  width: auto;
+  max-width: 320px;
+}
+
+.auth-submit {
+  width: 100%;
+  justify-content: center;
+}
+
+.req {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.auth-password {
+  position: relative;
+}
+
+.auth-password input.form-control {
+  padding-right: 2.6rem;
+}
+
+.auth-password__toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.65rem;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  padding: 0.25rem;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.auth-password__toggle:hover {
+  color: var(--color-primary);
+}
+
+.auth-password__toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.auth-remember-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: calc(-1 * var(--space-1));
+  margin-bottom: var(--space-2);
+}
+
+.auth-remember {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.auth-forgot {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.auth-forgot:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.auth-forgot:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.auth-remember-row .checkbox-input {
+  margin-right: 0;
+}
+
+.auth-card .checkbox-input {
+  accent-color: var(--color-primary);
+}
+
+.auth-card .field input[type="checkbox"] {
+  width: auto;
+}
+
+.auth-terms-field {
+  margin-top: var(--space-1);
+}
+
+.auth-terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  cursor: pointer;
+  user-select: none;
+  margin: 0;
+}
+
+.auth-terms input[type="checkbox"] {
+  margin-top: 0.15rem;
+}
+
+.auth-terms__text {
+  font-size: 0.875rem;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+
+.auth-card .field label a {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-card .field label a:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.auth-name-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+@media (max-width: 420px) {
+  .auth-name-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.auth-links {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.auth-links a {
+  color: var(--color-muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.auth-links a:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.auth-back-home {
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.auth-back-home a {
+  color: var(--color-muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.auth-back-home a:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+/* Debajo de la tarjeta, sobre el overlay (legible) */
+.auth-page--image .auth-back-home a {
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.25);
+}
+
+.auth-page--image .auth-back-home a:hover {
+  color: #fff;
+}
+

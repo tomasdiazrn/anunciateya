@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block content %}
+  <div class="container">
+    {% include "components/layouts/page_header.html" with title=heading subtitle="Marca, modelo, cilindrada y datos técnicos en bloques claros como en autos." %}
+    <form
+      method="post"
+      enctype="multipart/form-data"
+      class="stack-form listing-form listing-editor"
+      action="{{ form_action_url }}"
+      aria-label="Formulario de anuncio de moto"
+    >
+      {% csrf_token %}
+      <div class="listing-editor__grid">
+        <div class="listing-editor__main">
+          {% include "listings/partials/listing_form_fields.html" with form=form specific_form=specific_form include_category=False listing=None show_submit_row=False submit_label=submit_label cancel_url=cancel_url specific_section_title=specific_section_title specific_fields_grid=specific_fields_grid %}
+        </div>
+        {% include "listings/partials/listing_editor_sidebar.html" with form=form submit_label=submit_label cancel_url=cancel_url %}
+      </div>
+    </form>
+  </div>
+{% endblock %}

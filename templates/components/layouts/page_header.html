@@ -1,0 +1,18 @@
+{# Reusable page header: H1 por defecto; usar title_tag=h2 cuando el H1 vive en category_hero #}
+<header class="page-header">
+  <div class="page-header__main">
+    {% if title_tag == "h2" %}
+      <h2 class="page-header__title page-title">{{ title }}</h2>
+    {% else %}
+      <h1 class="page-header__title page-title">{{ title }}</h1>
+    {% endif %}
+    {% if subtitle %}
+      <p class="page-header__subtitle muted">{{ subtitle }}</p>
+    {% endif %}
+  </div>
+  {% if meta %}
+    <div class="page-header__meta small muted">
+      {{ meta }}{% if meta_label %} {{ meta_label }}{% endif %}
+    </div>
+  {% endif %}
+</header>

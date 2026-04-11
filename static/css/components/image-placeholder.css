@@ -1,0 +1,41 @@
+/* Placeholder unificado (cards + detalle): mismo sistema visual, ratio configurable. */
+
+.ui-image-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  box-sizing: border-box;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.ui-image-placeholder__icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.ui-image-placeholder__text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #64748b;
+  text-align: center;
+  padding-inline: var(--space-2, 0.5rem);
+}
+
+.ui-image-placeholder--43 {
+  aspect-ratio: 4 / 3;
+}
+
+.ui-image-placeholder--11 {
+  aspect-ratio: 1 / 1;
+}
+
+/* Misma altura que .card-thumb en cards-listings.css (evita CLS en grid). */
+.ui-image-placeholder--card {
+  min-height: 168px;
+  aspect-ratio: auto;
+}

@@ -1,0 +1,91 @@
+{# Filtros GET electrónica: /anuncios/?category=electronica o hub /electronica/ #}
+<form
+  class="browse-filter-form browse-filter-form--sidebar"
+  method="get"
+  action="{{ electronics_filters_form_action }}"
+  aria-label="Filtrar anuncios de electrónica"
+>
+  {% if electronics_filters_include_category %}
+    <input type="hidden" name="category" value="electronica">
+  {% endif %}
+  {% if request.GET.q %}
+    <input type="hidden" name="q" value="{{ request.GET.q }}">
+  {% endif %}
+  {% if request.GET.location %}
+    <input type="hidden" name="location" value="{{ request.GET.location }}">
+  {% endif %}
+
+  <aside class="browse-filters-sidebar">
+    <details class="browse-filters-accordion" open>
+      <summary class="browse-filters-summary">Filtrar electrónica</summary>
+      <div class="browse-filters-inner">
+        <div class="form-group">
+          <label for="id_browse_elec_brand">Marca</label>
+          <input
+            class="form-control"
+            type="text"
+            name="brand"
+            id="id_browse_elec_brand"
+            maxlength="80"
+            placeholder="Ej. Samsung"
+            value="{{ request.GET.brand|default:'' }}"
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="id_browse_elec_condition">Condición</label>
+          <select class="form-control" name="condition" id="id_browse_elec_condition">
+            <option value="">Todas</option>
+            {% for val, label in electronics_condition_choices %}
+              <option value="{{ val }}" {% if request.GET.condition == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="id_browse_elec_warranty">Garantía</label>
+          <select class="form-control" name="warranty" id="id_browse_elec_warranty">
+            <option value="">Todas</option>
+            <option value="1" {% if request.GET.warranty == "1" %}selected{% endif %}>Con garantía</option>
+            <option value="0" {% if request.GET.warranty == "0" %}selected{% endif %}>Sin garantía</option>
+          </select>
+        </div>
+
+        <div class="form-group browse-filter-row">
+          <div>
+            <label for="id_browse_elec_price_from">Precio desde (USD)</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="text"
+              name="price_from"
+              id="id_browse_elec_price_from"
+              inputmode="decimal"
+              placeholder="50"
+              value="{{ request.GET.price_from|default:'' }}"
+              autocomplete="off"
+            >
+          </div>
+          <div>
+            <label for="id_browse_elec_price_to">Precio hasta (USD)</label>
+            <input
+              class="form-control browse-filter-input--compact"
+              type="text"
+              name="price_to"
+              id="id_browse_elec_price_to"
+              inputmode="decimal"
+              placeholder="1500"
+              value="{{ request.GET.price_to|default:'' }}"
+              autocomplete="off"
+            >
+          </div>
+        </div>
+
+        <div class="browse-filter-actions">
+          <button type="submit" class="button btn-primary">Aplicar filtros</button>
+          <a class="button btn-secondary" href="{{ filter_clear_url }}">Limpiar</a>
+        </div>
+      </div>
+    </details>
+  </aside>
+</form>

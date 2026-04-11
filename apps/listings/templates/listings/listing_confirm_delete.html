@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block content %}
+  <div class="container narrow">
+    <h1 class="page-title">Eliminar anuncio</h1>
+    <p class="muted">
+      ¿Seguro que quieres eliminar el anuncio «{{ listing.title }}»? Esta acción no se puede deshacer.
+    </p>
+    <form method="post" class="inline-actions" aria-label="Confirmar eliminación del anuncio">
+      {% csrf_token %}
+      <button type="submit" class="button btn-danger">Eliminar anuncio</button>
+      <a class="button btn-secondary" href="{% url 'listings:mine' %}">Cancelar</a>
+    </form>
+  </div>
+{% endblock %}

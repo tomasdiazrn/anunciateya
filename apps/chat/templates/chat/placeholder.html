@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Mensajes · {{ site_name }}{% endblock %}
+{% block meta_description %}Próximamente el chat entre comprador y vendedor en {{ site_name }}. Por ahora usa el contacto seguro en cada anuncio.{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <h1 class="page-title">Mensajes</h1>
+    <p class="muted">
+      El chat entre comprador y vendedor estará aquí. Por ahora el contacto se gestiona desde el panel HTMX de cada anuncio.
+    </p>
+    <p><a class="button btn-secondary" href="{% url 'listings:list' %}">Ir a anuncios</a></p>
+  </div>
+{% endblock %}

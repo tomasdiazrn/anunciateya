@@ -1,0 +1,27 @@
+{# headers: lista de textos; rows: lista de filas (cada fila = lista de celdas); empty_text opcional #}
+<div class="admin-table-wrap">
+  <table class="admin-table" role="grid">
+    <thead>
+      <tr>
+        {% for h in headers %}
+          <th scope="col">{{ h }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% if rows %}
+        {% for row in rows %}
+          <tr>
+            {% for cell in row %}
+              <td>{{ cell }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td class="admin-table__empty" colspan="{{ headers|length }}">{{ empty_text|default:"Sin filas." }}</td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,33 @@
+{% load static %}
+<div id="register-container">
+  <form
+    method="post"
+    class="stack-form"
+    aria-label="Crear cuenta (Paso 1)"
+    hx-post="."
+    hx-target="#register-container"
+    hx-swap="outerHTML"
+  >
+    {% csrf_token %}
+    <input type="hidden" name="step" value="1">
+    {% include "components/ui/form_non_field_errors.html" %}
+
+    {% for field in step1_form %}
+      {% if field.name == "first_name" %}
+        <div class="auth-name-row">
+          {% include "components/ui/form_field.html" with field=field %}
+          {% include "components/ui/form_field.html" with field=step1_form.last_name %}
+        </div>
+      {% elif field.name == "last_name" %}
+        {# rendered together with first_name #}
+      {% else %}
+        {% include "components/ui/form_field.html" with field=field %}
+      {% endif %}
+    {% endfor %}
+
+    <div class="form-actions-row">
+      <button type="submit" class="button btn-primary auth-submit">Continuar</button>
+    </div>
+  </form>
+</div>
+

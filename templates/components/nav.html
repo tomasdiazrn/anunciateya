@@ -1,0 +1,32 @@
+{% load static %}
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="logo brand-lockup" href="{% url 'core:home' %}" aria-label="{{ site_name }}">
+      <img class="site-logo" src="{% static 'img/AnunciateYa_Logo.png' %}" alt="{{ site_name }}">
+      <span class="site-title" aria-hidden="true">{{ seo_brand_name }}</span>
+    </a>
+    <nav class="nav-links" aria-label="Navegación principal">
+      <div class="nav-links__primary" aria-label="Secciones">
+        <a href="{% url 'browse' %}">Anuncios</a>
+      </div>
+
+      <div class="nav-links__cta" aria-label="Acciones">
+        {% if request.user.is_authenticated %}
+          <a class="button btn-secondary nav-publish" href="/publicar/" data-event="click_publish" data-event-detail="nav">Publicar anuncio</a>
+          <a class="nav-icon-button" href="{% url 'users:account' %}" aria-label="Mi cuenta">
+            <i class="fa-solid fa-user" aria-hidden="true"></i>
+          </a>
+          <form method="post" action="{% url 'users:logout' %}" class="nav-logout">
+            {% csrf_token %}
+            <button type="submit" class="nav-icon-button" aria-label="Cerrar sesión">
+              <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+            </button>
+          </form>
+        {% else %}
+          <a class="button btn-secondary nav-publish" href="/publicar/" data-event="click_publish" data-event-detail="nav">Publicar anuncio</a>
+          <a class="button btn-primary nav-login" href="{% url 'users:login' %}">Iniciar sesión</a>
+        {% endif %}
+      </div>
+    </nav>
+  </div>
+</header>

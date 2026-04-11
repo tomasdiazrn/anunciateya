@@ -1,0 +1,10 @@
+{% if messages %}
+  <div class="messages container" role="region" aria-label="Avisos" aria-live="polite">
+    {% for message in messages %}
+      <p
+        class="message message-{{ message.tags }}"
+        {% if message.tags == 'error' %}role="alert" aria-live="assertive"{% endif %}
+      >{{ message }}</p>
+    {% endfor %}
+  </div>
+{% endif %}

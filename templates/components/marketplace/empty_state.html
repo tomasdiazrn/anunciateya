@@ -1,0 +1,12 @@
+{# Reusable empty state. Expects: title, description, cta_label, cta_href #}
+<div class="empty-state card empty-state-card" role="status" aria-live="polite">
+  <h2 class="empty-state__title h-section">{{ title }}</h2>
+  {% if description %}
+    <p class="empty-state__desc muted">{{ description }}</p>
+  {% endif %}
+  {% if cta_href and cta_label %}
+    <p class="empty-state__cta">
+      <a class="button btn-primary" href="{{ cta_href }}" {% if cta_event %}data-event="{{ cta_event }}"{% endif %} {% if cta_event_detail %}data-event-detail="{{ cta_event_detail }}"{% endif %}>{{ cta_label }}</a>
+    </p>
+  {% endif %}
+</div>

@@ -1,0 +1,614 @@
+{% extends "base.html" %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+{% block canonical_href %}{{ canonical_href_override }}{% endblock %}
+
+{% block extra_head %}
+  {% if listing_json_ld %}
+    <script type="application/ld+json">{{ listing_json_ld|safe }}</script>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <span class="listing-detail__seo-assist" aria-hidden="true">{{ detail.seo_text }}</span>
+
+  {% if not detail.is_owner %}
+    <div class="listing-detail-sticky-cta listing-cta-sticky" role="region" aria-label="Contacto rápido">
+      <span class="listing-detail-sticky-cta__price">{{ detail.price_display }}</span>
+      <a class="button btn-primary" href="{{ detail.primary_cta.scroll_href }}" data-event="contact_click" data-event-detail="sticky_cta">{{ detail.primary_cta.label }}</a>
+    </div>
+  {% endif %}
+
+  <div class="container detail-layout listing-detail-page">
+    <div class="listing-detail__gallery-row">
+      {% include "listings/partials/listing_gallery.html" %}
+    </div>
+    <article class="listing-detail" aria-labelledby="listing-title">
+      {% if detail.is_flagged %}
+        <p class="listing-detail__flag-banner" role="alert">
+          ⚠️ Este anuncio ha sido reportado por varios usuarios. Ten precaución antes de contactar al vendedor.
+        </p>
+      {% endif %}
+      {% if detail.is_owner and not detail.visible_to_public %}
+        <p class="listing-detail__owner-banner">Solo tú ves este anuncio: no aparece en el listado público.</p>
+      {% endif %}
+
+      <p class="listing-detail__breadcrumb muted small">
+        <a href="{{ detail.category_href }}" data-event="category_click" data-event-detail="breadcrumb">{{ detail.category_label }}</a>
+      </p>
+
+      <div class="listing-detail__hero listing-hero">
+        <div class="listing-detail__hero-main listing-hero__conversion">
+          <p class="listing-detail__price listing-hero__price">{{ detail.price_display }}</p>
+          <h1 class="listing-detail__title listing-hero__title" id="listing-title">{{ detail.title }}</h1>
+          {% if detail.gallery_count %}
+            <p class="listing-detail__photo-meta muted small" aria-live="polite">{{ detail.gallery_count }} {% if detail.gallery_count == 1 %}foto{% else %}fotos{% endif %}</p>
+          {% elif detail.gallery_show_placeholder %}
+            <p class="listing-detail__photo-meta listing-detail__photo-meta--empty muted small">Sin fotos subidas</p>
+          {% endif %}
+          {% if detail.location %}
+            <p class="listing-detail__location listing-hero__location">{{ detail.location }}</p>
+          {% endif %}
+          {% if detail.badges %}
+            <div class="listing-detail__badges badge-row">
+              {% for b in detail.badges %}
+                <span class="listing-detail__badge">{{ b }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+          {% if detail.quick_attributes %}
+            <p class="listing-detail__quick-attr quick-attributes">{{ detail.quick_attributes|join:" · " }}</p>
+          {% endif %}
+
+          {% if not detail.is_owner %}
+            <div class="listing-detail__hero-cta">
+              <a class="button btn-primary listing-detail__btn-primary" href="{{ detail.primary_cta.scroll_href }}" data-event="contact_click" data-event-detail="hero_cta">{{ detail.primary_cta.label }}</a>
+              {% if detail.secondary_cta %}
+                <a class="button btn-secondary listing-detail__btn-secondary" href="{{ detail.secondary_cta.scroll_href }}">{{ detail.secondary_cta.label }}</a>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if detail.description %}
+        <section class="listing-detail__desc" aria-labelledby="listing-desc-heading">
+          <h2 class="h-section visually-hidden" id="listing-desc-heading">Descripción</h2>
+          {% if detail.show_description_expand %}
+            <p class="listing-detail__desc-preview">{{ detail.description_short }}</p>
+            <details class="listing-detail__desc-toggle">
+              <summary>Ver más</summary>
+              <div class="listing-detail__desc-body">{{ detail.description|linebreaksbr }}</div>
+            </details>
+          {% else %}
+            <div class="listing-detail__desc-body">{{ detail.description|linebreaksbr }}</div>
+          {% endif %}
+        </section>
+      {% endif %}
+
+      <section class="listing-detail__safety" aria-label="Consejos de seguridad">
+        {{ detail.safety_notice }}
+      </section>
+
+      {% if detail.show_similar %}
+        <section class="listing-detail__similar" aria-labelledby="similar-heading">
+          <h2 class="h-section" id="similar-heading">Anuncios similares</h2>
+          <div class="listing-detail__similar-scroll">
+            {% for card in detail.similar_listings %}
+              {% include card.template with card=card %}
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      <p class="listing-detail__footer-seo seo-internal muted small">
+        <a href="{{ detail.category_href }}" data-event="category_click" data-event-detail="footer_category">{{ detail.category_explore_label }}</a>
+        ·
+        <a href="{% url 'listings:list' %}">Ver más anuncios</a>
+      </p>
+
+      <div class="listing-detail__report-zone">
+        <details class="listing-detail__report-panel">
+          <summary class="listing-detail__report-summary">Reportar anuncio</summary>
+          <div class="listing-detail__report-body">
+            {% if report_form %}
+              <p class="small muted">Ayúdanos a mantener {{ seo_brand_name }} seguro.</p>
+              {% include "components/marketplace/report_trust_note.html" %}
+              <form method="post" action="{{ detail.report_url }}" class="stack-form">
+                {% csrf_token %}
+                {% if report_form.non_field_errors %}
+                  <div class="form-errors" role="alert" aria-live="assertive">{{ report_form.non_field_errors }}</div>
+                {% endif %}
+                {% for field in report_form %}
+                  {% include "components/ui/form_field.html" with field=field %}
+                {% endfor %}
+                <p class="form-actions-row">
+                  <button type="submit" class="button btn-primary">Enviar reporte</button>
+                </p>
+              </form>
+            {% else %}
+              <p class="small muted">Para reportar contenido, iniciá sesión.</p>
+              <p><a class="button btn-secondary btn-compact" href="{% url 'users:login' %}?next={{ request.path|urlencode }}">Iniciar sesión</a></p>
+            {% endif %}
+          </div>
+        </details>
+      </div>
+    </article>
+
+    <aside class="listing-detail__aside listing-sidebar card seller-card" id="listing-contact" aria-label="Información del vendedor">
+      <div class="listing-detail__aside-head seller-card__head">
+        <div class="listing-detail__avatar seller-card__avatar" aria-hidden="true">{{ detail.seller_name|default:"?"|slice:":1"|upper }}</div>
+        <div>
+          <p class="listing-detail__aside-name seller-card__name">
+            <a href="{{ detail.seller_profile_href }}">{{ detail.seller_name }}</a>
+          </p>
+          {% if detail.is_verified %}
+            <span class="listing-detail__verified-pill listing-detail__verified-pill--yes">✔ Verificado</span>
+          {% else %}
+            <span class="listing-detail__verified-pill listing-detail__verified-pill--no">Teléfono no verificado</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <p class="listing-detail__meta-line seller-card__activity">Última actividad: {{ detail.seller_last_seen }}</p>
+
+      {% if detail.seller_reviews_count %}
+        <p class="listing-detail__rating seller-card__rating" data-event="trust_label_click" data-event-detail="rating">
+          ⭐ {{ detail.seller_rating }} <span class="muted">({{ detail.seller_reviews_count }} opiniones)</span>
+        </p>
+      {% else %}
+        <p class="listing-detail__meta-line seller-card__rating">Sin opiniones aún</p>
+      {% endif %}
+
+      {% if detail.seller_trust_summary %}
+        <p class="listing-detail__meta-line seller-card__trust-summary">{{ detail.seller_trust_summary }}</p>
+      {% endif %}
+      {% if detail.seller_trust_label %}
+        <p class="listing-detail__meta-line seller-card__trust-line">{{ detail.seller_trust_label }}</p>
+      {% endif %}
+      <p class="listing-detail__meta-line">{{ detail.seller_joined }}</p>
+      <p class="listing-detail__meta-line">{{ detail.seller_response_speed }}</p>
+
+      <p class="listing-detail__contact-nudge small muted">{{ detail.contact_trust_microcopy }}</p>
+
+      {% if detail.is_owner %}
+        <div class="listing-detail__owner-actions">
+          <p class="small muted">Tú vendes este artículo.</p>
+          <a class="button btn-secondary" href="{{ detail.owner_edit_href }}">Editar anuncio</a>
+          <a class="button btn-danger btn-compact" href="{{ detail.owner_delete_href }}">Eliminar anuncio</a>
+        </div>
+      {% else %}
+        <div class="listing-detail__aside-cta" id="listing-sidebar">
+          <button
+            type="button"
+            class="button btn-primary"
+            hx-get="{{ detail.primary_cta.htmx_url }}"
+            hx-target="#contact-panel-mount"
+            hx-swap="innerHTML"
+            hx-indicator="#contact-htmx-spinner"
+            aria-label="{{ detail.primary_cta.label }}"
+            data-event="contact_click"
+            data-event-detail="open_contact_panel"
+          >
+            {{ detail.primary_cta.label }}
+          </button>
+          {% if detail.secondary_cta %}
+            <a class="button btn-secondary" href="{{ detail.secondary_cta.scroll_href }}">{{ detail.secondary_cta.label }}</a>
+          {% endif %}
+          <span id="contact-htmx-spinner" class="htmx-indicator muted small" aria-live="polite">Cargando…</span>
+          <div id="contact-panel-mount"></div>
+        </div>
+      {% endif %}
+
+      <p class="seller-card__safety small muted">{{ detail.seller_safety_microcopy }}</p>
+    </aside>
+  </div>
+
+  <script>
+    (function () {
+      var root = document.querySelector(".listing-gallery");
+      if (!root) return;
+      var jsonEl = document.getElementById("listing-gallery-urls-json");
+      var altBase = root.getAttribute("data-gallery-alt") || "";
+      var imgUrls = [];
+      var imgAlts = [];
+      if (jsonEl && jsonEl.textContent) {
+        try {
+          imgUrls = JSON.parse(jsonEl.textContent.trim());
+        } catch (err) {
+          imgUrls = [];
+        }
+      }
+      if (imgUrls.length) {
+        imgAlts = imgUrls.map(function () {
+          return altBase;
+        });
+      } else {
+        Array.prototype.slice.call(root.querySelectorAll(".listing-gallery__img")).forEach(function (im) {
+          imgUrls.push(im.getAttribute("src") || "");
+          imgAlts.push(im.getAttribute("alt") || altBase);
+        });
+      }
+      var lb = root.querySelector("[data-gallery-lightbox]");
+      var lbImg = root.querySelector("[data-gallery-lightbox-img]");
+      var lbPrev = root.querySelector("[data-lb-prev]");
+      var lbNext = root.querySelector("[data-lb-next]");
+      var lbOpen = false;
+      var lbIndex = 0;
+      var preloadDone = {};
+
+      function clampSlide(i, tot) {
+        if (tot < 1) return 0;
+        return Math.min(tot - 1, Math.max(0, i));
+      }
+
+      function clampLb(i) {
+        var n = imgUrls.length;
+        if (n < 1) return 0;
+        return Math.min(n - 1, Math.max(0, i));
+      }
+
+      function thumbsForStrip(strip) {
+        if (strip) return strip.querySelectorAll("[data-gallery-jump]");
+        return root.querySelectorAll("[data-gallery-jump]");
+      }
+
+      function preloadAdjacent(idx) {
+        if (!imgUrls.length) return;
+        [idx - 1, idx, idx + 1].forEach(function (j) {
+          j = clampLb(j);
+          var u = imgUrls[j];
+          if (!u || preloadDone[u]) return;
+          preloadDone[u] = true;
+          var im = new Image();
+          im.src = u;
+        });
+      }
+
+      function bindScroller(sc) {
+        if (sc.getAttribute("data-gallery-bound") === "1") return;
+        var vp = sc.closest(".listing-gallery__viewport");
+        if (!vp) return;
+        var slides = Array.prototype.slice.call(sc.querySelectorAll(":scope > .listing-gallery__slide"));
+        var total = slides.length;
+        if (total < 1) return;
+        sc.setAttribute("data-gallery-bound", "1");
+        var countEl = vp.querySelector("[data-gallery-count]");
+        var counterTotal = countEl
+          ? parseInt(countEl.getAttribute("data-total") || String(total), 10) || total
+          : total;
+        var strip = sc.closest(".listing-gallery__strip");
+        var navPrev = vp.querySelector("[data-gallery-prev]");
+        var navNext = vp.querySelector("[data-gallery-next]");
+
+        function slideW() {
+          return sc.clientWidth || 1;
+        }
+
+        function indexFromScroll() {
+          return clampSlide(Math.round(sc.scrollLeft / slideW()), total);
+        }
+
+        function goToIndex(i, smooth) {
+          i = clampSlide(i, total);
+          sc.scrollTo({ left: i * slideW(), behavior: smooth ? "smooth" : "auto" });
+        }
+
+        function setActiveThumbs(idx) {
+          idx = clampSlide(idx, total);
+          var thumbs = thumbsForStrip(strip);
+          thumbs.forEach(function (btn, j) {
+            var on = j === idx;
+            btn.classList.toggle("listing-gallery__thumb--active", on);
+            btn.setAttribute("aria-selected", on ? "true" : "false");
+          });
+        }
+
+        function updateNav(idx) {
+          idx = clampSlide(idx, total);
+          if (navPrev) {
+            navPrev.disabled = total <= 1 || idx <= 0;
+            navPrev.setAttribute("aria-disabled", navPrev.disabled ? "true" : "false");
+          }
+          if (navNext) {
+            navNext.disabled = total <= 1 || idx >= total - 1;
+            navNext.setAttribute("aria-disabled", navNext.disabled ? "true" : "false");
+          }
+        }
+
+        function syncFromScroll() {
+          if (total < 1) return;
+          var idx = indexFromScroll();
+          if (countEl) countEl.textContent = idx + 1 + " / " + counterTotal;
+          var th = thumbsForStrip(strip);
+          if (th.length) setActiveThumbs(idx);
+          updateNav(idx);
+          preloadAdjacent(idx);
+        }
+
+        if (total > 1) {
+          sc.addEventListener("scroll", syncFromScroll, { passive: true });
+          if (navPrev)
+            navPrev.addEventListener("click", function (e) {
+              e.preventDefault();
+              e.stopPropagation();
+              goToIndex(indexFromScroll() - 1, true);
+            });
+          if (navNext)
+            navNext.addEventListener("click", function (e) {
+              e.preventDefault();
+              e.stopPropagation();
+              goToIndex(indexFromScroll() + 1, true);
+            });
+        } else {
+          if (navPrev) navPrev.hidden = true;
+          if (navNext) navNext.hidden = true;
+        }
+
+        thumbsForStrip(strip).forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var i = parseInt(btn.getAttribute("data-gallery-jump") || "0", 10);
+            goToIndex(i, true);
+            setActiveThumbs(i);
+            updateNav(i);
+            preloadAdjacent(i);
+          });
+        });
+
+        syncFromScroll();
+      }
+
+      Array.prototype.forEach.call(root.querySelectorAll("[data-gallery-scroll]"), bindScroller);
+
+      var fs = root.querySelector("[data-gallery-fullscreen]");
+      var fsImg = root.querySelector("[data-gallery-fs-img]");
+      var fsStage = root.querySelector("[data-gallery-fs-stage]");
+      var fsCounter = root.querySelector("[data-gallery-fs-counter]");
+      var fsPrev = root.querySelector("[data-gallery-fs-prev]");
+      var fsNext = root.querySelector("[data-gallery-fs-next]");
+      var fsCloseEl = root.querySelector("[data-gallery-fs-close]");
+      var fsOpen = false;
+      var fsIndex = 0;
+      var fsTouchX = null;
+
+      function getInitialFullscreenIndex() {
+        var scs = root.querySelectorAll("[data-gallery-scroll]");
+        for (var i = 0; i < scs.length; i++) {
+          var sc = scs[i];
+          if (sc.closest(".listing-gallery__strip")) continue;
+          var slides = sc.querySelectorAll(":scope > .listing-gallery__slide");
+          var n = slides.length;
+          if (n < 1) continue;
+          var w = sc.clientWidth || 1;
+          return clampSlide(Math.round(sc.scrollLeft / w), n);
+        }
+        return 0;
+      }
+
+      function syncFsUi() {
+        if (!fsImg || !imgUrls.length) return;
+        fsIndex = clampLb(fsIndex);
+        fsImg.src = imgUrls[fsIndex];
+        fsImg.alt = imgAlts[fsIndex] || "";
+        if (fsCounter) fsCounter.textContent = fsIndex + 1 + " / " + imgUrls.length;
+        if (fsPrev) {
+          fsPrev.disabled = fsIndex <= 0;
+          fsPrev.setAttribute("aria-disabled", fsPrev.disabled ? "true" : "false");
+        }
+        if (fsNext) {
+          fsNext.disabled = fsIndex >= imgUrls.length - 1;
+          fsNext.setAttribute("aria-disabled", fsNext.disabled ? "true" : "false");
+        }
+        preloadAdjacent(fsIndex);
+      }
+
+      function showFsAt(i) {
+        if (!fsOpen || !fsImg || !imgUrls.length) return;
+        fsIndex = clampLb(i);
+        syncFsUi();
+      }
+
+      function closeFullScreen() {
+        if (!fs || !fsOpen) return;
+        fs.classList.remove("is-open");
+        fs.setAttribute("aria-hidden", "true");
+        if (fsImg) {
+          fsImg.removeAttribute("src");
+          fsImg.alt = "";
+        }
+        fsOpen = false;
+        document.removeEventListener("keydown", onFsKey, true);
+        if (!lbOpen) document.body.style.overflow = "";
+      }
+
+      function openFullScreenAt(i) {
+        if (!fs || !fsImg || !imgUrls.length) return;
+        closeLightbox();
+        fsIndex = clampLb(typeof i === "number" ? i : 0);
+        fs.classList.add("is-open");
+        fs.setAttribute("aria-hidden", "false");
+        syncFsUi();
+        document.body.style.overflow = "hidden";
+        fsOpen = true;
+        document.addEventListener("keydown", onFsKey, true);
+        if (fsCloseEl) fsCloseEl.focus();
+      }
+
+      function fsFocusables() {
+        return [fsCloseEl, fsPrev, fsNext].filter(function (el) {
+          return el && el.offsetParent !== null && !el.disabled;
+        });
+      }
+
+      function onFsKey(e) {
+        if (!fsOpen || !fs || !fs.classList.contains("is-open")) return;
+        var tag = e.target && e.target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeFullScreen();
+          return;
+        }
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          showFsAt(fsIndex + 1);
+          return;
+        }
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          showFsAt(fsIndex - 1);
+          return;
+        }
+        if (e.key === "Tab") {
+          var list = fsFocusables();
+          if (list.length < 1) return;
+          var ix = list.indexOf(document.activeElement);
+          e.preventDefault();
+          if (e.shiftKey) {
+            list[ix <= 0 ? list.length - 1 : ix - 1].focus();
+          } else {
+            list[(ix + 1) % list.length].focus();
+          }
+        }
+      }
+
+      if (fsStage) {
+        fsStage.addEventListener(
+          "touchstart",
+          function (e) {
+            if (!fsOpen || e.touches.length !== 1) return;
+            fsTouchX = e.touches[0].clientX;
+          },
+          { passive: true }
+        );
+        fsStage.addEventListener(
+          "touchend",
+          function (e) {
+            if (fsTouchX == null || !fsOpen) return;
+            var x = e.changedTouches[0].clientX;
+            var dx = x - fsTouchX;
+            fsTouchX = null;
+            if (dx < -56) showFsAt(fsIndex + 1);
+            else if (dx > 56) showFsAt(fsIndex - 1);
+          },
+          { passive: true }
+        );
+      }
+
+      if (fsCloseEl)
+        fsCloseEl.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeFullScreen();
+        });
+      if (fsPrev)
+        fsPrev.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          showFsAt(fsIndex - 1);
+        });
+      if (fsNext)
+        fsNext.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          showFsAt(fsIndex + 1);
+        });
+      if (fsImg)
+        fsImg.addEventListener("click", function (e) {
+          e.stopPropagation();
+        });
+
+      root.addEventListener("click", function (e) {
+        if (e.target.closest("[data-gallery-open-fullscreen]")) {
+          e.preventDefault();
+          e.stopPropagation();
+          openFullScreenAt(getInitialFullscreenIndex());
+          return;
+        }
+        var tagged = e.target.closest("[data-gallery-idx]");
+        if (!tagged || !lb || !lbImg) return;
+        if (!tagged.matches(".listing-gallery__mosaic-img, .listing-gallery__img")) return;
+        var raw = tagged.getAttribute("data-gallery-idx");
+        var ix = parseInt(raw, 10);
+        if (isNaN(ix)) return;
+        showLbAt(ix);
+      });
+
+      function closeLightbox() {
+        if (!lb || !lbImg) return;
+        lb.setAttribute("hidden", "");
+        lbImg.removeAttribute("src");
+        lbImg.alt = "";
+        lbOpen = false;
+        document.removeEventListener("keydown", onLbKey, true);
+        if (!fsOpen) document.body.style.overflow = "";
+      }
+
+      function updateLbNav() {
+        if (!lbPrev || !lbNext || !imgUrls.length) return;
+        lbPrev.disabled = lbIndex <= 0;
+        lbPrev.setAttribute("aria-disabled", lbPrev.disabled ? "true" : "false");
+        lbNext.disabled = lbIndex >= imgUrls.length - 1;
+        lbNext.setAttribute("aria-disabled", lbNext.disabled ? "true" : "false");
+      }
+
+      function showLbAt(i) {
+        if (!lb || !lbImg || !imgUrls.length) return;
+        closeFullScreen();
+        i = clampLb(i);
+        lbIndex = i;
+        lbImg.src = imgUrls[i];
+        lbImg.alt = imgAlts[i] || "";
+        lb.removeAttribute("hidden");
+        document.body.style.overflow = "hidden";
+        lbOpen = true;
+        updateLbNav();
+        preloadAdjacent(i);
+        document.addEventListener("keydown", onLbKey, true);
+      }
+
+      function onLbKey(e) {
+        if (!lbOpen || !lb || lb.hasAttribute("hidden")) return;
+        var t = e.target && e.target.tagName;
+        if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT") return;
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeLightbox();
+        } else if (e.key === "ArrowRight") {
+          e.preventDefault();
+          showLbAt(lbIndex + 1);
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          showLbAt(lbIndex - 1);
+        }
+      }
+
+      if (lbImg)
+        lbImg.addEventListener("click", function (e) {
+          e.stopPropagation();
+        });
+
+      if (lbPrev)
+        lbPrev.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          showLbAt(lbIndex - 1);
+        });
+      if (lbNext)
+        lbNext.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          showLbAt(lbIndex + 1);
+        });
+
+      if (lb) {
+        lb.addEventListener("click", function (e) {
+          if (e.target === lb || e.target.closest("[data-gallery-lightbox-close]")) closeLightbox();
+        });
+      }
+
+      if (imgUrls.length) preloadAdjacent(0);
+    })();
+  </script>
+{% endblock %}

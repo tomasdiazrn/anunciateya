@@ -1,0 +1,14 @@
+{# Centered card container for auth/simple pages. Expects: title, subtitle(optional) #}
+<div class="auth-shell">
+  <div class="auth-card card">
+    {% if title %}
+      <h1 class="page-title auth-card__title">{{ title }}</h1>
+    {% endif %}
+    {% if subtitle %}
+      <p class="muted auth-card__subtitle">{{ subtitle }}</p>
+    {% endif %}
+    <div class="auth-card__body">
+      {{ body|safe }}
+    </div>
+  </div>
+</div>

@@ -1,0 +1,212 @@
+/*
+ * Trust UI: teal #007AAB como eje de confianza (badges, pills, niveles Alta/Media/Baja).
+ * Contraste accesible; niveles diferenciados por saturación/fondo.
+ */
+.card-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  align-items: center;
+  margin: 0.4rem 0;
+}
+
+/* Pill verificado — confianza (teal) */
+.trust-pill {
+  display: inline-block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-primary-border);
+  background: var(--color-primary-muted);
+  color: var(--color-primary-hover);
+}
+
+.trust-pill.verified {
+  border-color: var(--color-primary);
+  background: rgba(0, 122, 171, 0.14);
+  color: #005a80;
+}
+
+.trust-rating {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.trust-badge {
+  font-weight: 600;
+  color: var(--color-primary-hover);
+  margin: 0.25rem 0;
+}
+
+.seller-rating-lg {
+  font-size: 1.05rem;
+  margin: 0.35rem 0;
+  color: var(--color-text);
+}
+
+/* Etiquetas Alta / Media / Baja — texto sobre fondo teal suave */
+.trust-label {
+  display: inline-block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+}
+
+.trust-label-inline {
+  margin-left: 0.15rem;
+}
+
+.trust-level-pill {
+  font-size: 0.875rem;
+}
+
+/* Niveles: misma familia teal, distinta intensidad (neuromarketing coherente) */
+.trust-high {
+  color: #004d6b;
+  background: rgba(0, 122, 171, 0.14);
+  border-color: var(--color-primary);
+}
+
+.trust-medium {
+  color: #0a5f7a;
+  background: rgba(0, 122, 171, 0.09);
+  border-color: var(--color-primary-border);
+}
+
+.trust-low {
+  color: var(--color-muted);
+  background: #f3f4f6;
+  border-color: var(--color-border-strong);
+}
+
+.seller-box .seller-trust-block {
+  padding: var(--card-padding);
+  margin: var(--space-2) calc(-1 * var(--card-padding));
+  background: linear-gradient(
+    180deg,
+    rgba(0, 122, 171, 0.06) 0%,
+    rgba(255, 255, 255, 0.9) 100%
+  );
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.member-since {
+  margin: 0.35rem 0;
+  font-size: 0.9375rem;
+  color: var(--color-text);
+}
+
+.trust-level-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+}
+
+.banner-flagged {
+  padding: var(--space-2) var(--card-padding);
+  border-radius: var(--radius-md);
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  margin-bottom: var(--space-2);
+}
+
+.seller-safety-microcopy {
+  margin-top: var(--space-2);
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+/* CTA textual junto al formulario de contacto — refuerzo, no botón */
+.contact-cta-trust {
+  font-weight: 600;
+  font-family: var(--font-display);
+  margin: 0 0 var(--space-1);
+  color: var(--color-text);
+}
+
+.contact-submit-wrap {
+  margin-top: var(--space-2);
+}
+
+.contact-trust-summary {
+  padding: var(--card-padding);
+  margin-bottom: var(--space-2);
+  background: rgba(0, 122, 171, 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.contact-trust-title {
+  font-weight: 600;
+  font-family: var(--font-display);
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  color: var(--color-primary-hover);
+}
+
+.contact-trust-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.contact-trust-list li {
+  margin-bottom: 0.25rem;
+}
+
+.trust-badge-inline {
+  font-weight: 600;
+  color: var(--color-primary-hover);
+}
+
+.h-aside,
+.h-report {
+  font: var(--font-h3);
+  margin-top: 0;
+  color: var(--color-text);
+}
+
+.seller-name {
+  margin: 0.25rem 0 0.5rem;
+  font-weight: 500;
+}
+
+.profile-trust {
+  padding: var(--card-padding);
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Contenedor sustituido por HTMX al cargar el panel de contacto */
+.contact-panel-form {
+  margin-top: var(--space-1);
+}
+
+/* Éxito HTMX — borde/sombra suaves, coherente con cards */
+.contact-success.card-like {
+  padding: var(--card-padding);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  background: var(--color-surface);
+}
+
+.contact-success-title {
+  margin-top: 0;
+  color: var(--color-primary-hover);
+}
+
+.contact-self-hint {
+  line-height: 1.5;
+}

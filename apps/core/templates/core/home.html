@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% load marketplace %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block content %}
+  <section class="home-hero-full" aria-labelledby="home-hero-heading">
+    <div class="home-hero-overlay" aria-hidden="true"></div>
+    <div class="container">
+      <div class="home-hero-inner">
+        <h1 class="home-hero__title" id="home-hero-heading">
+          Encuentra lo que buscas en tu ciudad
+        </h1>
+        <p class="home-hero__sub lead">
+          {{ home_hero_sub|capfirst }}
+        </p>
+
+        {% include "components/search/search_bar.html" with search_categories=search_categories %}
+      </div>
+    </div>
+  </section>
+
+  <div class="container home-page">
+
+    {% if homepage_categories %}
+      <section class="home-categories home-block" aria-labelledby="home-cat-heading">
+        <h2 id="home-cat-heading" class="home-section-title">Explora por categoría</h2>
+        <div class="home-cat-grid" aria-label="Categorías principales">
+          {% for category in homepage_categories %}
+            <a
+              class="home-cat-card home-category-card"
+              href="{{ category.get_absolute_url }}"
+              data-event="category_click"
+              data-event-detail="{{ category.slug }}"
+            >
+              <span class="home-cat-card__icon" aria-hidden="true">
+                {% include "components/category/category_card_media.html" with category=category %}
+              </span>
+              <span class="home-cat-card__title">{{ category.name }}</span>
+              <p class="home-cat-card__desc">
+                {% if category.description %}
+                  {{ category.description|truncatewords:22 }}
+                {% else %}
+                  Explorá anuncios de {{ category.name|lower }} en tu ciudad.
+                {% endif %}
+              </p>
+              <span class="home-cat-card__cta button btn-secondary">
+                Ver todos ({{ category.published_count }})
+              </span>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    <section class="home-cities home-block" aria-labelledby="home-cities-heading">
+      <h2 id="home-cities-heading" class="home-section-title">Explora por zona en Guayaquil</h2>
+      <div class="home-zones-grid" aria-label="Zonas principales">
+        <article class="zone-card">
+          <a
+            class="zone-card__link"
+            href="{% url 'location_guayaquil' %}"
+            data-event="category_click"
+            data-event-detail="guayaquil_zone"
+          >
+            <div class="zone-card__media" aria-hidden="true">
+              <img
+                src="/static/img/AnunciateYa_GuayaquilCard.webp"
+                alt="Vista urbana de Guayaquil Ecuador"
+                loading="lazy"
+                decoding="async"
+              >
+              <div class="zone-card__overlay"></div>
+            </div>
+
+            <div class="zone-card__content">
+              <h3 class="zone-card__title">Guayaquil</h3>
+              <p class="zone-card__desc">Todos los anuncios activos en la ciudad.</p>
+              <span class="zone-card__cta">Ver todos los anuncios →</span>
+            </div>
+          </a>
+        </article>
+
+        <article class="zone-card">
+          <a
+            class="zone-card__link"
+            href="{% url 'location_samborondon' %}"
+            data-event="category_click"
+            data-event-detail="samborondon_zone"
+          >
+            <div class="zone-card__media" aria-hidden="true">
+              <img
+                src="/static/img/AnunciateYa_SamborondonCard.webp"
+                alt="Zona residencial de Samborondón Ecuador"
+                loading="lazy"
+                decoding="async"
+              >
+              <div class="zone-card__overlay"></div>
+            </div>
+
+            <div class="zone-card__content">
+              <h3 class="zone-card__title">Samborondón</h3>
+              <p class="zone-card__desc">Urbanizaciones, vía a la costa y zonas residenciales.</p>
+              <span class="zone-card__cta">Ver en Samborondón →</span>
+            </div>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="home-how home-block" aria-labelledby="home-how-heading">
+      <h2 id="home-how-heading" class="home-section-title">Cómo funciona</h2>
+      <div class="home-steps">
+        <article class="home-step home-step-card">
+          <div class="home-step__icon" aria-hidden="true">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          </div>
+          <h3 class="home-step__title">Busca o publica</h3>
+          <p class="home-step__text">
+            Explora por categoría o ciudad, o crea tu anuncio con fotos y precio en minutos.
+          </p>
+          <a class="home-step__link" href="{% url 'browse' %}">Explorar anuncios</a>
+        </article>
+        <article class="home-step home-step-card">
+          <div class="home-step__icon" aria-hidden="true">
+            <i class="fa-solid fa-shield" aria-hidden="true"></i>
+          </div>
+          <h3 class="home-step__title">Revisa la confianza</h3>
+          <p class="home-step__text">
+            Mira si el vendedor está verificado, tiene opiniones y el nivel de confianza (Alta / Media / Baja).
+          </p>
+          <a class="home-step__link" href="{% url 'browse' %}">Cómo te protegemos</a>
+        </article>
+        <article class="home-step home-step-card">
+          <div class="home-step__icon" aria-hidden="true">
+            <i class="fa-solid fa-comments" aria-hidden="true"></i>
+          </div>
+          <h3 class="home-step__title">Contacta con seguridad</h3>
+          <p class="home-step__text">
+            Envía un mensaje desde el anuncio. Coordina la entrega sin adelantar dinero a ciegas.
+          </p>
+          <a class="home-step__link" href="{% url 'users:register' %}">Crear cuenta</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="home-cta-final" aria-labelledby="cta-final-heading">
+      <div class="container">
+        <div class="home-cta-card">
+          <div class="home-cta-card__content">
+            <h2 id="cta-final-heading" class="home-cta-card__title">
+              Encuentra lo que necesitas hoy en tu ciudad
+            </h2>
+
+            <p class="home-cta-card__sub">
+              Explorá por categoría o publicá tu anuncio en minutos.
+            </p>
+
+            <div class="home-cta-card__actions">
+              <a
+                class="button btn-primary"
+                href="{{ explore_listings_url }}"
+                data-event="category_click"
+                data-event-detail="cta_final_explore_{{ explore_event_slug }}"
+              >Explorar anuncios</a>
+
+              <a
+                class="button btn-secondary"
+                href="{% url 'publish' %}"
+                data-event="create_listing"
+                data-event-detail="cta_final_create"
+              >Crear anuncio</a>
+            </div>
+
+            <p class="home-cta-card__hint">
+              Publicar es gratis. Sin comisiones en esta etapa.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+{% endblock %}

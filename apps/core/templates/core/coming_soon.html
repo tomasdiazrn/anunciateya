@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block site_messages %}{% endblock %}
+{% block site_header %}{% endblock %}
+{% block site_footer %}{% endblock %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block content %}
+  <section id="waitlist-hero" class="home-hero-full home-hero-full--coming-soon" aria-labelledby="coming-hero-heading">
+    <div class="home-hero-overlay" aria-hidden="true"></div>
+    <div class="container">
+      <div class="home-hero-inner">
+        <p class="home-hero__eyebrow">
+          <span class="home-hero__eyebrow-mark" aria-hidden="true"></span>
+          Próximamente en {{ seo_market_city }}
+        </p>
+        <h1 class="home-hero__title" id="coming-hero-heading">
+          Compra y vende en {{ seo_market_city }}, sin vueltas
+        </h1>
+        <p class="home-hero__sub">
+          Publicá gratis y hablá directo con compradores y vendedores cerca tuyo
+        </p>
+
+        <form
+          method="post"
+          action="{% url 'coming_soon' %}"
+          class="coming-hero-waitlist stack-form"
+          aria-label="Lista de espera — acceso anticipado"
+        >
+          {% csrf_token %}
+          {{ form_hero.company_url }}
+          {% if form_hero.non_field_errors %}
+            <div class="form-errors" role="alert">{{ form_hero.non_field_errors }}</div>
+          {% endif %}
+          <div class="coming-hero-waitlist__row">
+            <div class="coming-hero-waitlist__field field">
+              <label class="visually-hidden" for="{{ form_hero.email.id_for_label }}">{{ form_hero.email.label }}</label>
+              {{ form_hero.email }}
+              {% if form_hero.email.errors %}
+                <div class="form-errors" role="alert">{{ form_hero.email.errors }}</div>
+              {% endif %}
+            </div>
+            <div class="coming-hero-waitlist__submit">
+              <button type="submit" class="button btn-primary">Quiero acceso anticipado</button>
+            </div>
+          </div>
+          <p class="coming-hero-waitlist__hint">Sin spam. Solo te avisamos cuando abramos.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <div class="container home-page coming-landing">
+    <section class="coming-section coming-section--value home-block" aria-labelledby="value-heading">
+      <h2 id="value-heading" class="home-section-title">Por qué {{ seo_brand_name }}</h2>
+      <div class="coming-pro-grid">
+        <article class="coming-pro-card">
+          <div class="coming-pro-card__body">
+            <span class="coming-pro-card__icon" aria-hidden="true">
+              <i class="fa-solid fa-tag"></i>
+            </span>
+            <div class="coming-pro-card__text">
+              <h3 class="coming-pro-card__title">Publicar gratis</h3>
+              <p class="coming-pro-card__desc">Publicá en minutos sin costo en esta etapa.</p>
+            </div>
+          </div>
+        </article>
+        <article class="coming-pro-card">
+          <div class="coming-pro-card__body">
+            <span class="coming-pro-card__icon" aria-hidden="true">
+              <i class="fa-solid fa-comments"></i>
+            </span>
+            <div class="coming-pro-card__text">
+              <h3 class="coming-pro-card__title">Contacto directo</h3>
+              <p class="coming-pro-card__desc">Hablá sin intermediarios con compradores y vendedores.</p>
+            </div>
+          </div>
+        </article>
+        <article class="coming-pro-card">
+          <div class="coming-pro-card__body">
+            <span class="coming-pro-card__icon" aria-hidden="true">
+              <i class="fa-solid fa-percent"></i>
+            </span>
+            <div class="coming-pro-card__text">
+              <h3 class="coming-pro-card__title">Sin comisiones</h3>
+              <p class="coming-pro-card__desc">Conectamos oferta y demanda sin cobrar por publicar.</p>
+            </div>
+          </div>
+        </article>
+        <article class="coming-pro-card">
+          <div class="coming-pro-card__body">
+            <span class="coming-pro-card__icon" aria-hidden="true">
+              <i class="fa-solid fa-location-dot"></i>
+            </span>
+            <div class="coming-pro-card__text">
+              <h3 class="coming-pro-card__title">Enfocado en tu zona</h3>
+              <p class="coming-pro-card__desc">Más relevancia en {{ seo_market_city }} y alrededores.</p>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="coming-section coming-section--cta home-block" aria-labelledby="cta-local-heading">
+      <div class="coming-cta">
+        <h2 id="cta-local-heading" class="coming-cta__title">
+          Compra y venta local en {{ seo_market_city }}
+        </h2>
+        <p class="coming-cta__lead">
+          Un marketplace pensado para {{ seo_market_city }}: encontrá lo que buscás sin vueltas, con anuncios de tu zona.
+        </p>
+        <ul class="coming-cta__bullets">
+          <li class="coming-cta__item">
+            <span class="coming-cta__check" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></span>
+            <span>Autos, inmuebles, electrónica, hogar, motos y más cerca tuyo.</span>
+          </li>
+          <li class="coming-cta__item">
+            <span class="coming-cta__check" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></span>
+            <span>Publicaciones de personas y negocios de tu ciudad.</span>
+          </li>
+          <li class="coming-cta__item">
+            <span class="coming-cta__check" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></span>
+            <span>Menos ruido, más claridad al publicar y al contactar.</span>
+          </li>
+        </ul>
+        <form
+          method="post"
+          action="{% url 'coming_soon' %}"
+          class="coming-hero-waitlist coming-hero-waitlist--in-cta stack-form"
+          aria-label="Lista de espera — acceso anticipado (pie de página)"
+        >
+          {% csrf_token %}
+          {{ form_cta.company_url }}
+          {% if form_cta.non_field_errors %}
+            <div class="form-errors" role="alert">{{ form_cta.non_field_errors }}</div>
+          {% endif %}
+          <div class="coming-hero-waitlist__row">
+            <div class="coming-hero-waitlist__field field">
+              <label class="visually-hidden" for="{{ form_cta.email.id_for_label }}">{{ form_cta.email.label }}</label>
+              {{ form_cta.email }}
+              {% if form_cta.email.errors %}
+                <div class="form-errors" role="alert">{{ form_cta.email.errors }}</div>
+              {% endif %}
+            </div>
+            <div class="coming-hero-waitlist__submit">
+              <button type="submit" class="button coming-cta__btn">Quiero acceso anticipado</button>
+            </div>
+          </div>
+          <p class="coming-hero-waitlist__hint">Sin spam. Solo te avisamos cuando abramos.</p>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  {% if request.GET.waitlist == "ok" %}
+    <dialog
+      id="waitlist-success-dialog"
+      class="waitlist-success-pop"
+      aria-labelledby="waitlist-success-head"
+      aria-describedby="waitlist-success-desc"
+    >
+      <div class="waitlist-success-pop__inner">
+        <button
+          type="button"
+          class="waitlist-success-pop__close"
+          data-waitlist-pop-close
+          aria-label="Cerrar"
+        >&times;</button>
+        <span class="waitlist-success-pop__icon" aria-hidden="true">
+          <i class="fa-solid fa-circle-check"></i>
+        </span>
+        <p id="waitlist-success-head" class="waitlist-success-pop__headline">
+          Listo 🚀 Ya estás dentro
+        </p>
+        <p id="waitlist-success-desc" class="waitlist-success-pop__sub">
+          Te avisamos cuando abramos en {{ seo_market_city }} para que puedas publicar o explorar primero.
+        </p>
+      </div>
+    </dialog>
+  {% elif request.GET.waitlist == "exists" %}
+    <dialog
+      id="waitlist-exists-dialog"
+      class="waitlist-success-pop waitlist-success-pop--exists"
+      aria-labelledby="waitlist-exists-head"
+      aria-describedby="waitlist-exists-desc"
+    >
+      <div class="waitlist-success-pop__inner">
+        <button
+          type="button"
+          class="waitlist-success-pop__close"
+          data-waitlist-pop-close
+          aria-label="Cerrar"
+        >&times;</button>
+        <span class="waitlist-success-pop__icon" aria-hidden="true">
+          <i class="fa-solid fa-circle-info"></i>
+        </span>
+        <p id="waitlist-exists-head" class="waitlist-success-pop__headline">
+          Ya estás en la lista
+        </p>
+        <p id="waitlist-exists-desc" class="waitlist-success-pop__sub">
+          Ese correo ya está registrado para cuando abramos en {{ seo_market_city }}. No hace falta volver a enviarlo.
+        </p>
+      </div>
+    </dialog>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  {% if request.GET.waitlist == "ok" or request.GET.waitlist == "exists" %}
+    <script>
+      (function () {
+        var param = new URLSearchParams(location.search).get("waitlist");
+        if (param !== "ok" && param !== "exists") return;
+        var id = param === "ok" ? "waitlist-success-dialog" : "waitlist-exists-dialog";
+        var el = document.getElementById(id);
+        if (!el || typeof el.showModal !== "function") return;
+        el.showModal();
+        el.addEventListener("click", function (ev) {
+          if (ev.target === el) el.close();
+        });
+        el.addEventListener("close", function () {
+          if (/[?&]waitlist=/.test(location.search)) {
+            history.replaceState(null, "", location.pathname);
+          }
+        });
+        var btn = el.querySelector("[data-waitlist-pop-close]");
+        if (btn) btn.addEventListener("click", function () { el.close(); });
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

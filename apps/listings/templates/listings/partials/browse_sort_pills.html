@@ -1,0 +1,11 @@
+{% if template_extras.sort_options %}
+  <nav class="browse-sort" aria-label="Ordenar resultados">
+    <ul class="browse-sort__list">
+      {% for opt in template_extras.sort_options %}
+        <li class="browse-sort__item">
+          <a href="{{ opt.href }}" class="{{ opt.css_class }}">{{ opt.label }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  </nav>
+{% endif %}

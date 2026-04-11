@@ -1,0 +1,24 @@
+{% if hero_title %}
+<section class="category-hero" aria-labelledby="category-hero-heading">
+  <div class="container">
+    <div class="category-hero__banner">
+      <div class="category-hero__copy">
+        <h1 id="category-hero-heading" class="category-hero__title">{{ hero_title }}</h1>
+        {% if hero_subtitle %}
+          <p class="category-hero__subtitle">{{ hero_subtitle }}</p>
+        {% endif %}
+      </div>
+      <div class="category-hero__actions">
+        <a
+          class="category-hero__cta"
+          href="{% url 'publish' %}"
+          data-event="create_listing"
+          data-event-detail="category_hero"
+        >
+          Publicar anuncio
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}

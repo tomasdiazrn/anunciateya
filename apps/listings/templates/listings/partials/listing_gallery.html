@@ -1,0 +1,176 @@
+{# Galería DTO-only: ListingDetailContext #}
+<section
+  class="listing-gallery
+    {% if detail.gallery_show_placeholder %}listing-gallery--mosaic listing-gallery--placeholder
+    {% elif detail.gallery_mosaic %}listing-gallery--mosaic
+    {% elif detail.gallery_has_multiple %}listing-gallery--multi
+    {% endif %}"
+  aria-label="Galería de fotos del anuncio"
+  data-gallery-alt="{{ detail.gallery_image_alt }}"
+>
+  {% if detail.gallery_show_placeholder %}
+    <div class="listing-gallery__mosaic">
+      <div class="listing-gallery__mosaic-hero">
+        <div class="listing-gallery__mosaic-ph listing-gallery__mosaic-ph--hero">
+          <span class="listing-gallery__mosaic-ph-icon" aria-hidden="true"><i class="fa-regular fa-image"></i></span>
+          <span class="listing-gallery__mosaic-ph-msg">Este anuncio aún no tiene fotos</span>
+        </div>
+      </div>
+      <div class="listing-gallery__mosaic-grid">
+        {% for _ in "1234"|make_list %}
+          <div class="listing-gallery__mosaic-cell">
+            <div class="listing-gallery__mosaic-ph listing-gallery__mosaic-ph--tile" aria-hidden="true">
+              <i class="fa-regular fa-image"></i>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  {% elif detail.gallery_mosaic %}
+    <div class="listing-gallery__mosaic">
+      <div class="listing-gallery__mosaic-hero">
+        <img
+          class="listing-gallery__mosaic-img"
+          src="{{ detail.gallery_mosaic_hero }}"
+          alt="{{ detail.gallery_image_alt }}"
+          loading="eager"
+          decoding="async"
+          width="1600"
+          height="1200"
+          data-gallery-idx="0"
+        >
+        <span class="listing-gallery__mosaic-count" aria-hidden="true"><i class="fa-solid fa-camera"></i> {{ detail.gallery_count }}</span>
+      </div>
+      <div class="listing-gallery__mosaic-grid">
+        {% for cell in detail.gallery_mosaic_cells %}
+          <div class="listing-gallery__mosaic-cell">
+            {% if cell %}
+              <img
+                class="listing-gallery__mosaic-img listing-gallery__mosaic-img--tile"
+                src="{{ cell }}"
+                alt="{{ detail.gallery_image_alt }}"
+                loading="lazy"
+                decoding="async"
+                width="800"
+                height="600"
+                data-gallery-idx="{{ forloop.counter }}"
+              >
+            {% else %}
+              <div class="listing-gallery__mosaic-ph" aria-hidden="true"><i class="fa-regular fa-image"></i></div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      {% if detail.gallery_count > 1 %}
+        <button type="button" class="listing-gallery__view-all" data-gallery-open-fullscreen aria-label="Ver todas las fotos en pantalla completa">
+          Ver todas ({{ detail.gallery_count }})
+        </button>
+      {% endif %}
+    </div>
+
+  {% elif detail.gallery_has_multiple %}
+    <div class="listing-gallery__viewport">
+      <div class="listing-gallery__scroller" data-gallery-scroll data-gallery-track>
+        {% for url in detail.gallery_images %}
+          <div class="listing-gallery__slide{% if forloop.first %} listing-gallery__slide--cover{% endif %}" id="listing-gallery-slide-{{ forloop.counter0 }}">
+            <img
+              class="listing-gallery__img"
+              src="{{ url }}"
+              alt="{{ detail.gallery_image_alt }}"
+              loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"
+              decoding="async"
+              width="1600"
+              height="1200"
+              data-gallery-idx="{{ forloop.counter0 }}"
+            >
+          </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="listing-gallery__nav listing-gallery__nav--prev" data-gallery-prev aria-label="Foto anterior">
+        <span class="listing-gallery__nav-inner" aria-hidden="true"><i class="fa-solid fa-chevron-left"></i></span>
+      </button>
+      <button type="button" class="listing-gallery__nav listing-gallery__nav--next" data-gallery-next aria-label="Foto siguiente">
+        <span class="listing-gallery__nav-inner" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+      </button>
+      <span class="listing-gallery__counter" data-gallery-count data-total="{{ detail.gallery_count }}">1 / {{ detail.gallery_count }}</span>
+      {% if detail.gallery_count > 1 %}
+        <button type="button" class="listing-gallery__view-all" data-gallery-open-fullscreen aria-label="Ver todas las fotos en pantalla completa">
+          Ver todas ({{ detail.gallery_count }})
+        </button>
+      {% endif %}
+    </div>
+    <p class="listing-gallery__hint muted small">Desliza para ver más fotos</p>
+    <div class="listing-gallery__thumbs{% if detail.gallery_count > 5 %} listing-gallery__thumbs--many{% endif %}" role="tablist" aria-label="Miniaturas">
+      {% for url in detail.thumbnail_images %}
+        <button
+          type="button"
+          class="listing-gallery__thumb{% if forloop.first %} listing-gallery__thumb--active{% endif %}"
+          data-gallery-jump="{{ forloop.counter0 }}"
+          aria-label="Ver foto {{ forloop.counter }}"
+          aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+        >
+          <img src="{{ url }}" alt="" loading="lazy" decoding="async" width="120" height="120">
+        </button>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <div class="listing-gallery__viewport">
+      <div class="listing-gallery__scroller" data-gallery-scroll data-gallery-track>
+        <div class="listing-gallery__slide listing-gallery__slide--cover" id="listing-gallery-slide-0">
+          <img
+            class="listing-gallery__img"
+            src="{{ detail.gallery_images.0 }}"
+            alt="{{ detail.gallery_image_alt }}"
+            loading="eager"
+            decoding="async"
+            width="1600"
+            height="1200"
+            data-gallery-idx="0"
+          >
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if not detail.gallery_show_placeholder %}
+    <script type="application/json" id="listing-gallery-urls-json">{{ detail.gallery_images_json|safe }}</script>
+  {% endif %}
+
+  {% if detail.gallery_count > 1 and not detail.gallery_show_placeholder %}
+    <div
+      class="listing-gallery__fullscreen"
+      data-gallery-fullscreen
+      role="dialog"
+      aria-modal="true"
+      aria-label="Galería a pantalla completa"
+      aria-hidden="true"
+    >
+      <button type="button" class="listing-gallery__fullscreen-close" data-gallery-fs-close aria-label="Cerrar galería">×</button>
+      <span class="listing-gallery__fullscreen-counter" data-gallery-fs-counter aria-live="polite">1 / {{ detail.gallery_count }}</span>
+      <button type="button" class="listing-gallery__fullscreen-nav listing-gallery__fullscreen-nav--prev" data-gallery-fs-prev aria-label="Foto anterior">
+        <span aria-hidden="true"><i class="fa-solid fa-chevron-left"></i></span>
+      </button>
+      <button type="button" class="listing-gallery__fullscreen-nav listing-gallery__fullscreen-nav--next" data-gallery-fs-next aria-label="Foto siguiente">
+        <span aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+      </button>
+      <div class="listing-gallery__fullscreen-stage" data-gallery-fs-stage>
+        <img class="listing-gallery__fullscreen-img" data-gallery-fs-img src="" alt="" decoding="async">
+      </div>
+    </div>
+  {% endif %}
+
+  {% if not detail.gallery_show_placeholder %}
+    <div class="listing-gallery__lightbox" data-gallery-lightbox hidden role="dialog" aria-modal="true" aria-label="Foto ampliada">
+      <button type="button" class="listing-gallery__lightbox-close" data-gallery-lightbox-close aria-label="Cerrar foto ampliada">×</button>
+      <button type="button" class="listing-gallery__lightbox-nav listing-gallery__lightbox-nav--prev" data-lb-prev aria-label="Foto anterior">
+        <span aria-hidden="true"><i class="fa-solid fa-chevron-left"></i></span>
+      </button>
+      <button type="button" class="listing-gallery__lightbox-nav listing-gallery__lightbox-nav--next" data-lb-next aria-label="Foto siguiente">
+        <span aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
+      </button>
+      <img class="listing-gallery__lightbox-img" data-gallery-lightbox-img src="" alt="">
+    </div>
+  {% endif %}
+</section>

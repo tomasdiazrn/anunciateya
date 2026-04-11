@@ -1,0 +1,7 @@
+<div class="contact-gate contact-gate-auth">
+  <p class="small muted">Inicia sesión para contactar al vendedor. Así reducimos spam y fraude.</p>
+  <p class="contact-gate-actions">
+    <a class="button btn-primary" href="{% url 'users:login' %}?next={{ login_next|urlencode }}">Iniciar sesión</a>
+    <a class="button btn-secondary" href="{% url 'users:register' %}?next={{ login_next|urlencode }}">Crear cuenta</a>
+  </p>
+</div>

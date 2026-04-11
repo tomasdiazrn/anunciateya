@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block extra_head %}
+  {% if listings_meta_robots %}
+    <meta name="robots" content="{{ listings_meta_robots }}">
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {% include "listings/partials/category_hero.html" %}
+  <div class="container page-category">
+    <div class="browse-layout{% if browse_has_sidebar_filters %} browse-layout--with-filters{% endif %}">
+      {% if filter_panel_kind == "vehicle" %}
+        {% include "listings/partials/browse_vehicle_filters.html" %}
+      {% elif filter_panel_kind == "property" %}
+        {% include "listings/partials/browse_property_filters.html" %}
+      {% elif filter_panel_kind == "motorcycle" %}
+        {% include "listings/partials/browse_motorcycle_filters.html" %}
+      {% elif filter_panel_kind == "electronics" %}
+        {% include "listings/partials/browse_electronics_filters.html" %}
+      {% elif filter_panel_kind == "home" %}
+        {% include "listings/partials/browse_home_filters.html" %}
+      {% endif %}
+      <div class="browse-main-column">
+        {% include "components/layouts/page_header.html" with title=list_heading subtitle=list_subtitle meta=result_count|intcomma meta_label="resultados" title_tag=page_header_title_tag %}
+        {% include "listings/partials/browse_sort_pills.html" %}
+        {% if category and category.description %}
+          <p class="muted page-category__desc">{{ category.description }}</p>
+        {% endif %}
+
+        {% include "listings/partials/listing_results_sections.html" %}
+
+        {% if page_obj.has_other_pages %}
+          <nav class="pager" aria-label="Paginación">
+            {% if page_obj.has_previous %}
+              <a class="button" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
+            {% endif %}
+            <span class="muted">
+              Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+            {% if page_obj.has_next %}
+              <a class="button" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
+            {% endif %}
+          </nav>
+        {% endif %}
+
+        {% if category %}
+          <p class="seo-internal small muted">
+            {% if show_autos_category_crosslink %}
+              <a href="{% url 'category_landing' 'autos' %}">Ver autos</a>
+              ·
+            {% endif %}
+            <a href="{% url 'browse' %}">Explorar todos los anuncios</a>
+          </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

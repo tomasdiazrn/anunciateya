@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <div class="page-head-row">
+      <h1 class="page-title">Mis anuncios</h1>
+      <a class="button btn-primary" href="{% url 'listings:create' %}" data-event="create_listing" data-event-detail="mine_header">Crear anuncio</a>
+    </div>
+
+    {% if page_obj.object_list %}
+      <div class="table-wrap" role="region" aria-label="Tabla de tus anuncios">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Título</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Visible</th>
+              <th scope="col">Actualizado</th>
+              <th scope="col"><span class="visually-hidden">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for listing in page_obj.object_list %}
+              <tr>
+                <td><a href="{{ listing.get_absolute_url }}">{{ listing.title }}</a></td>
+                <td>{{ listing.get_status_display }}</td>
+                <td>{% if listing.is_active %}Sí{% else %}No{% endif %}</td>
+                <td>{{ listing.updated_at|date:"d/m/Y H:i" }}</td>
+                <td class="table-actions">
+                  <a class="button btn-secondary btn-compact" href="{% url 'users:account_listing_edit' slug=listing.slug %}">Editar anuncio</a>
+                  <a class="button btn-danger btn-compact" href="{% url 'listings:delete' listing.slug %}">Eliminar anuncio</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page_obj.has_other_pages %}
+        <nav class="pager" aria-label="Paginación">
+          {% if page_obj.has_previous %}
+            <a class="button" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+          {% endif %}
+          <span class="muted">
+            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+          </span>
+          {% if page_obj.has_next %}
+            <a class="button" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+    {% else %}
+      <div class="empty-state">
+        <p class="muted">Todavía no publicaste ningún anuncio.</p>
+        <p><a class="button btn-primary" href="{% url 'listings:create' %}" data-event="create_listing" data-event-detail="mine_empty">Crear anuncio</a></p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

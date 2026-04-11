@@ -1,0 +1,61 @@
+{% load static %}
+{# Navegación: añade enlaces aquí; para vistas parciales HTMX usa hx-get + hx-target="#admin-main-content". #}
+<aside class="admin-layout__sidebar admin-sidebar" id="admin-sidebar" aria-label="Navegación de administración">
+  <div class="admin-sidebar__header">
+    <a class="admin-sidebar__brand" href="{% url 'adminapp:dashboard' %}">
+      <img
+        class="admin-sidebar__logo"
+        src="{% static 'img/AnunciateYa_Logo.png' %}"
+        alt=""
+        width="32"
+        height="32"
+        decoding="async"
+      >
+      <span class="admin-sidebar__brand-text">Admin · {{ site_name }}</span>
+    </a>
+    <button
+      type="button"
+      class="admin-sidebar__collapse"
+      data-admin-sidebar-collapse
+      aria-expanded="true"
+      aria-controls="admin-sidebar-nav"
+      aria-label="Contraer menú lateral"
+    >
+      <span class="admin-sidebar__collapse-icon--open" aria-hidden="true">⟨</span>
+      <span class="admin-sidebar__collapse-icon--closed" aria-hidden="true">⟩</span>
+    </button>
+  </div>
+
+  <nav class="admin-sidebar__nav" id="admin-sidebar-nav" aria-label="Secciones">
+    <div class="admin-nav">
+      <a
+        href="{% url 'adminapp:dashboard' %}"
+        class="admin-nav__link{% if admin_section == 'dashboard' %} is-active{% endif %}"
+        hx-get="{% url 'adminapp:dashboard' %}"
+        hx-target="#admin-main-content"
+        hx-push-url="true"
+        hx-swap="innerHTML"
+      >
+        <span class="admin-nav__label">Dashboard</span>
+      </a>
+      <span class="admin-nav__link admin-nav__link--disabled" aria-disabled="true" title="Próximamente">
+        <span class="admin-nav__label">Anuncios</span>
+      </span>
+      <span class="admin-nav__link admin-nav__link--disabled" aria-disabled="true" title="Próximamente">
+        <span class="admin-nav__label">Usuarios</span>
+      </span>
+    </div>
+  </nav>
+
+  <div class="admin-sidebar__footer">
+    <form method="post" action="{% url 'users:logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="admin-nav__link" title="Cerrar sesión">
+        <span class="admin-nav__label">Cerrar sesión</span>
+      </button>
+    </form>
+    <a class="admin-nav__link" href="{% url 'core:home' %}">
+      <span class="admin-nav__label">Ir al sitio</span>
+    </a>
+  </div>
+</aside>

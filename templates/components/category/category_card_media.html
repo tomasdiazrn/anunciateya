@@ -1,0 +1,16 @@
+{# category: Category (icon, image opcionales) #}
+{% if category.image %}
+  <img
+    src="{{ category.image.url }}"
+    alt=""
+    width="48"
+    height="48"
+    loading="lazy"
+    decoding="async"
+    class="home-cat-card__thumb"
+  >
+{% elif category.icon %}
+  <i class="{{ category.icon }}" aria-hidden="true"></i>
+{% else %}
+  <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+{% endif %}

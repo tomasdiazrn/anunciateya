@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block content %}
+  <div class="container">
+    {% include "components/layouts/page_header.html" with title=heading subtitle="Elegí la categoría que mejor describe tu anuncio." %}
+    {% include "listings/create/partials/publish_chooser.html" %}
+  </div>
+{% endblock %}

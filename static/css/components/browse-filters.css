@@ -1,0 +1,127 @@
+/* Listado /anuncios/ — filtros autos (sidebar desktop, acordeón mobile) */
+.browse-layout {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 900px) {
+  .browse-layout--with-filters {
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  /* El formulario del sidebar es la primera celda del grid */
+  .browse-layout--with-filters > .browse-filter-form--sidebar {
+    margin: 0;
+  }
+}
+
+.browse-filters-sidebar {
+  position: sticky;
+  top: calc(var(--space-4) + 52px);
+}
+
+.browse-filters-accordion {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-surface);
+  padding: 0;
+  overflow: hidden;
+}
+
+.browse-filters-accordion > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.browse-filters-accordion > summary::-webkit-details-marker {
+  display: none;
+}
+
+.browse-filters-accordion[open] > summary {
+  border-bottom-color: var(--color-border);
+}
+
+.browse-filters-inner {
+  padding: 1rem;
+}
+
+.browse-filter-form .form-group {
+  margin-bottom: 0.85rem;
+}
+
+.browse-filter-form .form-group:last-of-type {
+  margin-bottom: 0;
+}
+
+.browse-filter-form label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: var(--color-text-muted, var(--color-text));
+}
+
+.browse-filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.browse-filter-input--compact {
+  width: 100%;
+  max-width: 100%;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.875rem;
+}
+
+.browse-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.browse-filter-actions .button {
+  font-size: 0.875rem;
+  padding: 0.45rem 0.85rem;
+}
+
+@media (min-width: 900px) {
+  .browse-filters-accordion > summary {
+    display: none;
+  }
+
+  .browse-filters-accordion {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .browse-filters-accordion[open] > summary {
+    border: none;
+  }
+
+  .browse-filters-inner {
+    padding: 0;
+  }
+
+  .browse-filters-sidebar .browse-filters-accordion > *:not(summary) {
+    display: block;
+  }
+}
+
+.browse-main-column {
+  min-width: 0;
+}
+
+.page-category__desc {
+  margin-top: -0.35rem;
+  margin-bottom: var(--space-3);
+}

@@ -1,0 +1,45 @@
+<h2 class="admin-page-title">Admin Panel</h2>
+<p class="admin-page-lead">Vista inicial del panel. Los estilos están aislados bajo <span class="admin-code">static/adminapp/</span>.</p>
+
+<section class="admin-card" aria-labelledby="admin-demo-components">
+  <h3 id="admin-demo-components" class="admin-card__title">Componentes base</h3>
+  <p class="admin-card__lede">Ejemplos reutilizables (tabla vacía, búsqueda, badge, botón).</p>
+  <div class="admin-demo-toolbar">
+    {% include "adminapp/components/badge.html" with label="Panel" variant="primary" only %}
+    {% include "adminapp/components/badge.html" with label="OK" variant="success" only %}
+    {% include "adminapp/components/badge.html" with label="Neutral" only %}
+    {% include "adminapp/components/button.html" with label="Secundario" variant="secondary" url="#" only %}
+    {% include "adminapp/components/button.html" with label="Primario" variant="primary" url="#" only %}
+  </div>
+  <div class="admin-demo-narrow">
+    {% include "adminapp/components/search_input.html" with name="demo_q" placeholder="Buscar en el admin…" only %}
+  </div>
+  {% include "adminapp/components/table.html" with headers=admin_demo_table_headers rows=admin_demo_table_rows empty_text="Sin datos todavía." only %}
+</section>
+
+<section class="admin-card" aria-labelledby="admin-waitlist-heading">
+  <h3 id="admin-waitlist-heading" class="admin-card__title">Lista de espera (próximamente)</h3>
+  <p class="admin-card__lede">
+    Inscripciones desde <span class="admin-code">/proximamente/</span>.
+    Total: <strong>{{ waitlist_total }}</strong>
+  </p>
+  <form class="admin-demo-toolbar" method="get" action="{% url 'adminapp:dashboard' %}" role="search">
+    <label class="admin-visually-hidden" for="admin-waitlist-q">Buscar por correo</label>
+    <div class="admin-search">
+      <input
+        id="admin-waitlist-q"
+        class="admin-search__input"
+        type="search"
+        name="q"
+        value="{{ waitlist_q }}"
+        placeholder="Buscar por correo…"
+        autocomplete="off"
+      >
+    </div>
+    <button type="submit" class="admin-btn admin-btn--primary">Buscar</button>
+    {% if waitlist_q %}
+      <a class="admin-btn admin-btn--secondary" href="{% url 'adminapp:dashboard' %}">Limpiar</a>
+    {% endif %}
+  </form>
+  {% include "adminapp/components/table.html" with headers=waitlist_headers rows=waitlist_rows empty_text="Sin inscripciones todavía." only %}
+</section>
