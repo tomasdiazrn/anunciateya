@@ -50,6 +50,8 @@ EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@anunciateya.com")
 
+# Redirects raros a https://127.0.0.1: suele ser SECURE_SSL_REDIRECT=True + petición HTTP
+# con Host=127.0.0.1 (curl directo a Gunicorn) o proxy sin X-Forwarded-Proto: https.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
 SESSION_COOKIE_SECURE = True
@@ -67,4 +69,15 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "production-ratelimit",
     }
+}
+
+# Opción A (producción estable): sin manifest strict en {% static %}.
+# - Evita ValueError si staticfiles.json falta (p. ej. volumen Docker sobre STATIC_ROOT).
+# - No rompe plantillas; encaja si Nginx ya sirve /static/.
+# Se hace merge con STORAGES de base para conservar "default" (media).
+STORAGES = {
+    **STORAGES,
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
 }
