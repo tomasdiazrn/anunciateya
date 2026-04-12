@@ -1,6 +1,33 @@
 """Production settings — set DJANGO_SETTINGS_MODULE=config.settings.production on the server."""
+import ipaddress
+
 from django.core.exceptions import ImproperlyConfigured
 from decouple import Csv, UndefinedValueError, config
+
+
+def _client_ip_for_ratelimit(request):
+    """
+    django-ratelimit key='ip' usa REMOTE_ADDR; detrás de Nginx puede estar vacío o ser el
+    IP interno. X-Forwarded-For puede traer varios hops ("client, proxy1, proxy2");
+    ipaddress falla si se pasa la cadena completa → 500 en POST (waitlist, /events/track/).
+    """
+    xff = (request.META.get("HTTP_X_FORWARDED_FOR") or "").strip()
+    if xff:
+        first = xff.split(",")[0].strip()
+        if first:
+            try:
+                ipaddress.ip_address(first)
+                return first
+            except ValueError:
+                pass
+    ra = (request.META.get("REMOTE_ADDR") or "").strip()
+    if ra:
+        try:
+            ipaddress.ip_address(ra)
+            return ra
+        except ValueError:
+            pass
+    return "127.0.0.1"
 
 from . import base as _base_settings
 from .base import *  # noqa: F403
@@ -26,6 +53,8 @@ MIDDLEWARE.append("apps.core.middleware.ContentSecurityPolicyMiddleware")
 
 LANDING_ONLY_ENABLED = config("LANDING_ONLY_ENABLED", default=False, cast=bool)
 RATELIMIT_ENABLE = True
+# Callable: evita ImproperlyConfigured (REMOTE_ADDR vacío) y ValueError (XFF con varios IPs).
+RATELIMIT_IP_META_KEY = _client_ip_for_ratelimit
 
 DATABASES = {
     "default": {

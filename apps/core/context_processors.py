@@ -19,36 +19,41 @@ def _footer_social_links():
     return out
 
 
-def _google_tag_manager_id_for_request(request) -> str:
-    """GTM container id only when appropriate (not DEBUG, not staff admin URLs)."""
-    raw = (getattr(settings, "GOOGLE_TAG_MANAGER_ID", "") or "").strip()
-    if not raw:
-        return ""
+def _analytics_surface_allowed(request) -> bool:
+    """Misma superficie que GTM/Pixel: no DEBUG, no /admin, prefijos excluidos."""
     if getattr(settings, "DEBUG", False):
-        return ""
+        return False
     path = getattr(request, "path", "") or ""
     if path == "/admin":
-        return ""
+        return False
     for prefix in getattr(settings, "GOOGLE_TAG_MANAGER_EXCLUDED_PATH_PREFIXES", ()):
         if prefix and path.startswith(prefix):
-            return ""
+            return False
+    return True
+
+
+def _marketing_tag_id_for_request(request, raw_id: str) -> str:
+    """GTM / Meta: id solo si la petición está en superficie pública y el id está configurado."""
+    raw = (raw_id or "").strip()
+    if not raw:
+        return ""
+    if not _analytics_surface_allowed(request):
+        return ""
     return raw
+
+
+def _google_tag_manager_id_for_request(request) -> str:
+    """GTM container id only when appropriate (not DEBUG, not staff admin URLs)."""
+    return _marketing_tag_id_for_request(
+        request, getattr(settings, "GOOGLE_TAG_MANAGER_ID", "") or ""
+    )
 
 
 def _meta_pixel_id_for_request(request) -> str:
     """Meta Pixel id when appropriate (same path/DEBUG rules as GTM)."""
-    raw = (getattr(settings, "META_PIXEL_ID", "") or "").strip()
-    if not raw:
-        return ""
-    if getattr(settings, "DEBUG", False):
-        return ""
-    path = getattr(request, "path", "") or ""
-    if path == "/admin":
-        return ""
-    for prefix in getattr(settings, "GOOGLE_TAG_MANAGER_EXCLUDED_PATH_PREFIXES", ()):
-        if prefix and path.startswith(prefix):
-            return ""
-    return raw
+    return _marketing_tag_id_for_request(
+        request, getattr(settings, "META_PIXEL_ID", "") or ""
+    )
 
 
 def footer_nav_categories(request):
@@ -74,6 +79,7 @@ def site_metadata(request):
             f"con señales de confianza y evita pagos por adelantado sin respaldo."
         ),
         "google_tag_manager_id": _google_tag_manager_id_for_request(request),
+        "inject_ga4_gtag": _analytics_surface_allowed(request),
         "meta_pixel_id": _meta_pixel_id_for_request(request),
         "facebook_domain_verification": (
             getattr(settings, "FACEBOOK_DOMAIN_VERIFICATION", "") or ""
