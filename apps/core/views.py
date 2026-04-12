@@ -65,12 +65,12 @@ def _waitlist_redirect_after_valid(form, source: str):
     email = form.cleaned_data["email"]
     whatsapp = (form.cleaned_data.get("whatsapp") or "").strip()
     if WaitlistSignup.objects.filter(email__iexact=email).exists():
-        return redirect(f"{reverse('coming_soon')}?waitlist=exists")
+        return redirect(f"{reverse('root_landing')}?waitlist=exists")
     try:
         WaitlistSignup.objects.create(email=email, whatsapp=whatsapp, source=source)
     except IntegrityError:
-        return redirect(f"{reverse('coming_soon')}?waitlist=exists")
-    return redirect(f"{reverse('coming_soon')}?waitlist=ok")
+        return redirect(f"{reverse('root_landing')}?waitlist=exists")
+    return redirect(f"{reverse('root_landing')}?waitlist=ok")
 
 
 def healthcheck(_request):
@@ -87,7 +87,11 @@ def coming_soon(request):
     brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
     city = getattr(settings, "SEO_MARKET_CITY", "Guayaquil")
     site_url = getattr(settings, "SITE_URL", "").rstrip("/")
-    canonical_href_override = f"{site_url}/proximamente/"
+    path = (request.path or "/").rstrip("/") or "/"
+    if path == "/proximamente":
+        canonical_href_override = f"{site_url}/proximamente/"
+    else:
+        canonical_href_override = f"{site_url}/"
 
     if request.method == "POST":
         if "hero-email" in request.POST:
@@ -95,14 +99,14 @@ def coming_soon(request):
             form_cta = WaitlistForm(prefix="cta")
             if form_hero.is_valid():
                 if _honeypot_filled(form_hero):
-                    return redirect(f"{reverse('coming_soon')}?waitlist=ok")
+                    return redirect(f"{reverse('root_landing')}?waitlist=ok")
                 return _waitlist_redirect_after_valid(form_hero, "hero")
         elif "cta-email" in request.POST:
             form_cta = WaitlistForm(request.POST, prefix="cta")
             form_hero = WaitlistForm(prefix="hero")
             if form_cta.is_valid():
                 if _honeypot_filled(form_cta):
-                    return redirect(f"{reverse('coming_soon')}?waitlist=ok")
+                    return redirect(f"{reverse('root_landing')}?waitlist=ok")
                 return _waitlist_redirect_after_valid(form_cta, "cta")
         else:
             form_hero = WaitlistForm(prefix="hero")

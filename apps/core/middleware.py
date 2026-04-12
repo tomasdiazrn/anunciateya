@@ -10,7 +10,7 @@ class LandingOnlyMiddleware:
     /proximamente/, GET /health/, and static/media URL prefixes. Everything else → 404.
     """
 
-    _landing_paths = frozenset({"/proximamente", "/proximamente/"})
+    _landing_paths = frozenset({"/", "/proximamente", "/proximamente/"})
     _health_path = "/health/"
 
     def __init__(self, get_response):

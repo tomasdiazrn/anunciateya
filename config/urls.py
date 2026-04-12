@@ -9,6 +9,8 @@ from apps.listings import views as listings_views
 
 urlpatterns = [
     path("health/", core_views.healthcheck, name="health"),
+    # Pre-lanzamiento en raíz (SEO / analytics en /); el home real vive en /inicio/ (apps.core.urls).
+    path("", core_views.coming_soon, name="root_landing"),
     # Panel staff; antes del catch-all <slug:slug>/.
     path("admin/", include("apps.adminapp.urls", namespace="adminapp")),
     path("events/", include("apps.analytics.urls", namespace="analytics")),
@@ -79,12 +81,13 @@ urlpatterns = [
         core_views.coming_soon,
         name="coming_soon",
     ),
+    # /inicio/ (home) antes del catch-all de categoría <slug>/.
+    path("", include("apps.core.urls", namespace="core")),
     path(
         "<slug:slug>/",
         listings_views.category_landing,
         name="category_landing",
     ),
-    path("", include("apps.core.urls", namespace="core")),
 ]
 
 if settings.DEBUG:

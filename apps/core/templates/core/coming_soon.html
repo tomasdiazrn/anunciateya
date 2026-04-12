@@ -25,7 +25,7 @@
 
         <form
           method="post"
-          action="{% url 'coming_soon' %}"
+          action="{{ request.path }}"
           class="coming-hero-waitlist stack-form"
           aria-label="Lista de espera — acceso anticipado"
         >
@@ -127,7 +127,7 @@
         </ul>
         <form
           method="post"
-          action="{% url 'coming_soon' %}"
+          action="{{ request.path }}"
           class="coming-hero-waitlist coming-hero-waitlist--in-cta stack-form"
           aria-label="Lista de espera — acceso anticipado (pie de página)"
         >

@@ -24,7 +24,7 @@ MIDDLEWARE = list(_base_settings.MIDDLEWARE)
 MIDDLEWARE.insert(1, "apps.core.middleware.LandingOnlyMiddleware")
 MIDDLEWARE.append("apps.core.middleware.ContentSecurityPolicyMiddleware")
 
-LANDING_ONLY_ENABLED = config("LANDING_ONLY_ENABLED", default=True, cast=bool)
+LANDING_ONLY_ENABLED = config("LANDING_ONLY_ENABLED", default=False, cast=bool)
 RATELIMIT_ENABLE = True
 
 DATABASES = {
