@@ -55,13 +55,15 @@ class ContentSecurityPolicyMiddleware:
         "form-action 'self'",
         "object-src 'none'",
         "frame-src https://www.googletagmanager.com",
-        "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com "
+        # GA4 + GTM (Google): subdominios de recogida; ver
+        # https://developers.google.com/tag-platform/security/guides/csp
+        "script-src 'self' 'unsafe-inline' https://*.googletagmanager.com "
         "https://connect.facebook.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:",
-        "img-src 'self' data: https:",
-        "connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com "
-        "https://analytics.google.com https://region1.google-analytics.com "
+        "img-src 'self' data: https: https://*.google-analytics.com https://*.googletagmanager.com",
+        "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com "
+        "https://*.googletagmanager.com https://www.google.com "
         "https://www.facebook.com https://connect.facebook.net",
     )
 

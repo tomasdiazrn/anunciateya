@@ -3,8 +3,6 @@ from django.db import IntegrityError
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django_ratelimit.decorators import ratelimit
-
 from apps.categories.services import (
     preferred_explore_category,
     root_categories_for_homepage_annotated,
@@ -81,7 +79,6 @@ def _honeypot_filled(form) -> bool:
     return bool((form.cleaned_data.get("company_url") or "").strip())
 
 
-@ratelimit(key="ip", rate="10/m", method="POST")
 def coming_soon(request):
     """Landing pre-lanzamiento: lista de espera, independiente del home."""
     brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")

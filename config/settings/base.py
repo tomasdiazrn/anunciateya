@@ -134,3 +134,6 @@ SOCIAL_TIKTOK_URL = config(
 )
 SOCIAL_YOUTUBE_URL = config("SOCIAL_YOUTUBE_URL", default="")
 SOCIAL_LINKEDIN_URL = config("SOCIAL_LINKEDIN_URL", default="")
+
+# django-ratelimit (key="ip"): sin esto, REMOTE_ADDR vacío o XFF multi-hop → 500 en POST.
+RATELIMIT_IP_META_KEY = "apps.core.ip_for_ratelimit.client_ip_for_ratelimit"
