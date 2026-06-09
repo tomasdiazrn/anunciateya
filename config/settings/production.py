@@ -1,4 +1,7 @@
 """Production settings — set DJANGO_SETTINGS_MODULE=config.settings.production on the server."""
+import os
+import urllib.parse
+
 from django.core.exceptions import ImproperlyConfigured
 from decouple import Csv, UndefinedValueError, config
 
@@ -25,14 +28,23 @@ MIDDLEWARE.append("apps.core.middleware.ContentSecurityPolicyMiddleware")
 
 RATELIMIT_ENABLE = True
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ImproperlyConfigured(
+        "DATABASE_URL must be set in production."
+    )
+
+result = urllib.parse.urlparse(DATABASE_URL)
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("POSTGRES_DB"),
-        "USER": config("POSTGRES_USER"),
-        "PASSWORD": config("POSTGRES_PASSWORD"),
-        "HOST": config("POSTGRES_HOST"),
-        "PORT": config("POSTGRES_PORT", default="5432"),
+        "NAME": result.path[1:],
+        "USER": result.username,
+        "PASSWORD": result.password,
+        "HOST": result.hostname,
+        "PORT": result.port,
         "CONN_MAX_AGE": config("POSTGRES_CONN_MAX_AGE", default=60, cast=int),
         "OPTIONS": {
             "connect_timeout": 10,
@@ -43,8 +55,8 @@ DATABASES = {
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = config("EMAIL_HOST", default="localhost")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
-EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+EMAIL_HOST_USER = config("EMAIL_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_PASSWORD", default="")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@anunciateya.com")
 
