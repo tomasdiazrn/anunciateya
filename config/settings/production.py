@@ -1,4 +1,4 @@
-"""Production settings — set DJANGO_SETTINGS_MODULE=config.settings.production on the server."""
+"""Production settings loaded by config.settings when DJANGO_ENV=production."""
 import os
 import urllib.parse
 
