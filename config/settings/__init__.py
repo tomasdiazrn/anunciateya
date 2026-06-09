@@ -1,19 +1,11 @@
-"""
-Central Django settings entrypoint.
+import os
 
-Set DJANGO_ENV=production to load production settings; development is the
-default so local management commands keep working without extra setup.
-"""
-from django.core.exceptions import ImproperlyConfigured
-from decouple import config
+env = os.getenv("DJANGO_ENV", "development")
 
-DJANGO_ENV = config("DJANGO_ENV", default="development").strip().lower()
+if env == "production":
 
-if DJANGO_ENV in {"development", "dev", "local"}:
-    from .development import *  # noqa: F403
-elif DJANGO_ENV in {"production", "prod"}:
-    from .production import *  # noqa: F403
+    from .production import *
+
 else:
-    raise ImproperlyConfigured(
-        "DJANGO_ENV must be one of: development, dev, local, production, prod."
-    )
+
+    from .development import *
