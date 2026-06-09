@@ -1,15 +1,16 @@
 import json
+import re
+from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import redirect_to_login
 from django.urls import reverse
-from urllib.parse import urlencode
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Max
-from django.http import Http404, HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.utils.html import escape, strip_tags
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -17,11 +18,10 @@ from django.views.decorators.http import require_POST
 from apps.categories.models import Category
 from apps.categories.services import root_categories
 from apps.trust.models import ListingReport
-from apps.trust.services import seller_trust_bundle, sync_listing_flag
+from apps.trust.services import bulk_seller_trust, seller_trust_bundle, sync_listing_flag
 from apps.users.models import UserVerification
-from apps.users.services import is_phone_verified
 
-from .category_engine import build_category_page
+from .category_engine import browse_category_canonical_redirect, build_category_page
 from .category_engine_queryplan import LISTING_DETAIL_ORM_PLAN, apply_query_plan
 from .category_extensions import (
     ELECTRONICS_SLUG,
@@ -42,6 +42,7 @@ from .forms import (
     MotorcycleListingForm,
     PropertyListingForm,
     VehicleListingForm,
+    DEFAULT_CONTACT_MESSAGE,
 )
 from .models import (
     ElectronicsListing,
@@ -54,6 +55,7 @@ from .models import (
     VehicleModel,
     VehicleListing,
 )
+from .listing_card_dto import build_listing_cards_for_listings
 from .listing_detail_dto import build_listing_detail_context, listing_gallery_absolute_urls
 from .services import (
     InterestSubmission,
@@ -75,6 +77,46 @@ from .services_promotions import create_listing_promotion
 # Legacy names (imports elsewhere may reference)
 MAX_IMAGES = MAX_LISTING_IMAGES
 MAX_IMAGE_BYTES = MAX_LISTING_IMAGE_BYTES
+
+
+def _is_listing_owner(request, listing):
+    return request.user.is_authenticated and request.user.pk == listing.seller_id
+
+
+def _is_listing_public(listing):
+    return listing.status == Listing.Status.PUBLISHED
+
+
+def _render_listing_not_found(request):
+    brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
+    return render(
+        request,
+        "listings/listing_not_found.html",
+        {
+            "meta_title": f"Anuncio no disponible | {brand}",
+            "meta_description": f"Este anuncio no está disponible en {brand}.",
+        },
+        status=404,
+    )
+
+
+def _contact_success_related_cards(listing, *, limit=3):
+    rows_qs = (
+        Listing.objects.published()
+        .filter(category_id=listing.category_id)
+        .exclude(pk=listing.pk)
+    )
+    rows_qs = apply_query_plan(rows_qs, LISTING_DETAIL_ORM_PLAN)
+    rows = list(rows_qs.order_by("-created_at")[:limit])
+    if not rows:
+        return []
+    trust_map = bulk_seller_trust([row.seller_id for row in rows])
+    return build_listing_cards_for_listings(
+        rows,
+        trust_map=trust_map,
+        featured_top_ids=frozenset(),
+    )
+
 
 def _prune_json_ld(obj):
     """Quita claves None y dicts/listas vacíos del JSON-LD."""
@@ -106,7 +148,11 @@ def _build_listing_json_ld(request, listing, trust):
 
     image_urls = listing_gallery_absolute_urls(request, listing, limit=10)
 
-    seller_name = getattr(seller, "public_name", None) or seller.email
+    seller_name = (
+        getattr(seller, "public_name", None)
+        or seller.get_full_name()
+        or "Vendedor"
+    )
     seller_node = _prune_json_ld(
         {
             "@type": "Person",
@@ -162,6 +208,9 @@ def _build_listing_json_ld(request, listing, trust):
 
 
 def listing_list(request):
+    redirect_response = browse_category_canonical_redirect(request)
+    if redirect_response is not None:
+        return redirect_response
     page = build_category_page(request)
     return render(request, page.template, page.render_dict())
 
@@ -182,6 +231,9 @@ def listing_create_legacy(request):
 def listing_detail_seo(request, category_slug, listing_slug):
     qs = apply_query_plan(Listing.objects.all(), LISTING_DETAIL_ORM_PLAN)
     listing = get_object_or_404(qs, slug=listing_slug)
+    is_owner = _is_listing_owner(request, listing)
+    if not _is_listing_public(listing) and not is_owner:
+        return _render_listing_not_found(request)
     # If category doesn't match, redirect to canonical SEO URL.
     if listing.category.slug != category_slug:
         return redirect(listing, permanent=True)
@@ -194,6 +246,8 @@ def listing_detail_legacy(request, slug):
         Listing.objects.select_related("category"),
         slug=slug,
     )
+    if not _is_listing_public(listing) and not _is_listing_owner(request, listing):
+        return _render_listing_not_found(request)
     return redirect(listing, permanent=True)
 
 
@@ -210,14 +264,10 @@ def location_category_landing(request, location_slug, category_slug):
 def listing_detail(request, slug):
     qs = apply_query_plan(Listing.objects.all(), LISTING_DETAIL_ORM_PLAN)
     listing = get_object_or_404(qs, slug=slug)
-    is_owner = (
-        request.user.is_authenticated and request.user.pk == listing.seller_id
-    )
-    is_public = (
-        listing.status == Listing.Status.PUBLISHED and listing.is_active
-    )
+    is_owner = _is_listing_owner(request, listing)
+    is_public = _is_listing_public(listing)
     if not is_public and not is_owner:
-        raise Http404()
+        return _render_listing_not_found(request)
 
     seller_trust = seller_trust_bundle(listing.seller)
     listing_json_ld = _build_listing_json_ld(request, listing, seller_trust)
@@ -267,17 +317,28 @@ def listing_detail(request, slug):
 def listing_contact_panel(request, slug):
     """
     HTMX contact flow with trust gates:
-    - not authenticated → login / register prompt
-    - authenticated, not phone-verified → verify prompt
     - seller → self partial
-    - else → interest form
+    - buyer/visitor → interest form
     """
     listing = get_object_or_404(
         Listing.objects.published().select_related("seller"),
         slug=slug,
     )
     seller_trust = seller_trust_bundle(listing.seller)
-    login_next = listing.get_absolute_url()
+    contact_surface = (
+        request.POST.get("surface")
+        if request.method == "POST"
+        else request.GET.get("surface")
+    )
+    is_modal_surface = contact_surface == "modal"
+    contact_context = {
+        "contact_surface": "modal" if is_modal_surface else "detail",
+        "contact_target": (
+            "#listing-contact-modal-body"
+            if is_modal_surface
+            else "#contact-panel-mount"
+        ),
+    }
 
     if (
         request.user.is_authenticated
@@ -289,13 +350,13 @@ def listing_contact_panel(request, slug):
             return render(
                 request,
                 "listings/partials/contact_self.html",
-                {"listing": listing, "seller_trust": seller_trust},
+                {"listing": listing, "seller_trust": seller_trust, **contact_context},
             )
         if request.htmx:
             return render(
                 request,
                 "listings/partials/contact_self.html",
-                {"listing": listing, "seller_trust": seller_trust},
+                {"listing": listing, "seller_trust": seller_trust, **contact_context},
             )
         messages.error(request, "No puedes enviarte un mensaje a ti mismo.")
         return redirect(listing)
@@ -303,27 +364,13 @@ def listing_contact_panel(request, slug):
     if request.method == "GET":
         if not request.htmx:
             return redirect(listing)
-        if not request.user.is_authenticated:
-            return render(
-                request,
-                "listings/partials/contact_auth_required.html",
-                {
-                    "listing": listing,
-                    "login_next": login_next,
-                    "seller_trust": seller_trust,
-                },
-            )
-        if not is_phone_verified(request.user):
-            return render(
-                request,
-                "listings/partials/contact_verify_required.html",
-                {
-                    "listing": listing,
-                    "login_next": login_next,
-                    "seller_trust": seller_trust,
-                },
-            )
-        form = ListingInterestForm()
+        initial = {}
+        if request.user.is_authenticated:
+            initial = {
+                "buyer_name": request.user.get_full_name(),
+                "buyer_email": request.user.email,
+            }
+        form = ListingInterestForm(initial=initial)
         return render(
             request,
             "listings/partials/contact_panel.html",
@@ -331,45 +378,18 @@ def listing_contact_panel(request, slug):
                 "listing": listing,
                 "form": form,
                 "seller_trust": seller_trust,
+                **contact_context,
             },
         )
 
     if request.method == "POST":
-        if not request.user.is_authenticated:
-            if request.htmx:
-                return render(
-                    request,
-                    "listings/partials/contact_auth_required.html",
-                    {
-                        "listing": listing,
-                        "login_next": login_next,
-                        "seller_trust": seller_trust,
-                    },
-                    status=401,
-                )
-            return redirect_to_login(listing.get_absolute_url())
-
-        if not is_phone_verified(request.user):
-            if request.htmx:
-                return render(
-                    request,
-                    "listings/partials/contact_verify_required.html",
-                    {
-                        "listing": listing,
-                        "login_next": login_next,
-                        "seller_trust": seller_trust,
-                    },
-                    status=403,
-                )
-            next_q = urlencode({"next": listing.get_absolute_url()})
-            return redirect(f"{reverse('users:verify_phone')}?{next_q}")
-
         form = ListingInterestForm(request.POST)
         if form.is_valid():
             submission = InterestSubmission(
                 listing_title=listing.title,
                 seller_email=listing.seller.email,
-                buyer_email=request.user.email,
+                buyer_name=form.cleaned_data["buyer_name"],
+                buyer_email=form.cleaned_data["buyer_email"],
                 message=form.cleaned_data["message"],
             )
             record_listing_interest(submission)
@@ -377,7 +397,11 @@ def listing_contact_panel(request, slug):
                 return render(
                     request,
                     "listings/partials/contact_success.html",
-                    {"listing": listing},
+                    {
+                        "listing": listing,
+                        "related_cards": _contact_success_related_cards(listing),
+                        **contact_context,
+                    },
                 )
             messages.success(
                 request,
@@ -393,6 +417,7 @@ def listing_contact_panel(request, slug):
                     "listing": listing,
                     "form": form,
                     "seller_trust": seller_trust,
+                    **contact_context,
                 },
                 status=400,
             )
@@ -400,6 +425,42 @@ def listing_contact_panel(request, slug):
         return redirect(listing)
 
     return HttpResponseBadRequest("Método no permitido")
+
+
+def _listing_whatsapp_href(listing):
+    seller = getattr(listing, "seller", None)
+    verification = getattr(seller, "verification", None) if seller is not None else None
+    if not verification:
+        return ""
+
+    raw_cc = (getattr(verification, "phone_country_code", "") or "").strip()
+    raw_num = (getattr(verification, "phone_number", "") or "").strip()
+    cc_digits = re.sub(r"\D", "", raw_cc)
+    num_digits = re.sub(r"\D", "", raw_num)
+    if not num_digits:
+        return ""
+
+    digits = num_digits
+    if cc_digits and not digits.startswith(cc_digits):
+        digits = f"{cc_digits}{digits}"
+
+    text = quote(DEFAULT_CONTACT_MESSAGE)
+    return f"https://wa.me/{digits}?text={text}"
+
+
+def listing_whatsapp_redirect(request, slug):
+    listing = get_object_or_404(
+        Listing.objects.published().select_related("seller", "seller__verification"),
+        slug=slug,
+    )
+    href = _listing_whatsapp_href(listing)
+    if not href:
+        messages.info(
+            request,
+            "Este vendedor aún no tiene WhatsApp disponible. Puedes enviar el formulario.",
+        )
+        return redirect(listing)
+    return redirect(href)
 
 
 def category_legacy_redirect(request, slug):
@@ -463,11 +524,6 @@ def _commit_base_listing(base_form, user, category) -> Listing:
         listing.currency = "USD"
     listing.save()
     return listing
-
-
-def _publish_finish_with_images(request, listing) -> None:
-    attach_listing_images(listing, request.FILES.getlist("images"))
-    messages.success(request, "Tu anuncio ya está publicado.")
 
 
 def _account_dashboard_extra_context(request, **overrides):
@@ -576,11 +632,15 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             specific = VehicleListingForm(request.POST)
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
-                    listing = _commit_base_listing(base, request.user, category)
-                    veh = specific.save(commit=False)
-                    veh.listing = listing
-                    veh.save()
-                    _publish_finish_with_images(request, listing)
+                    with transaction.atomic():
+                        listing = _commit_base_listing(base, request.user, category)
+                        veh = specific.save(commit=False)
+                        veh.listing = listing
+                        veh.save()
+                        attach_listing_images(
+                            listing, request.FILES.getlist("images")
+                        )
+                    messages.success(request, "Tu anuncio ya está publicado.")
                     return redirect(listing)
         else:
             base = BaseListingForm(initial={"currency": "USD"})
@@ -594,11 +654,15 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             specific = PropertyListingForm(request.POST)
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
-                    listing = _commit_base_listing(base, request.user, category)
-                    prop = specific.save(commit=False)
-                    prop.listing = listing
-                    prop.save()
-                    _publish_finish_with_images(request, listing)
+                    with transaction.atomic():
+                        listing = _commit_base_listing(base, request.user, category)
+                        prop = specific.save(commit=False)
+                        prop.listing = listing
+                        prop.save()
+                        attach_listing_images(
+                            listing, request.FILES.getlist("images")
+                        )
+                    messages.success(request, "Tu anuncio ya está publicado.")
                     return redirect(listing)
         else:
             base = BaseListingForm(initial={"currency": "USD"})
@@ -614,11 +678,15 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             specific = MotorcycleListingForm(request.POST)
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
-                    listing = _commit_base_listing(base, request.user, category)
-                    mot = specific.save(commit=False)
-                    mot.listing = listing
-                    mot.save()
-                    _publish_finish_with_images(request, listing)
+                    with transaction.atomic():
+                        listing = _commit_base_listing(base, request.user, category)
+                        mot = specific.save(commit=False)
+                        mot.listing = listing
+                        mot.save()
+                        attach_listing_images(
+                            listing, request.FILES.getlist("images")
+                        )
+                    messages.success(request, "Tu anuncio ya está publicado.")
                     return redirect(listing)
         else:
             base = BaseListingForm(initial={"currency": "USD"})
@@ -634,11 +702,15 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             specific = ElectronicsListingForm(request.POST)
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
-                    listing = _commit_base_listing(base, request.user, category)
-                    elec = specific.save(commit=False)
-                    elec.listing = listing
-                    elec.save()
-                    _publish_finish_with_images(request, listing)
+                    with transaction.atomic():
+                        listing = _commit_base_listing(base, request.user, category)
+                        elec = specific.save(commit=False)
+                        elec.listing = listing
+                        elec.save()
+                        attach_listing_images(
+                            listing, request.FILES.getlist("images")
+                        )
+                    messages.success(request, "Tu anuncio ya está publicado.")
                     return redirect(listing)
         else:
             base = BaseListingForm(initial={"currency": "USD"})
@@ -654,11 +726,15 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             specific = HomeGoodsListingForm(request.POST)
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
-                    listing = _commit_base_listing(base, request.user, category)
-                    hg = specific.save(commit=False)
-                    hg.listing = listing
-                    hg.save()
-                    _publish_finish_with_images(request, listing)
+                    with transaction.atomic():
+                        listing = _commit_base_listing(base, request.user, category)
+                        hg = specific.save(commit=False)
+                        hg.listing = listing
+                        hg.save()
+                        attach_listing_images(
+                            listing, request.FILES.getlist("images")
+                        )
+                    messages.success(request, "Tu anuncio ya está publicado.")
                     return redirect(listing)
         else:
             base = BaseListingForm(initial={"currency": "USD"})
@@ -669,8 +745,12 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             base = BaseListingForm(request.POST, request.FILES)
             if base.is_valid():
                 if validate_listing_image_uploads(request, base):
-                    listing = _commit_base_listing(base, request.user, category)
-                    _publish_finish_with_images(request, listing)
+                    with transaction.atomic():
+                        listing = _commit_base_listing(base, request.user, category)
+                        attach_listing_images(
+                            listing, request.FILES.getlist("images")
+                        )
+                    messages.success(request, "Tu anuncio ya está publicado.")
                     return redirect(listing)
         else:
             base = BaseListingForm(initial={"currency": "USD"})

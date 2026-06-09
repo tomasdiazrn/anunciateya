@@ -84,10 +84,6 @@ msgstr "Categoría"
 msgid "Location"
 msgstr "Ubicación"
 
-#: apps/listings/forms.py:49
-msgid "Visible on the site"
-msgstr "Visible en el sitio"
-
 #: apps/listings/forms.py:52
 msgid "A short, clear headline (e.g. model, year, condition)."
 msgstr "Un titular breve y claro (p. ej. modelo, año, estado)."
@@ -289,10 +285,6 @@ msgstr "Tabla de tus anuncios"
 #: apps/listings/templates/listings/my_listings.html:18
 msgid "Status"
 msgstr "Estado"
-
-#: apps/listings/templates/listings/my_listings.html:19
-msgid "Visible"
-msgstr "Visible"
 
 #: apps/listings/templates/listings/my_listings.html:20
 msgid "Updated"

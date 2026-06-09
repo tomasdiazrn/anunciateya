@@ -1,0 +1,61 @@
+<div class="admin-page-header">
+  <p class="admin-back-nav">
+    <a
+      href="{% url 'adminapp:listings' %}"
+      hx-get="{% url 'adminapp:listings' %}"
+      hx-target="#admin-main-content"
+      hx-push-url="true"
+      hx-swap="innerHTML"
+      hx-indicator="#admin-loading"
+      class="admin-link-back"
+    >← Anuncios</a>
+  </p>
+  <h2 class="admin-page-title">{{ listing.title }}</h2>
+</div>
+<div class="admin-card">
+  <h3 class="admin-card__title">Datos</h3>
+  <dl class="admin-dl">
+    <dt>ID</dt><dd>{{ listing.pk }}</dd>
+    <dt>Estado</dt><dd>{{ listing.get_status_display }}</dd>
+    <dt>Categoría</dt><dd>{{ listing.category.name }}</dd>
+    <dt>Precio</dt><dd>$ {{ listing.price_amount|floatformat:"-2" }}</dd>
+    <dt>Usuario</dt>
+    <dd>
+      <a
+        href="{% url 'adminapp:user_detail' listing.seller.pk %}"
+        hx-get="{% url 'adminapp:user_detail' listing.seller.pk %}"
+        hx-target="#admin-main-content"
+        hx-push-url="true"
+        hx-swap="innerHTML"
+        hx-indicator="#admin-loading"
+      >{{ listing.seller.email }}</a>
+    </dd>
+    <dt>Reportado</dt>
+    <dd>
+      {% if listing.is_flagged %}
+        <span class="admin-badge admin-badge--danger">Sí</span>
+      {% else %}
+        No
+      {% endif %}
+    </dd>
+    <dt>Ubicación</dt>
+    <dd>
+      {% if listing.location %}
+        {{ listing.location }}
+      {% else %}
+        <span class="admin-text-muted">Sin ubicación</span>
+      {% endif %}
+    </dd>
+    <dt>Publicación</dt><dd>{{ listing.created_at|date:"Y-m-d H:i" }}</dd>
+    <dt>Actualización</dt><dd>{{ listing.updated_at|date:"Y-m-d H:i" }}</dd>
+    <dt>Descripción</dt><dd>{{ listing.description }}</dd>
+  </dl>
+  <div class="admin-card__actions">
+    <a
+      class="admin-btn admin-btn--secondary"
+      href="{{ listing.get_absolute_url }}"
+      target="_blank"
+      rel="noopener noreferrer"
+    >Ver anuncio público</a>
+  </div>
+</div>

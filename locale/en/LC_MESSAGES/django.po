@@ -81,10 +81,6 @@ msgstr ""
 msgid "Location"
 msgstr ""
 
-#: apps/listings/forms.py:49
-msgid "Visible on the site"
-msgstr ""
-
 #: apps/listings/forms.py:52
 msgid "A short, clear headline (e.g. model, year, condition)."
 msgstr ""
@@ -281,10 +277,6 @@ msgstr ""
 
 #: apps/listings/templates/listings/my_listings.html:18
 msgid "Status"
-msgstr ""
-
-#: apps/listings/templates/listings/my_listings.html:19
-msgid "Visible"
 msgstr ""
 
 #: apps/listings/templates/listings/my_listings.html:20

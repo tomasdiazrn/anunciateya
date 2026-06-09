@@ -1,25 +1,28 @@
-{# headers: lista de textos; rows: lista de filas (cada fila = lista de celdas); empty_text opcional #}
+{# headers, rows (listas de celdas), empty_text; unsafe_cols: índices 0-based con HTML seguro; empty_action_* opcional #}
 <div class="admin-table-wrap">
   <table class="admin-table" role="grid">
-    <thead>
-      <tr>
-        {% for h in headers %}
-          <th scope="col">{{ h }}</th>
-        {% endfor %}
-      </tr>
-    </thead>
+    {% include "adminapp/components/table_head.html" %}
     <tbody>
       {% if rows %}
         {% for row in rows %}
           <tr>
             {% for cell in row %}
-              <td>{{ cell }}</td>
+              <td{% if unsafe_cols and forloop.counter0 in unsafe_cols %} class="admin-table__cell--rich"{% endif %}>
+                {% if unsafe_cols and forloop.counter0 in unsafe_cols %}{{ cell|safe }}{% else %}{{ cell }}{% endif %}
+              </td>
             {% endfor %}
           </tr>
         {% endfor %}
       {% else %}
         <tr>
-          <td class="admin-table__empty" colspan="{{ headers|length }}">{{ empty_text|default:"Sin filas." }}</td>
+          <td class="admin-table__empty" colspan="{{ headers|length }}">
+            <div class="admin-empty">
+              <p class="admin-empty__text">{{ empty_text|default:"Sin filas." }}</p>
+              {% if empty_action_label and empty_action_url %}
+                {% include "adminapp/components/button.html" with label=empty_action_label url=empty_action_url variant="primary" only %}
+              {% endif %}
+            </div>
+          </td>
         </tr>
       {% endif %}
     </tbody>

@@ -14,7 +14,6 @@ from apps.categories.models import Category
 from apps.listings.models import Listing
 from apps.trust.models import ListingReport, Review
 from apps.trust.qa_mvp import (
-    DEFAULT_SEED_PASSWORD,
     ejecutar_informe_semilla,
     tiene_datos_semilla,
 )
@@ -49,7 +48,6 @@ class TrustModelConstraintsTests(TestCase):
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
-            is_active=True,
         )
 
     def test_segunda_resena_mismo_par_integrity_error(self):
@@ -106,7 +104,6 @@ class SyncListingFlagTests(TestCase):
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
-            is_active=True,
             is_flagged=False,
         )
 
@@ -163,7 +160,6 @@ class TrustCacheInvalidationTests(TestCase):
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
-            is_active=True,
         )
 
     def _key(self):
@@ -226,7 +222,7 @@ class SeedMvpIntegrationTests(TestCase):
         if tiene_datos_semilla():
             self.skipTest("Hay datos semilla; el otro test cubre el informe completo.")
         client = Client()
-        report = ejecutar_informe_semilla(client, DEFAULT_SEED_PASSWORD)
+        report = ejecutar_informe_semilla(client)
         self.assertFalse(report.resultados[0].ok)
         self.assertEqual(report.resultados[0].codigo, "SEMILLA")
 
@@ -234,7 +230,7 @@ class SeedMvpIntegrationTests(TestCase):
         if not tiene_datos_semilla():
             self.skipTest("Ejecute seed_mvp_data localmente para activar esta prueba.")
         client = Client()
-        report = ejecutar_informe_semilla(client, DEFAULT_SEED_PASSWORD)
+        report = ejecutar_informe_semilla(client)
         fallos = [r for r in report.resultados if not r.ok]
         self.assertEqual(
             len(fallos),

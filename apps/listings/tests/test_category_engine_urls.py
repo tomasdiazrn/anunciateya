@@ -33,6 +33,33 @@ class CategoryEngineURLTests(TestCase):
     def test_browse_with_vehicle_filter_param(self) -> None:
         self._assert_200("/autos/?marca=1")
 
+    def test_browse_shows_category_sidebar_filter(self) -> None:
+        response = self.client.get("/anuncios/")
+
+        self.assertContains(response, 'aria-label="Filtrar anuncios por categoría"')
+        self.assertContains(response, 'data-href="/autos/"')
+
+    def test_browse_category_query_redirects_to_hub(self) -> None:
+        response = self.client.get("/anuncios/?category=autos", follow=False)
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], "/autos/")
+
+    def test_browse_category_query_preserves_search(self) -> None:
+        response = self.client.get("/anuncios/?category=autos&q=toyota", follow=False)
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], "/autos/?q=toyota")
+
+    def test_browse_category_query_with_location_redirects(self) -> None:
+        response = self.client.get(
+            "/anuncios/?category=autos&location=guayaquil",
+            follow=False,
+        )
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], "/guayaquil/autos/")
+
     def test_location_category_landings(self) -> None:
         self._assert_200("/guayaquil/autos/")
         self._assert_200("/guayaquil/motos/")

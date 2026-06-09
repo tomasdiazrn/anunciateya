@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block extra_head %}
+  <meta name="robots" content="noindex">
+{% endblock %}
+
+{% block content %}
+  <section class="container error-page" aria-labelledby="listing-error-title">
+    <p class="error-page__eyebrow">404</p>
+    <h1 class="error-page__title" id="listing-error-title">Anuncio no disponible</h1>
+    <p class="error-page__copy">Puede estar en borrador, archivado o haber dejado de publicarse.</p>
+    <a class="button btn-primary error-page__cta" href="{% url 'root_home' %}">Ir al home</a>
+  </section>
+{% endblock %}

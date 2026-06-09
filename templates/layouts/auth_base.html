@@ -10,9 +10,7 @@
   {% include "components/analytics/facebook_domain_verification_meta.html" %}
   <title>{% block title %}{{ meta_title|default:default_page_title }}{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}{{ meta_description|default:seo_default_description }}{% endblock %}">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  {% include "components/head/fonts.html" %}
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" referrerpolicy="no-referrer">
   {% block extra_head %}{% endblock %}
@@ -22,41 +20,17 @@
   <main class="auth-main" id="main-content">
     {% block content %}{% endblock %}
   </main>
-  <div class="auth-corner-brand" aria-hidden="true">anunciateya.com</div>
+  <div class="auth-corner-brand" aria-hidden="true">{{ site_public_domain }}</div>
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
-  <script>
-    (function () {
-      function initPasswordToggles() {
-        document.querySelectorAll("[data-toggle-password]").forEach(function (btn) {
-          btn.addEventListener("click", function () {
-            var sel = btn.getAttribute("data-toggle-password");
-            if (!sel) return;
-            var input = document.querySelector(sel);
-            if (!input) return;
-
-            var isPassword = input.getAttribute("type") === "password";
-            input.setAttribute("type", isPassword ? "text" : "password");
-            btn.setAttribute("aria-label", isPassword ? "Ocultar contraseña" : "Mostrar contraseña");
-
-            var icon = btn.querySelector("i");
-            if (icon) {
-              icon.classList.toggle("fa-eye", !isPassword);
-              icon.classList.toggle("fa-eye-slash", isPassword);
-            }
-          });
-        });
-      }
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initPasswordToggles);
-      } else {
-        initPasswordToggles();
-      }
-    })();
-  </script>
+  <script src="{% static 'js/char_counters.js' %}" defer></script>
+  <script src="{% static 'js/otp_code_inputs.js' %}" defer></script>
+  <script src="{% static 'js/form_loading_states.js' %}" defer></script>
   <script>
     (function () {
       function initPhoneInputs() {
         document.querySelectorAll("[data-phone-input]").forEach(function (root) {
+          if (root.dataset.phoneInputInit === "1") return;
+          root.dataset.phoneInputInit = "1";
           var codeInput = root.querySelector('input[name="phone_country_code"]');
           var trigger = root.querySelector("[data-phone-country-trigger]");
           var dropdown = root.querySelector("[data-phone-country-dropdown]");
@@ -150,11 +124,12 @@
         });
       }
 
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initPhoneInputs);
-      } else {
+      function boot() {
         initPhoneInputs();
+        document.body.addEventListener("htmx:load", initPhoneInputs);
       }
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
     })();
   </script>
 </body>

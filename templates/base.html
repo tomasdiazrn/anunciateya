@@ -11,9 +11,7 @@
   <title>{% block title %}{{ meta_title|default:default_page_title }}{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}{{ meta_description|default:seo_default_description }}{% endblock %}">
   <link rel="canonical" href="{% block canonical_href %}{% if canonical_href_override %}{{ canonical_href_override }}{% else %}{{ site_url }}{{ request.path }}{% endif %}{% endblock %}">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  {% include "components/head/fonts.html" %}
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" referrerpolicy="no-referrer">
   {% block extra_head %}{% endblock %}
@@ -33,10 +31,17 @@
     {% endblock %}
     {% block content %}{% endblock %}
   </main>
+  {% include "components/marketplace/contact_modal.html" %}
   {% block site_footer %}
+    {% include "components/layout/newsletter_bar.html" %}
     {% include "components/layout/footer.html" %}
   {% endblock %}
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
+  <script src="{% static 'js/char_counters.js' %}" defer></script>
+  <script src="{% static 'js/form_loading_states.js' %}" defer></script>
+  <script src="{% static 'js/contact_modal.js' %}" defer></script>
+  <script src="{% static 'js/site_nav.js' %}" defer></script>
+  <script src="{% static 'js/listing_carousel.js' %}" defer></script>
   <script>
     (function () {
       function getCookie(name) {

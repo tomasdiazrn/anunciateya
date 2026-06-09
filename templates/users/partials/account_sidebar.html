@@ -1,8 +1,8 @@
 {% load static %}
 <aside class="account-sidebar" id="account-sidebar" aria-label="Menú de cuenta">
   <div class="account-sidebar__header">
-    <a class="account-sidebar__logo" href="{% url 'core:home' %}" aria-label="{{ site_name }} — Ir al inicio">
-      <img class="account-sidebar__logo-img" src="{% static 'img/AnunciateYa_Logo.png' %}" alt="" decoding="async" loading="lazy">
+    <a class="account-sidebar__logo" href="{% url 'root_home' %}" aria-label="{{ site_name }} — Ir al inicio">
+      <img class="account-sidebar__logo-img" src="{% static brand_logo %}" alt="" decoding="async" loading="lazy">
     </a>
     <button
       type="button"

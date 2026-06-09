@@ -15,12 +15,13 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.db.models import Q, QuerySet
-from django.http import Http404, HttpRequest, QueryDict
-from django.shortcuts import get_object_or_404
+from django.http import Http404, HttpRequest, HttpResponseRedirect, QueryDict
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.core.exceptions import ImproperlyConfigured
 
 from apps.categories.models import Category
+from apps.categories.services import root_categories
 from apps.trust.services import bulk_seller_trust
 
 from . import services as listing_services
@@ -78,6 +79,14 @@ LOCATION_LANDING_CONFIG: dict[str, dict[str, Any]] = {
 LISTING_CARD_BASE = "components/marketplace/listing_card_base.html"
 BROWSE_TEMPLATE_LIST = "listings/listing_list.html"
 BROWSE_TEMPLATE_CATEGORY = "listings/category_detail.html"
+
+CATEGORY_HERO_CTA_LABELS = {
+    VEHICLE_SLUG: "Publicar auto",
+    PROPERTY_SLUG: "Publicar inmueble",
+    MOTORCYCLE_SLUG: "Publicar moto",
+    ELECTRONICS_SLUG: "Publicar electrónico",
+    HOMEGOODS_SLUG: "Publicar artículo de hogar",
+}
 # Todas las verticales usan el mismo renderer DTO; el aspecto por categoría va en `card.css_modifier`.
 LISTING_CARD_SIMPLE = LISTING_CARD_DTO_UNIFIED
 
@@ -112,6 +121,7 @@ class CategoryHeroContext:
     hero_title: str
     hero_subtitle: str
     page_header_title_tag: str
+    hero_cta_label: str = "Publicar anuncio"
 
 
 def _hero_from_seo(bundle: CategorySeoBundle) -> CategoryHeroContext:
@@ -121,6 +131,11 @@ def _hero_from_seo(bundle: CategorySeoBundle) -> CategoryHeroContext:
         hero_subtitle=bundle.hero_subtitle,
         page_header_title_tag=bundle.page_header_title_tag,
     )
+
+
+def _category_hero_cta_label(category: Any | None) -> str:
+    slug = getattr(category, "slug", "")
+    return CATEGORY_HERO_CTA_LABELS.get(slug, "Publicar anuncio")
 
 
 @dataclass
@@ -156,6 +171,7 @@ class CategoryPageContext:
             "show_category_hero": h.show_category_hero,
             "hero_title": h.hero_title,
             "hero_subtitle": h.hero_subtitle,
+            "hero_cta_label": _category_hero_cta_label(self.category),
             "page_header_title_tag": h.page_header_title_tag,
             "list_heading": b.list_heading,
             "list_subtitle": b.list_subtitle,
@@ -297,6 +313,53 @@ def build_category_queryset(
 ) -> tuple[QuerySet, dict, str]:
     """Alias del pipeline hub (enrichment completo)."""
     return apply_category_pipeline(request, qs, category_slug, scope="hub")
+
+
+def _browse_preserved_query_params(request: HttpRequest) -> QueryDict:
+    """Query de /anuncios/ sin category ni page (para redirigir al hub canónico)."""
+    params = request.GET.copy()
+    params.pop("category", None)
+    params.pop("page", None)
+    return params
+
+
+def browse_category_hub_href(request: HttpRequest, category_slug: str) -> str:
+    """
+    URL canónica de una categoría desde browse, preservando q/location/filtros.
+    /autos/, /guayaquil/autos/, etc.
+    """
+    params = _browse_preserved_query_params(request)
+    location_slug = (params.get("location") or "").strip()
+    if location_slug and location_slug in LOCATION_LANDING_CONFIG:
+        contract = get_category_contract(category_slug)
+        if contract and contract.allowed_location_mode == "city+category":
+            params.pop("location", None)
+            url_name = {
+                "guayaquil": "location_guayaquil_category",
+                "samborondon": "location_samborondon_category",
+            }.get(location_slug)
+            if url_name:
+                url = reverse(url_name, kwargs={"category_slug": category_slug})
+                qs = params.urlencode()
+                return f"{url}?{qs}" if qs else url
+    url = reverse("category_landing", kwargs={"slug": category_slug})
+    qs = params.urlencode()
+    return f"{url}?{qs}" if qs else url
+
+
+def browse_category_canonical_redirect(
+    request: HttpRequest,
+) -> HttpResponseRedirect | None:
+    """
+    301 /anuncios/?category=autos → /autos/ (o /guayaquil/autos/ si aplica).
+    Evita duplicar contenido SEO frente a los hubs de categoría.
+    """
+    category_slug = (request.GET.get("category") or "").strip()
+    if not category_slug:
+        return None
+    if not Category.objects.filter(slug=category_slug).exists():
+        return None
+    return redirect(browse_category_hub_href(request, category_slug), permanent=True)
 
 
 def build_browse_listings_queryset(request: HttpRequest) -> QuerySet:
@@ -620,17 +683,11 @@ def build_seo(
 
 
 def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
-    from .models import ItemCondition, MotorcycleListing, VehicleBrand, VehicleListing
-
     qs = build_browse_listings_queryset(request)
     q_raw = (request.GET.get("q") or "").strip()
-    category_slug = (request.GET.get("category") or "").strip()
     location_slug = (request.GET.get("location") or "").strip()
 
     qs = apply_search(qs, q_raw, None)
-
-    if category_slug:
-        qs = qs.filter(category__slug=category_slug)
 
     if location_slug:
         cfg = LOCATION_LANDING_CONFIG.get(location_slug)
@@ -642,74 +699,12 @@ def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
         else:
             qs = qs.filter(location__icontains=location_slug)
 
-    parsed: dict = {}
-    if category_slug:
-        qs, parsed = apply_category_filters(category_slug, request, qs)
-
-    show_autos = category_slug == VEHICLE_SLUG
-    show_property = category_slug == PROPERTY_SLUG
-    show_moto = category_slug == MOTORCYCLE_SLUG
-    show_electronics = category_slug == ELECTRONICS_SLUG
-    show_home = category_slug == HOMEGOODS_SLUG
-    if show_autos:
-        vehicle_filter_params = parsed
-        property_filter_params = {}
-        motorcycle_filter_params = {}
-        electronics_filter_params = {}
-        home_filter_params = {}
-    elif show_property:
-        vehicle_filter_params = {}
-        property_filter_params = parsed
-        motorcycle_filter_params = {}
-        electronics_filter_params = {}
-        home_filter_params = {}
-    elif show_moto:
-        vehicle_filter_params = {}
-        property_filter_params = {}
-        motorcycle_filter_params = parsed
-        electronics_filter_params = {}
-        home_filter_params = {}
-    elif show_electronics:
-        vehicle_filter_params = {}
-        property_filter_params = {}
-        motorcycle_filter_params = {}
-        electronics_filter_params = parsed
-        home_filter_params = {}
-    elif show_home:
-        vehicle_filter_params = {}
-        property_filter_params = {}
-        motorcycle_filter_params = {}
-        electronics_filter_params = {}
-        home_filter_params = parsed
-    else:
-        vehicle_filter_params = {}
-        property_filter_params = {}
-        motorcycle_filter_params = {}
-        electronics_filter_params = {}
-        home_filter_params = {}
-
-    filters_active = (
-        show_autos
-        and listing_services.vehicle_browse_filters_active(vehicle_filter_params)
-    ) or (
-        show_property
-        and listing_services.property_browse_filters_active(property_filter_params)
-    ) or (
-        show_moto
-        and listing_services.motorcycle_browse_filters_active(motorcycle_filter_params)
-    ) or (
-        show_electronics
-        and listing_services.electronics_browse_filters_active(electronics_filter_params)
-    ) or (
-        show_home and listing_services.home_browse_filters_active(home_filter_params)
-    )
-
     sort = parse_sort_param(request)
     qs = apply_listing_order(qs, sort)
     lb = _split_listings_page_bundle(
         request,
         qs,
-        filters_active=filters_active,
+        filters_active=bool(q_raw or location_slug),
         clear_listings_href=reverse("browse"),
     )
     page = lb["page"]
@@ -723,86 +718,31 @@ def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
         loc_cfg = LOCATION_LANDING_CONFIG.get(location_slug)
         if loc_cfg:
             location_display = loc_cfg["display"]
-    category_obj = Category.objects.filter(slug=category_slug).first() if category_slug else None
 
     bundle = build_seo(
         request,
-        category_slug,
+        "",
         qs,
         frame="browse",
         brand=brand,
         city=city,
-        category=category_obj,
-        parsed=parsed,
+        category=None,
+        parsed={},
         result_count=paginator.count,
         q_raw=q_raw,
-        filters_active=filters_active,
+        filters_active=bool(q_raw or location_slug),
         location_display=location_display,
         browse_location_slug=location_slug,
     )
 
-    filter_clear_url = ""
-    if show_autos:
-        clear_params: dict = {}
-        if q_raw:
-            clear_params["q"] = q_raw
-        if location_slug:
-            clear_params["location"] = location_slug
-        base = reverse("category_landing", kwargs={"slug": VEHICLE_SLUG})
-        filter_clear_url = f"{base}?{urlencode(clear_params)}" if clear_params else base
-    elif show_property:
-        clear_params = {}
-        if q_raw:
-            clear_params["q"] = q_raw
-        if location_slug:
-            clear_params["location"] = location_slug
-        base = reverse("category_landing", kwargs={"slug": PROPERTY_SLUG})
-        filter_clear_url = f"{base}?{urlencode(clear_params)}" if clear_params else base
-    elif show_moto:
-        clear_params = {}
-        if q_raw:
-            clear_params["q"] = q_raw
-        if location_slug:
-            clear_params["location"] = location_slug
-        base = reverse("category_landing", kwargs={"slug": MOTORCYCLE_SLUG})
-        filter_clear_url = f"{base}?{urlencode(clear_params)}" if clear_params else base
-    elif show_electronics:
-        clear_params = {}
-        if q_raw:
-            clear_params["q"] = q_raw
-        if location_slug:
-            clear_params["location"] = location_slug
-        base = reverse("category_landing", kwargs={"slug": ELECTRONICS_SLUG})
-        filter_clear_url = f"{base}?{urlencode(clear_params)}" if clear_params else base
-    elif show_home:
-        clear_params = {}
-        if q_raw:
-            clear_params["q"] = q_raw
-        if location_slug:
-            clear_params["location"] = location_slug
-        base = reverse("category_landing", kwargs={"slug": HOMEGOODS_SLUG})
-        filter_clear_url = f"{base}?{urlencode(clear_params)}" if clear_params else base
-
-    browse_brands = VehicleBrand.objects.order_by("name") if show_autos else None
-    browse_model_choices = (
-        listing_services.vehicle_model_options_for_browse(
-            vehicle_filter_params.get("marca_id"),
-        )
-        if show_autos
-        else []
-    )
-
-    filter_panel_kind = ""
-    if show_autos:
-        filter_panel_kind = "vehicle"
-    elif show_property:
-        filter_panel_kind = "property"
-    elif show_moto:
-        filter_panel_kind = "motorcycle"
-    elif show_electronics:
-        filter_panel_kind = "electronics"
-    elif show_home:
-        filter_panel_kind = "home"
+    clear_params: dict = {}
+    if q_raw:
+        clear_params["q"] = q_raw
+    if location_slug:
+        clear_params["location"] = location_slug
+    category_filter_clear_url = reverse("browse")
+    if clear_params:
+        category_filter_clear_url = f"{category_filter_clear_url}?{urlencode(clear_params)}"
 
     location_ctx: dict[str, Any] = {}
     if location_slug:
@@ -812,51 +752,28 @@ def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
             location_ctx["location_display"] = loc_cfg["display"]
 
     cards_ctx: dict[str, Any] = {
-        "browse_has_sidebar_filters": bool(filter_panel_kind),
-        "filter_panel_kind": filter_panel_kind,
-        "show_autos_filters": show_autos,
-        "show_property_filters": show_property,
-        "show_motorcycle_filters": show_moto,
-        "show_electronics_filters": show_electronics,
-        "show_home_filters": show_home,
-        "browse_brands": browse_brands,
-        "browse_model_choices": browse_model_choices,
-        "vehicle_transmission_choices": VehicleListing.Transmission.choices,
-        "motorcycle_transmission_choices": MotorcycleListing.Transmission.choices,
-        "motorcycle_fuel_choices": MotorcycleListing.FuelType.choices,
-        "motorcycle_condition_choices": ItemCondition.choices,
-        "electronics_condition_choices": ItemCondition.choices,
-        "home_item_type_choices": listing_services.home_item_type_choices_tuple(),
-        "home_condition_choices": ItemCondition.choices,
-        "vehicle_filter_params": vehicle_filter_params,
-        "property_filter_params": property_filter_params,
-        "motorcycle_filter_params": motorcycle_filter_params,
-        "electronics_filter_params": electronics_filter_params,
-        "home_filter_params": home_filter_params,
-        "filter_clear_url": filter_clear_url,
-        "selected_filters": parsed
-        if (show_autos or show_property or show_moto or show_electronics or show_home)
-        else {},
-        "vehicle_filters_form_action": reverse("browse"),
-        "vehicle_filters_include_category": show_autos,
-        "property_filters_form_action": reverse("browse"),
-        "property_filters_include_category": show_property,
-        "motorcycle_filters_form_action": reverse("browse"),
-        "motorcycle_filters_include_category": show_moto,
-        "electronics_filters_form_action": reverse("browse"),
-        "electronics_filters_include_category": show_electronics,
-        "home_filters_form_action": reverse("browse"),
-        "home_filters_include_category": show_home,
+        "browse_has_sidebar_filters": True,
+        "filter_panel_kind": "category",
+        "category_filter_options": [
+            {
+                "slug": cat.slug,
+                "name": cat.name,
+                "href": browse_category_hub_href(request, cat.slug),
+            }
+            for cat in root_categories()
+        ],
+        "category_filter_selected": "",
+        "category_filter_clear_url": category_filter_clear_url,
     }
     cards_ctx["listing_cards"] = lb["listing_cards_alias"]
     cards_ctx.update(lb["listings_render"])
 
     return CategoryPageContext(
         queryset=qs,
-        filters=parsed,
+        filters={},
         seo=bundle,
         hero=_hero_from_seo(bundle),
-        category=category_obj,
+        category=None,
         template=BROWSE_TEMPLATE_LIST,
         pagination=CategoryPagination(page, paginator, pagination_query),
         search_query=q_raw,

@@ -13,10 +13,35 @@
 {% block content %}
   {% if show_category_hero %}
     {% include "listings/partials/category_hero.html" %}
+  {% else %}
+    <section class="category-hero" aria-labelledby="listings-hero-heading">
+      <div class="container">
+        <div class="category-hero__banner">
+          <div class="category-hero__copy">
+            <h1 id="listings-hero-heading" class="category-hero__title">Anuncios en Guayaquil</h1>
+            <p class="category-hero__subtitle">Compra, vende y encuentra oportunidades cerca de ti</p>
+            <a
+              class="button btn-primary category-hero__cta"
+              href="{% url 'publish' %}"
+              data-event="create_listing"
+              data-event-detail="list_hero_inline"
+            >
+              Publicar anuncio
+              <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
+            </a>
+          </div>
+          <div class="category-hero__visual" aria-hidden="true">
+            <i class="fa-solid fa-bullhorn"></i>
+          </div>
+        </div>
+      </div>
+    </section>
   {% endif %}
   <div class="container">
     <div class="browse-layout{% if browse_has_sidebar_filters %} browse-layout--with-filters{% endif %}">
-      {% if filter_panel_kind == "vehicle" %}
+      {% if filter_panel_kind == "category" %}
+        {% include "listings/partials/browse_category_filters.html" %}
+      {% elif filter_panel_kind == "vehicle" %}
         {% include "listings/partials/browse_vehicle_filters.html" %}
       {% elif filter_panel_kind == "property" %}
         {% include "listings/partials/browse_property_filters.html" %}
@@ -28,8 +53,6 @@
         {% include "listings/partials/browse_home_filters.html" %}
       {% endif %}
       <div class="browse-main-column">
-        {% include "components/layouts/page_header.html" with title=list_heading subtitle=list_subtitle meta=result_count|intcomma meta_label="resultados" title_tag=page_header_title_tag %}
-        {% include "listings/partials/browse_sort_pills.html" %}
         {% include "listings/partials/listing_results_sections.html" %}
 
         {% if page_obj.has_other_pages %}
@@ -47,5 +70,32 @@
         {% endif %}
       </div>
     </div>
+
+    <section class="home-final-cta home-final-cta--page-end home-block" aria-labelledby="list-final-cta-heading">
+      <i class="fa-solid fa-bullhorn home-final-cta__bg-icon" aria-hidden="true"></i>
+
+      <div class="home-final-cta__content">
+        <p class="home-final-cta__eyebrow">Publicar es gratis</p>
+        <h2 id="list-final-cta-heading" class="home-final-cta__title">
+          ¿Tenés algo para vender en Guayaquil?
+        </h2>
+        <p class="home-final-cta__lead">
+          Creá tu anuncio ahora y llegá a personas que ya están buscando autos, inmuebles,
+          electrónica, motos y más.
+        </p>
+      </div>
+
+      <div class="home-final-cta__actions" aria-label="Acciones principales">
+        <a
+          class="button btn-primary home-final-cta__button home-final-cta__button--primary"
+          href="{% url 'publish' %}"
+          data-event="create_listing"
+          data-event-detail="list_final_cta_publish"
+        >
+          Publicar anuncio
+          <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
+        </a>
+      </div>
+    </section>
   </div>
 {% endblock %}

@@ -1,0 +1,152 @@
+{% load static %}
+
+<div class="admin-page-header admin-page-header--split">
+  <div>
+    <h2 class="admin-page-title">Hosting</h2>
+  </div>
+  <a class="admin-btn admin-btn--primary" href="{{ renewal_url }}" target="_blank" rel="noopener">
+    Renovar hosting
+  </a>
+</div>
+
+<div class="admin-hosting">
+  <section class="admin-hosting-status admin-hosting-status--{{ membership.status }}" aria-labelledby="hosting-status-title">
+    <div class="admin-hosting-status__icon" aria-hidden="true">
+      {% if membership.is_expired %}
+        <i class="fa-solid fa-circle-exclamation"></i>
+      {% elif membership.is_expiring %}
+        <i class="fa-solid fa-clock"></i>
+      {% elif membership.is_active %}
+        <i class="fa-solid fa-shield-heart"></i>
+      {% else %}
+        <i class="fa-solid fa-screwdriver-wrench"></i>
+      {% endif %}
+    </div>
+    <div class="admin-hosting-status__body">
+      <div class="admin-hosting-status__eyebrow">Estado de membresía</div>
+      <h3 id="hosting-status-title" class="admin-hosting-status__title">
+        {% if membership.is_expired %}
+          Hosting vencido
+        {% elif membership.is_expiring %}
+          Renovación próxima
+        {% elif membership.is_active %}
+          Hosting activo
+        {% else %}
+          Configuración pendiente
+        {% endif %}
+      </h3>
+      <p class="admin-hosting-status__text">
+        {% if membership.is_expired %}
+          La membresía venció hace {{ membership.absolute_days_remaining }} día{{ membership.absolute_days_remaining|pluralize:"s" }}. Renovala para mantener el acompañamiento operativo.
+        {% elif membership.is_expiring %}
+          Quedan {{ membership.days_remaining }} día{{ membership.days_remaining|pluralize:"s" }} para renovar. Hacerlo ahora evita bloqueos de soporte y coordinación de infraestructura.
+        {% elif membership.is_active %}
+          Tu membresía está vigente. Seguimos monitoreando vencimiento, soporte y continuidad operativa desde este panel.
+        {% else %}
+          Configurá las fechas de inicio y vencimiento en el `.env` para activar los avisos automáticos.
+        {% endif %}
+      </p>
+      {% if membership.config_error %}
+        <p class="admin-hosting-status__note">{{ membership.config_error }}</p>
+      {% endif %}
+      <div class="admin-hosting-status__actions">
+        <a class="admin-btn admin-btn--primary" href="{{ renewal_url }}" target="_blank" rel="noopener">
+          Renovar con AltoValleIT
+        </a>
+        <a class="admin-btn admin-btn--secondary" href="mailto:info@altovalleit.com?subject=Soporte%20hosting%20{{ seo_brand_name|urlencode }}">
+          Escribir a soporte
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="admin-hosting-card" aria-labelledby="hosting-dates-title">
+    <h3 id="hosting-dates-title" class="admin-card__title">Configuración actual</h3>
+    <dl class="admin-hosting-dates">
+      <div class="admin-hosting-dates__item">
+        <dt>Inicio</dt>
+        <dd>
+          {% if membership.start_date %}
+            {{ membership.start_date|date:"d/m/Y" }}
+          {% else %}
+            No configurado
+          {% endif %}
+        </dd>
+      </div>
+      <div class="admin-hosting-dates__item">
+        <dt>Vencimiento</dt>
+        <dd>
+          {% if membership.expires_date %}
+            {{ membership.expires_date|date:"d/m/Y" }}
+          {% else %}
+            No configurado
+          {% endif %}
+        </dd>
+      </div>
+      <div class="admin-hosting-dates__item">
+        <dt>Días restantes</dt>
+        <dd>
+          {% if membership.days_remaining != None %}
+            {{ membership.days_remaining }}
+          {% else %}
+            -
+          {% endif %}
+        </dd>
+      </div>
+      <div class="admin-hosting-dates__item">
+        <dt>Renovación</dt>
+        <dd><a href="{{ renewal_url }}" target="_blank" rel="noopener">Abrir enlace</a></dd>
+      </div>
+    </dl>
+  </section>
+
+  <aside class="admin-hosting-card admin-hosting-card--tools" aria-labelledby="hosting-tools-title">
+    <h3 id="hosting-tools-title" class="admin-card__title">Recursos AltoValleIT</h3>
+    <p class="admin-card__lede">
+      Herramientas y guías para mejorar operación, performance y crecimiento del proyecto.
+    </p>
+    <ul class="admin-hosting-tools">
+      <li>
+        <a href="https://altovalleit.com/tools/?utm_source=anunciateya_admin&utm_medium=hosting_tab&utm_campaign=ops_tools" target="_blank" rel="noopener">
+          <i class="fa-solid fa-toolbox" aria-hidden="true"></i>
+          <span>Herramientas web y auditorías rápidas</span>
+        </a>
+      </li>
+      <li>
+        <a href="https://altovalleit.com/blog/?utm_source=anunciateya_admin&utm_medium=hosting_tab&utm_campaign=ops_content" target="_blank" rel="noopener">
+          <i class="fa-solid fa-newspaper" aria-hidden="true"></i>
+          <span>Blog de tecnología, hosting y marketing</span>
+        </a>
+      </li>
+      <li>
+        <a href="mailto:info@altovalleit.com?subject=Mejoras%20para%20{{ seo_brand_name|urlencode }}">
+          <i class="fa-solid fa-comments" aria-hidden="true"></i>
+          <span>Solicitar mejoras o soporte técnico</span>
+        </a>
+      </li>
+    </ul>
+  </aside>
+
+  <section class="admin-hosting-strip" aria-label="AltoValleIT">
+    <div class="admin-hosting-strip__brand">
+      <span class="admin-hosting-strip__logo" aria-hidden="true">
+        <img src="{% static 'adminapp/AltoValleIT_WebDevelopment_Logo.png' %}" alt="" loading="lazy" decoding="async">
+      </span>
+      <div>
+        <strong>AltoValleIT</strong>
+        <span>Hosting, soporte y desarrollo web.</span>
+      </div>
+    </div>
+    <div class="admin-hosting-strip__links">
+      <a href="https://altovalleit.com/" target="_blank" rel="noopener" aria-label="Sitio web AltoValleIT">
+        <i class="fa-solid fa-globe"></i>
+      </a>
+      <a href="https://www.instagram.com/altovalleit/" target="_blank" rel="noopener" aria-label="Instagram AltoValleIT">
+        <i class="fa-brands fa-instagram"></i>
+      </a>
+      <a href="https://www.linkedin.com/company/altovalleit/" target="_blank" rel="noopener" aria-label="LinkedIn AltoValleIT">
+        <i class="fa-brands fa-linkedin-in"></i>
+      </a>
+    </div>
+  </section>
+</div>

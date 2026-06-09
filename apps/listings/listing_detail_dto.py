@@ -41,7 +41,6 @@ from .listing_card_dto import (
     build_card_context,
 )
 from .models import Listing
-from .stock_demo_images import stock_demo_gallery_urls, use_stock_demo_photos
 
 if TYPE_CHECKING:
     from .listing_card_dto import CardContext
@@ -72,10 +71,12 @@ class ListingDetailContext:
 
     # Media (gallery_* canónico; image_* alias compat)
     gallery_images: tuple[str, ...]
+    gallery_images_webp: tuple[str, ...]
     gallery_count: int
     gallery_has_multiple: bool
     gallery_show_placeholder: bool
     thumbnail_images: tuple[str, ...]
+    thumbnail_images_webp: tuple[str, ...]
     gallery_image_alt: str
     image_urls: tuple[str, ...]
     primary_image: str
@@ -83,7 +84,9 @@ class ListingDetailContext:
     # Mosaico tipo marketplace (hero 50% + grilla 2×2 a la derecha); solo derivado de gallery_images.
     gallery_mosaic: bool
     gallery_mosaic_hero: str
+    gallery_mosaic_hero_webp: str
     gallery_mosaic_cells: tuple[str | None, str | None, str | None, str | None]
+    gallery_mosaic_cells_webp: tuple[str | None, str | None, str | None, str | None]
     gallery_strip_extra: bool
     gallery_images_json: str
 
@@ -116,7 +119,6 @@ class ListingDetailContext:
     seller_reviews_count: int
     seller_joined: str
     seller_last_seen: str
-    seller_response_speed: str
     is_verified: bool
     seller_profile_href: str
 
@@ -178,17 +180,41 @@ def _mosaic_four_cells(urls: tuple[str, ...]) -> tuple[str | None, str | None, s
     return (rest[0], rest[1], rest[2], rest[3])
 
 
-def ordered_listing_image_urls(listing: Listing) -> tuple[str, ...]:
-    """URLs de galería ordenadas por sort_order (reutilizable en JSON-LD, etc.)."""
-    if use_stock_demo_photos():
-        return stock_demo_gallery_urls(listing)
+def ordered_listing_image_urls(listing: Listing, *, variant: str = "original") -> tuple[str, ...]:
+    """
+    URLs de galería ordenadas por sort_order.
+
+    variant:
+    - original: ListingImage.image
+    - thumb   : ListingImage.image_thumb (fallback a original)
+    - medium  : ListingImage.image_medium (fallback a original)
+    - large   : ListingImage.image_large (fallback a original)
+    """
     rows = _prefetched_images_ordered(listing)
-    return tuple(str(img.image.url) for img in rows if getattr(img, "image", None))
+    out: list[str] = []
+    for img in rows:
+        if not getattr(img, "image", None):
+            continue
+        if variant == "thumb" and getattr(img, "image_thumb", None):
+            out.append(str(img.image_thumb.url))
+        elif variant == "thumb_webp" and getattr(img, "image_thumb_webp", None):
+            out.append(str(img.image_thumb_webp.url))
+        elif variant == "medium" and getattr(img, "image_medium", None):
+            out.append(str(img.image_medium.url))
+        elif variant == "medium_webp" and getattr(img, "image_medium_webp", None):
+            out.append(str(img.image_medium_webp.url))
+        elif variant == "large" and getattr(img, "image_large", None):
+            out.append(str(img.image_large.url))
+        elif variant == "large_webp" and getattr(img, "image_large_webp", None):
+            out.append(str(img.image_large_webp.url))
+        else:
+            out.append(str(img.image.url))
+    return tuple(out)
 
 
 def listing_gallery_absolute_urls(request, listing: Listing, *, limit: int = 10) -> list[str]:
     """Máximo `limit` URLs absolutas para schema.org (misma orden que el DTO)."""
-    rel = ordered_listing_image_urls(listing)[:limit]
+    rel = ordered_listing_image_urls(listing, variant="original")[:limit]
     return [request.build_absolute_uri(u) for u in rel]
 
 
@@ -375,18 +401,25 @@ def build_listing_detail_context(
     attributes = _extended_attributes(card.attributes, chips)
     badges = _detail_badges(listing, seller_trust)
 
-    urls = ordered_listing_image_urls(listing)
+    urls = ordered_listing_image_urls(listing, variant="medium")
+    urls_webp = ordered_listing_image_urls(listing, variant="medium_webp")
+    urls_thumb = ordered_listing_image_urls(listing, variant="thumb")
+    urls_thumb_webp = ordered_listing_image_urls(listing, variant="thumb_webp")
+    urls_large = ordered_listing_image_urls(listing, variant="large")
     gallery_count = len(urls)
     gallery_has_multiple = gallery_count > 1
     gallery_show_placeholder = gallery_count == 0
-    thumbnail_images = urls
+    thumbnail_images = urls_thumb or urls
+    thumbnail_images_webp = urls_thumb_webp or urls_webp
     primary = urls[0] if urls else ""
     gallery_image_alt = str(card.title or "") if card.title else ""
     gallery_mosaic = not gallery_show_placeholder and gallery_count >= 2
     gallery_mosaic_hero = str(urls[0]) if gallery_mosaic else ""
+    gallery_mosaic_hero_webp = str(urls_webp[0]) if (gallery_mosaic and urls_webp) else ""
     gallery_mosaic_cells = _mosaic_four_cells(urls) if gallery_mosaic else (None, None, None, None)
+    gallery_mosaic_cells_webp = _mosaic_four_cells(urls_webp) if gallery_mosaic else (None, None, None, None)
     gallery_strip_extra = not gallery_show_placeholder and gallery_count > 5
-    gallery_images_json = json.dumps(list(urls), ensure_ascii=False)
+    gallery_images_json = json.dumps(list(urls_large or urls), ensure_ascii=False)
 
     desc_raw = (listing.description or "").strip()
     desc_short = _description_short(desc_raw)
@@ -442,17 +475,21 @@ def build_listing_detail_context(
         category_explore_label=escape(_category_explore_label(cat.slug, str(cat.name or ""))),
         listing_slug=listing_slug,
         gallery_images=urls,
+        gallery_images_webp=urls_webp,
         gallery_count=gallery_count,
         gallery_has_multiple=gallery_has_multiple,
         gallery_show_placeholder=gallery_show_placeholder,
         thumbnail_images=thumbnail_images,
+        thumbnail_images_webp=thumbnail_images_webp,
         gallery_image_alt=gallery_image_alt,
         image_urls=urls,
         primary_image=primary,
         total_images=gallery_count,
         gallery_mosaic=gallery_mosaic,
         gallery_mosaic_hero=gallery_mosaic_hero,
+        gallery_mosaic_hero_webp=gallery_mosaic_hero_webp,
         gallery_mosaic_cells=gallery_mosaic_cells,
+        gallery_mosaic_cells_webp=gallery_mosaic_cells_webp,
         gallery_strip_extra=gallery_strip_extra,
         gallery_images_json=gallery_images_json,
         primary_cta=primary_cta,
@@ -470,8 +507,7 @@ def build_listing_detail_context(
         show_description_expand=show_expand,
         safety_notice=(
             "Nunca envíes dinero por adelantado ni compartas datos bancarios sin ver al vendedor "
-            "y verificar el bien. Preferí encuentros en lugares seguros y conservá el comprobante "
-            "de la conversación en la plataforma."
+            "y verificar el bien. Preferí encuentros en lugares públicos y seguros."
         ),
         seller_name=escape(str(seller.public_name)),
         seller_avatar=None,
@@ -481,7 +517,6 @@ def build_listing_detail_context(
         seller_reviews_count=reviews,
         seller_joined=escape(str(seller_trust.get("member_since_display") or "")),
         seller_last_seen="Actividad reciente",
-        seller_response_speed="Suele responder en pocas horas",
         is_verified=bool(seller_trust.get("verified")),
         seller_profile_href=str(seller.get_absolute_url()),
         is_owner=is_owner,

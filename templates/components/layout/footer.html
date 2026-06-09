@@ -3,35 +3,66 @@
   <div class="container">
     <div class="site-footer__grid">
       <div class="site-footer__brand">
-        <img class="site-footer__logo" src="{% static 'img/AnunciateYa_Logo.png' %}" alt="{{ seo_brand_name }}">
-        <strong class="site-footer__brand-title">{{ seo_brand_name }}</strong>
+        <a class="site-footer__logo-link" href="{% url 'root_home' %}" aria-label="{{ seo_brand_name }} — Ir al inicio">
+          <img class="site-footer__logo" src="{% static brand_logo_white %}" alt="{{ seo_brand_name }}">
+        </a>
         <p class="muted site-footer__brand-desc">
-          Compra y vende en tu ciudad de forma segura.
+          Publica gratis, llega a más personas y vende lo que no usas.
+        </p>
+        <p class="muted site-footer__brand-location">
+          <span>Guayaquil, Ecuador</span>
+          <svg
+            class="site-footer__flag"
+            viewBox="0 0 24 16"
+            role="img"
+            aria-label="Bandera de Ecuador"
+            focusable="false"
+          >
+            <rect width="24" height="16" rx="3" fill="#f9f8f6" opacity="0.16"></rect>
+            <path d="M3 4.25h18v3.75H3z" fill="#f6d24a"></path>
+            <path d="M3 8h18v2.5H3z" fill="#244f9e"></path>
+            <path d="M3 10.5h18v1.25H3z" fill="#d63b35"></path>
+            <circle cx="12" cy="8.75" r="1.45" fill="#f9f8f6" opacity="0.92"></circle>
+            <circle cx="12" cy="8.75" r="0.74" fill="#3cbb6b"></circle>
+          </svg>
         </p>
       </div>
 
       <div class="site-footer__right">
-        <nav class="site-footer__links" aria-label="Enlaces">
-          {% for category in footer_nav_categories %}
-            <a href="{{ category.get_absolute_url }}">{{ category.name }}</a>
-          {% endfor %}
-          <a href="/publicar/" data-event="create_listing" data-event-detail="footer">Publicar anuncio</a>
+        <nav class="site-footer__column" aria-labelledby="footer-categories-heading">
+          <h2 class="site-footer__heading" id="footer-categories-heading">Categorías</h2>
+          <div class="site-footer__links">
+            {% for category in footer_nav_categories %}
+              <a href="{{ category.get_absolute_url }}">{{ category.name }}</a>
+            {% endfor %}
+          </div>
         </nav>
-        {% if footer_social_links %}
-        <div class="site-footer__social" aria-label="Redes sociales">
-          {% for link in footer_social_links %}
+
+        <div class="site-footer__column" aria-labelledby="footer-contact-heading">
+          <h2 class="site-footer__heading" id="footer-contact-heading">Contacto</h2>
+          <a class="site-footer__email" href="mailto:hola@anunciateya.com">hola@anunciateya.com</a>
+          {% if footer_social_links %}
+          <div class="site-footer__social" aria-label="Redes sociales">
+            {% for link in footer_social_links %}
+            <a
+              class="site-footer__social-link"
+              href="{{ link.url }}"
+              aria-label="{{ link.label }}"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <i class="{{ link.icon }}" aria-hidden="true"></i>
+            </a>
+            {% endfor %}
+          </div>
+          {% endif %}
           <a
-            class="site-footer__social-link"
-            href="{{ link.url }}"
-            aria-label="{{ link.label }}"
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            <i class="{{ link.icon }}" aria-hidden="true"></i>
-          </a>
-          {% endfor %}
+            class="button btn-primary site-footer__publish"
+            href="/publicar/"
+            data-event="create_listing"
+            data-event-detail="footer"
+          >Publicar anuncio</a>
         </div>
-        {% endif %}
       </div>
     </div>
   </div>
@@ -40,11 +71,16 @@
 <div class="footer-bar" aria-label="Información legal">
   <div class="container footer-bar__inner">
     <div class="footer-bar__left">
-      Powered by <a href="https://altovalleit.com/?utm_source=anunciateya&utm_medium=referral&utm_campaign=portfolio">AltoValleIT</a>
+      <span>© {% now "Y" %} {{ seo_brand_name }}</span>
+      <span aria-hidden="true">-</span>
+      <a href="{% url 'core:terms' %}">Términos</a>
+      <span aria-hidden="true">-</span>
+      <a href="{% url 'core:privacy' %}">Privacidad</a>
     </div>
     <div class="footer-bar__right">
-      <a href="/terminos/">Términos</a>
-      <a href="/privacidad/">Privacidad</a>
+      <span class="footer-bar__powered">
+        Powered by <a href="https://altovalleit.com/?utm_source=anunciateya&utm_medium=referral&utm_campaign=portfolio" target="_blank" rel="noopener noreferrer">Alto Valle IT</a>
+      </span>
     </div>
   </div>
 </div>

@@ -1,5 +1,5 @@
 /**
- * Admin shell: mobile drawer, desktop sidebar collapse.
+ * Admin shell: mobile drawer.
  * Scoped to [data-admin-shell].
  */
 (function () {
@@ -22,7 +22,6 @@
     var collapseBtn = root.querySelector("[data-admin-sidebar-collapse]");
     var sidebar = root.querySelector(".admin-layout__sidebar");
     var mqMobile = window.matchMedia("(max-width: 767px)");
-    var STORAGE_KEY = "adminapp_sidebar_collapsed";
 
     function syncSidebarAria() {
       if (!sidebar) return;
@@ -43,39 +42,29 @@
       syncSidebarAria();
     }
 
-    function readCollapsed() {
+    function syncSidebarControl() {
+      if (!collapseBtn) return;
+      collapseBtn.setAttribute("aria-expanded", mqMobile.matches ? "true" : "false");
+      collapseBtn.setAttribute("aria-label", "Cerrar menú lateral");
+    }
+
+    function isNavLinkActive(linkHref, currentPath) {
       try {
-        return localStorage.getItem(STORAGE_KEY) === "1";
+        var linkPath = new URL(linkHref, window.location.origin).pathname;
+        if (linkPath === "/admin/" || linkPath === "/admin") {
+          return currentPath === "/admin/" || currentPath === "/admin";
+        }
+        return currentPath === linkPath || currentPath.indexOf(linkPath) === 0;
       } catch (e) {
         return false;
       }
     }
 
-    function setCollapsed(collapsed) {
-      if (mqMobile.matches) return;
-      root.classList.toggle("admin-layout--sidebar-collapsed", collapsed);
-      if (collapseBtn) {
-        collapseBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-        collapseBtn.setAttribute(
-          "aria-label",
-          collapsed ? "Expandir menú lateral" : "Contraer menú lateral"
-        );
-      }
-      try {
-        localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0");
-      } catch (e) {}
-    }
-
-    function syncDesktopCollapse() {
-      if (mqMobile.matches) {
-        root.classList.remove("admin-layout--sidebar-collapsed");
-        if (collapseBtn) {
-          collapseBtn.setAttribute("aria-expanded", "true");
-          collapseBtn.setAttribute("aria-label", "Contraer menú lateral");
-        }
-      } else {
-        setCollapsed(readCollapsed());
-      }
+    function syncNavActive() {
+      var path = window.location.pathname;
+      root.querySelectorAll("[data-admin-nav-link]").forEach(function (link) {
+        link.classList.toggle("is-active", isNavLinkActive(link.getAttribute("href"), path));
+      });
     }
 
     if (toggle && sidebar) {
@@ -92,8 +81,7 @@
 
     if (collapseBtn) {
       collapseBtn.addEventListener("click", function () {
-        if (mqMobile.matches) return;
-        setCollapsed(!root.classList.contains("admin-layout--sidebar-collapsed"));
+        if (mqMobile.matches) setNavOpen(false);
       });
     }
 
@@ -103,13 +91,27 @@
 
     mqMobile.addEventListener("change", function () {
       setNavOpen(false);
-      syncDesktopCollapse();
+      syncSidebarControl();
     });
 
     syncSidebarAria();
-    syncDesktopCollapse();
+    syncSidebarControl();
+    syncNavActive();
     if (backdrop && !mqMobile.matches) {
       backdrop.hidden = true;
     }
+
+    document.body.addEventListener("htmx:afterSettle", function () {
+      if (!document.querySelector("[data-admin-shell]")) return;
+      setNavOpen(false);
+      syncNavActive();
+    });
+
+    document.querySelectorAll("[data-close-hosting-popup]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var popup = button.closest("[data-hosting-popup]");
+        if (popup) popup.hidden = true;
+      });
+    });
   });
 })();

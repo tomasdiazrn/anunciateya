@@ -9,8 +9,7 @@ from apps.listings import views as listings_views
 
 urlpatterns = [
     path("health/", core_views.healthcheck, name="health"),
-    # Pre-lanzamiento en raíz (SEO / analytics en /); el home real vive en /inicio/ (apps.core.urls).
-    path("", core_views.coming_soon, name="root_landing"),
+    path("", core_views.home, name="root_home"),
     # Panel staff; antes del catch-all <slug:slug>/.
     path("admin/", include("apps.adminapp.urls", namespace="adminapp")),
     path("events/", include("apps.analytics.urls", namespace="analytics")),
@@ -76,12 +75,7 @@ urlpatterns = [
         listings_views.listing_detail_seo,
         name="listing_detail_seo",
     ),
-    path(
-        "proximamente/",
-        core_views.coming_soon,
-        name="coming_soon",
-    ),
-    # /inicio/ (home) antes del catch-all de categoría <slug>/.
+    # Legacy /inicio/ redirect before category catch-all.
     path("", include("apps.core.urls", namespace="core")),
     path(
         "<slug:slug>/",
@@ -89,6 +83,8 @@ urlpatterns = [
         name="category_landing",
     ),
 ]
+
+handler404 = "apps.core.views.page_not_found"
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,0 +1,30 @@
+<div class="admin-page-header">
+  <h2 class="admin-page-title">Newsletter</h2>
+</div>
+
+<div class="admin-data-page">
+  <section class="admin-data-table" aria-label="Tabla de suscriptores">
+    {% include "adminapp/components/data_table_header.html" with action_url=newsletter_clear_url clear_url=newsletter_clear_url search_q=search_q selected_visibility=selected_visibility visibility_options=visibility_options has_filters=has_filters search_label="Buscar suscriptores" placeholder="Email…" input_id="admin-newsletter-q" only %}
+
+    <div class="admin-data-table__scroll">
+      <table class="admin-table" role="grid">
+        {% include "adminapp/components/table_head.html" with headers=subscriber_table_headers only %}
+        <tbody>
+          {% for subscriber in subscribers %}
+            {% include "adminapp/newsletter/_row.html" %}
+          {% empty %}
+            <tr>
+              <td class="admin-table__empty" colspan="{{ subscriber_table_headers|length }}">
+                <div class="admin-empty">
+                  <p class="admin-empty__text">No hay suscriptores{% if has_filters %} para estos filtros{% endif %}.</p>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% include "adminapp/components/data_table_footer.html" with page_obj=page_obj filters_qs=filters_qs page_base_url=newsletter_clear_url item_label="suscriptores" only %}
+  </section>
+</div>

@@ -6,7 +6,7 @@
 {% block content %}
   <div class="container">
     {% include "components/layouts/page_header.html" with title=heading subtitle="Publica con claridad: buen título, fotos y ubicación aumentan contactos." %}
-    <form method="post" enctype="multipart/form-data" class="stack-form listing-form listing-editor" aria-label="Formulario de anuncio">
+    <form method="post" enctype="multipart/form-data" class="stack-form listing-form listing-editor" aria-label="Formulario de anuncio" novalidate>
       {% csrf_token %}
       <div class="listing-editor__grid">
         <div class="listing-editor__main">

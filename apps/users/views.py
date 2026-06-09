@@ -1,24 +1,18 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
-from django.contrib.auth.views import (
-    LoginView,
-    LogoutView,
-    PasswordChangeDoneView,
-    PasswordChangeView,
-    PasswordResetCompleteView,
-    PasswordResetConfirmView,
-    PasswordResetDoneView,
-    PasswordResetView,
-)
+from django.contrib.auth.views import LogoutView
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect, render, resolve_url
 from django.urls import reverse, reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views import View
+
+from django_htmx.http import HttpResponseClientRedirect
 
 from apps.listings.services import user_listings_queryset
 from apps.listings.views import (
@@ -30,19 +24,21 @@ from apps.trust.services import seller_trust_bundle
 from apps.core.constants import COUNTRY_PHONE_CODES
 
 from .forms import (
-    AccountPasswordChangeForm,
-    EmailAuthenticationForm,
     PhoneVerificationForm,
     RegisterStepOneForm,
     RegisterStepTwoForm,
     UserCreationForm,
 )
-from .models import UserVerification
+from .models import USER_EMAIL_MAX_LENGTH, UserVerification
+from .otp_auth import normalize_email, request_user_otp, verify_user_otp
+
+
+USER_OTP_GENERIC_MESSAGE = "Si la cuenta existe, recibirás un código de acceso."
 
 
 class RegisterView(View):
     template_name = "users/register.html"
-    success_url = reverse_lazy("listings:list")
+    success_url = reverse_lazy("users:account")
     session_key = "register_step1"
 
     def get(self, request):
@@ -74,6 +70,7 @@ class RegisterView(View):
                 if is_htmx:
                     step2_form = RegisterStepTwoForm(
                         initial={"phone_country_code": "+593"},
+                        profile=request.session.get(self.session_key, {}),
                     )
                     return render(
                         request,
@@ -115,16 +112,18 @@ class RegisterView(View):
         if step == "2":
             step1_data = request.session.get(self.session_key) or {}
             if not step1_data:
+                messages.info(
+                    request,
+                    "Tu registro expiró. Vuelve a ingresar tu correo para continuar.",
+                )
                 if is_htmx:
-                    step1_form = RegisterStepOneForm()
-                    return render(
-                        request,
-                        "users/partials/register_step1.html",
-                        {"step1_form": step1_form},
-                    )
+                    return HttpResponseClientRedirect(reverse("users:register"))
                 return redirect("users:register")
 
-            step2_form = RegisterStepTwoForm(request.POST)
+            step2_form = RegisterStepTwoForm(
+                request.POST,
+                profile=step1_data,
+            )
             if not step2_form.is_valid():
                 if is_htmx:
                     return render(
@@ -135,16 +134,17 @@ class RegisterView(View):
                             "country_phone_codes": COUNTRY_PHONE_CODES,
                         },
                     )
-                # Fallback: show full form
-                combined = {**step1_data, **request.POST}
-                full_form = UserCreationForm(combined)
+                # Misma UI que HTMX: seguir en paso 2 con errores visibles (no volver al paso 1).
                 return render(
                     request,
                     self.template_name,
                     {
                         "step1_form": RegisterStepOneForm(initial=step1_data),
+                        "step2_form": step2_form,
                         "country_phone_codes": COUNTRY_PHONE_CODES,
-                        "full_form": full_form,
+                        "full_form": UserCreationForm(
+                            {**step1_data, **request.POST.dict()}
+                        ),
                     },
                 )
 
@@ -152,31 +152,38 @@ class RegisterView(View):
                 **step1_data,
                 "phone_country_code": step2_form.cleaned_data["phone_country_code"],
                 "phone_number": step2_form.cleaned_data["phone_number"],
-                "password1": step2_form.cleaned_data["password1"],
-                "password2": step2_form.cleaned_data["password2"],
                 "accept_terms": step2_form.cleaned_data["accept_terms"],
             }
 
             full_form = UserCreationForm(combined_data)
             if not full_form.is_valid():
-                # Normally shouldn't happen (step validations), but keep Django form as source of truth.
+                # UserCreationForm (p. ej. email duplicado) es la fuente de verdad.
+                for field_name, errs in full_form.errors.items():
+                    if field_name == "email":
+                        # Normaliza el copy del caso "email duplicado" (race condition / bypass Step 1).
+                        step2_form.add_error(
+                            None, "Ya existe una cuenta con ese correo electrónico."
+                        )
+                        continue
+                    if field_name in step2_form.fields:
+                        step2_form.add_error(field_name, errs)
+                    else:
+                        step2_form.add_error(None, errs)
                 if is_htmx:
-                    # Map errors to step2 UI by reusing step2_form + attaching non-field errors.
-                    for field_name, errs in full_form.errors.items():
-                        if field_name in step2_form.fields:
-                            step2_form.add_error(field_name, errs)
-                        else:
-                            step2_form.add_error(None, errs)
                     return render(
                         request,
                         "users/partials/register_step2.html",
-                        {"step2_form": step2_form, "country_phone_codes": COUNTRY_PHONE_CODES},
+                        {
+                            "step2_form": step2_form,
+                            "country_phone_codes": COUNTRY_PHONE_CODES,
+                        },
                     )
                 return render(
                     request,
                     self.template_name,
                     {
                         "step1_form": RegisterStepOneForm(initial=step1_data),
+                        "step2_form": step2_form,
                         "country_phone_codes": COUNTRY_PHONE_CODES,
                         "full_form": full_form,
                     },
@@ -192,49 +199,192 @@ class RegisterView(View):
             request.session.modified = True
 
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-            return redirect(self.success_url)
+            next_url = resolve_url(self.success_url)
+            if request.htmx:
+                return HttpResponseClientRedirect(next_url)
+            return redirect(next_url)
 
         return HttpResponseBadRequest("Invalid step")
 
 
-class EmailLoginView(LoginView):
-    form_class = EmailAuthenticationForm
-    template_name = "users/login.html"
-    redirect_authenticated_user = True
+def _clear_user_otp_session(request):
+    request.session.pop("user_otp_user_id", None)
+    request.session.pop("user_otp_email", None)
+    request.session.pop("user_otp_next", None)
+    request.session.modified = True
 
-    def get_default_redirect_url(self):
-        if self.request.user.is_authenticated and self.request.user.is_staff:
-            return reverse("adminapp:dashboard")
-        return super().get_default_redirect_url()
+
+def _posted_otp_code(request):
+    raw_code = request.POST.get("code") or "".join(request.POST.getlist("code_digits"))
+    return "".join(char for char in raw_code if char.isdigit())[:6]
+
+
+def _add_user_otp_request_message(request, result):
+    if result.reason == "sent":
+        messages.success(
+            request,
+            "Enviamos un nuevo código. Revisa tu correo y usa el más reciente.",
+        )
+    elif result.reason == "invalid_user":
+        messages.info(
+            request,
+            (
+                "Si la cuenta existe, intentamos enviar un código de acceso. "
+                "Revisa tu correo antes de pedir otro."
+            ),
+        )
+    elif result.reason == "resend_cooldown":
+        messages.warning(
+            request,
+            (
+                "Espera "
+                f"{settings.USER_OTP_RESEND_COOLDOWN_SECONDS} segundos antes de "
+                "pedir otro código. Revisa el último correo que te enviamos."
+            ),
+        )
+    elif result.reason == "send_limit":
+        messages.error(
+            request,
+            (
+                "Llegaste al límite de códigos por ahora. Espera unos minutos "
+                "antes de intentarlo de nuevo."
+            ),
+        )
+    elif result.reason == "attempt_cooldown":
+        messages.error(
+            request,
+            (
+                "Por seguridad bloqueamos temporalmente nuevos códigos tras "
+                "varios intentos fallidos. Intenta nuevamente en unos minutos."
+            ),
+        )
+
+
+def _add_user_otp_verify_message(request, result):
+    if result.reason == "expired":
+        messages.error(request, "El código venció. Solicita uno nuevo para continuar.")
+    elif result.reason == "max_attempts":
+        messages.error(
+            request,
+            (
+                "Demasiados intentos incorrectos. Por seguridad, solicita un "
+                "nuevo código en unos minutos."
+            ),
+        )
+    else:
+        messages.error(
+            request,
+            "Código incorrecto. Revisa los 6 dígitos e inténtalo de nuevo.",
+        )
+
+
+def _login_context(request, *, step=None, email="", next_url=""):
+    session_email = request.session.get("user_otp_email", "")
+    return {
+        "login_step": step or ("code" if session_email else "email"),
+        "otp_email": email or session_email,
+        "otp_next": next_url or request.session.get("user_otp_next", ""),
+        "otp_generic_message": USER_OTP_GENERIC_MESSAGE,
+        "user_email_max_length": USER_EMAIL_MAX_LENGTH,
+    }
+
+
+def _is_safe_next_url(request, next_url: str) -> bool:
+    return bool(next_url) and url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    )
+
+
+def _default_post_login_url(user) -> str:
+    if user.is_staff or user.is_superuser:
+        return reverse("adminapp:dashboard")
+    return reverse("users:account")
+
+
+def _resolve_post_login_url(request, user, next_url: str = "") -> str:
+    if _is_safe_next_url(request, next_url):
+        return next_url
+    return _default_post_login_url(user)
+
+
+def email_login_view(request):
+    if request.user.is_authenticated:
+        next_url = (request.GET.get("next") or "").strip()
+        return redirect(_resolve_post_login_url(request, request.user, next_url))
+
+    if request.method == "GET":
+        next_url = (request.GET.get("next") or "").strip()
+        _clear_user_otp_session(request)
+        if next_url:
+            request.session["user_otp_next"] = next_url
+            request.session.modified = True
+        return render(
+            request,
+            "users/login.html",
+            _login_context(request, next_url=next_url),
+        )
+
+    action = request.POST.get("action") or "request_code"
+    if action == "change_email":
+        _clear_user_otp_session(request)
+        return render(
+            request,
+            "users/login.html",
+            _login_context(request, step="email"),
+        )
+
+    if action == "request_code":
+        next_url = (
+            request.POST.get("next") or request.session.get("user_otp_next") or ""
+        ).strip()
+        email = normalize_email(
+            request.POST.get("email") or request.session.get("user_otp_email") or ""
+        )
+        result = request_user_otp(email)
+        request.session["user_otp_email"] = result.email or email
+        if next_url:
+            request.session["user_otp_next"] = next_url
+        if result.user_id:
+            request.session["user_otp_user_id"] = result.user_id
+        else:
+            request.session.pop("user_otp_user_id", None)
+        request.session.modified = True
+        _add_user_otp_request_message(request, result)
+        return render(
+            request,
+            "users/login.html",
+            _login_context(
+                request,
+                step="code",
+                email=result.email or email,
+                next_url=next_url,
+            ),
+        )
+
+    if action == "verify_code":
+        result = verify_user_otp(
+            request.session.get("user_otp_user_id"),
+            request.session.get("user_otp_email", ""),
+            _posted_otp_code(request),
+        )
+        if result.success:
+            next_url = request.session.get("user_otp_next") or ""
+            login(request, result.user, backend="django.contrib.auth.backends.ModelBackend")
+            request.session.set_expiry(settings.USER_OTP_SESSION_AGE)
+            _clear_user_otp_session(request)
+            return redirect(
+                resolve_url(_resolve_post_login_url(request, result.user, next_url))
+            )
+        _add_user_otp_verify_message(request, result)
+        return render(request, "users/login.html", _login_context(request, step="code"))
+
+    return redirect(reverse("users:login"))
 
 
 class EmailLogoutView(LogoutView):
-    next_page = reverse_lazy("core:home")
-
-
-class EmailPasswordResetView(PasswordResetView):
-    template_name = "users/password_reset_form.html"
-    email_template_name = "users/emails/password_reset_email.txt"
-    subject_template_name = "users/emails/password_reset_subject.txt"
-    success_url = reverse_lazy("users:password_reset_done")
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["site_name"] = settings.SITE_NAME
-        return context
-
-
-class EmailPasswordResetDoneView(PasswordResetDoneView):
-    template_name = "users/password_reset_done.html"
-
-
-class EmailPasswordResetConfirmView(PasswordResetConfirmView):
-    template_name = "users/password_reset_confirm.html"
-    success_url = reverse_lazy("users:password_reset_complete")
-
-
-class EmailPasswordResetCompleteView(PasswordResetCompleteView):
-    template_name = "users/password_reset_complete.html"
+    next_page = reverse_lazy("root_home")
 
 
 _ACCOUNT_SECTION_TITLES = {
@@ -242,16 +392,6 @@ _ACCOUNT_SECTION_TITLES = {
     "listings": "Mis anuncios",
     "create": "Crear anuncio",
 }
-
-
-class AccountPasswordChangeView(PasswordChangeView):
-    form_class = AccountPasswordChangeForm
-    template_name = "users/account_password_change.html"
-    success_url = reverse_lazy("users:password_change_done")
-
-
-class AccountPasswordChangeDoneView(PasswordChangeDoneView):
-    template_name = "users/account_password_change_done.html"
 
 
 @login_required

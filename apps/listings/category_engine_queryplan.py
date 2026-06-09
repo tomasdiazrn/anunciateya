@@ -77,7 +77,8 @@ def apply_query_plan(qs: QuerySet, plan: QueryPlan) -> QuerySet:
 
 # Base alineada con el listado público histórico (seller, categoría, imágenes).
 LISTING_LIST_BASE_PLAN = QueryPlan(
-    select_related=("seller", "category"),
+    # seller__verification: needed for card contact CTAs (tel/WhatsApp) without N+1
+    select_related=("seller", "seller__verification", "category"),
     prefetch_related=("images",),
     annotations=listing_list_base_annotations(),
 )

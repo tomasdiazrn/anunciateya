@@ -1,21 +1,51 @@
-<p class="contact-cta-trust">Contacta con confianza</p>
+<h2 class="contact-cta-trust">Contactar por {{ listing.title }}</h2>
 <form
   method="post"
   action="{% url 'listings:contact' listing.slug %}"
   hx-post="{% url 'listings:contact' listing.slug %}"
-  hx-target="#contact-panel-mount"
+  hx-target="{{ contact_target|default:'#contact-panel-mount' }}"
   hx-swap="innerHTML"
   class="stack-form contact-interest-form"
   aria-label="Mensaje al vendedor"
+  data-loading-submit
 >
   {% csrf_token %}
+  <input type="hidden" name="surface" value="{{ contact_surface|default:'detail' }}">
   {% if form.non_field_errors %}
     <div class="form-errors" role="alert" aria-live="assertive">{{ form.non_field_errors }}</div>
   {% endif %}
-  <p class="small muted">Mensaje para {{ listing.seller.get_full_name|default:listing.seller.email }}</p>
-  {% for field in form %}
-    {% include "components/ui/form_field.html" with field=field %}
-  {% endfor %}
+  <div class="contact-interest-form__identity">
+    <div class="field">
+      {{ form.buyer_name.label_tag }}
+      {{ form.buyer_name }}
+      {% if form.buyer_name.errors %}
+        <div class="form-errors" role="alert" aria-live="assertive">{{ form.buyer_name.errors }}</div>
+      {% endif %}
+    </div>
+    <div class="field">
+      {{ form.buyer_email.label_tag }}
+      {{ form.buyer_email }}
+      {% if form.buyer_email.errors %}
+        <div class="form-errors" role="alert" aria-live="assertive">{{ form.buyer_email.errors }}</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="field">
+    {{ form.message.label_tag }}
+    {{ form.message }}
+    {% if form.message.errors %}
+      <div class="form-errors" role="alert" aria-live="assertive">{{ form.message.errors }}</div>
+    {% endif %}
+  </div>
+  <div class="field contact-interest-form__terms">
+    <label class="contact-interest-form__terms-label">
+      {{ form.accept_terms }}
+      <span class="contact-interest-form__terms-text">{{ form.accept_terms.label|safe }}</span>
+    </label>
+    {% if form.accept_terms.errors %}
+      <div class="form-errors" role="alert" aria-live="assertive">{{ form.accept_terms.errors }}</div>
+    {% endif %}
+  </div>
   <p class="form-actions-row">
     <button type="submit" class="button btn-primary" data-event="contact_click" data-event-detail="submit_secure_message">Enviar mensaje seguro</button>
   </p>

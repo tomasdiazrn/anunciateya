@@ -1,0 +1,161 @@
+{% url 'adminapp:listing_set_status' listing.pk as set_status_url %}
+{% url 'adminapp:listing_archive' listing.pk as archive_url %}
+{% url 'adminapp:listing_unarchive' listing.pk as unarchive_url %}
+{% url 'adminapp:listing_delete' listing.pk as delete_url %}
+{% url 'adminapp:listing_detail' listing.pk as listing_detail_url %}
+<tr>
+  <td>{{ listing.created_at|date:"Y-m-d H:i" }}</td>
+  <td>
+    <a
+      class="admin-table__title-link"
+      href="{{ listing.get_absolute_url }}"
+      target="_blank"
+      rel="noopener noreferrer"
+      title="{{ listing.title }}"
+    >{{ listing.title|truncatechars:40 }}</a>
+  </td>
+  <td>{{ listing.category.name }}</td>
+  <td>$ {{ listing.price_amount|floatformat:"-2" }}</td>
+  <td>{{ listing.seller.email }}</td>
+  <td>
+    {% if listing.is_flagged %}
+      <span class="admin-badge admin-badge--danger">Reportado</span>
+    {% else %}
+      <span class="admin-text-muted">No</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if listing.status == "archived" %}
+      <div class="admin-status-control">
+        <span
+          class="admin-tooltip"
+          data-tooltip="Archivado: desarchivalo para poder publicarlo."
+        >
+          <button
+            type="button"
+            class="admin-status-toggle"
+            role="switch"
+            aria-checked="false"
+            aria-label="Anuncio archivado {{ listing.title }}. Desarchivalo para poder publicarlo."
+            title="Archivado: desarchivalo para poder publicarlo."
+            disabled
+          >
+            <span class="admin-status-toggle__track" aria-hidden="true">
+              <span class="admin-status-toggle__thumb"></span>
+            </span>
+          </button>
+        </span>
+      </div>
+    {% else %}
+      <form
+        class="admin-status-control"
+        hx-post="{{ set_status_url }}"
+        hx-target="closest tr"
+        hx-swap="outerHTML"
+        hx-indicator="#admin-loading"
+      >
+        {% csrf_token %}
+        {% if listing.status == "published" %}
+          <input type="hidden" name="status" value="draft">
+        {% else %}
+          <input type="hidden" name="status" value="published">
+        {% endif %}
+        <button
+          type="submit"
+          class="admin-status-toggle{% if listing.status == "published" %} admin-status-toggle--active{% endif %}"
+          role="switch"
+          aria-checked="{% if listing.status == "published" %}true{% else %}false{% endif %}"
+          {% if listing.status == "published" %}
+            hx-confirm="¿Seguro quieres guardar como borrador el anuncio {{ listing.title|truncatechars:64 }}?"
+            aria-label="Guardar como borrador anuncio {{ listing.title }}"
+            title="Guardar como borrador"
+          {% else %}
+            hx-confirm="¿Seguro quieres publicar el anuncio {{ listing.title|truncatechars:64 }}?"
+            aria-label="Publicar anuncio {{ listing.title }}"
+            title="Publicar anuncio"
+          {% endif %}
+          hx-indicator="#admin-loading"
+        >
+          <span class="admin-status-toggle__track" aria-hidden="true">
+            <span class="admin-status-toggle__thumb"></span>
+          </span>
+        </button>
+      </form>
+    {% endif %}
+  </td>
+  <td>{{ listing.updated_at|date:"Y-m-d H:i" }}</td>
+  <td class="admin-table__cell--rich">
+    <div class="admin-actions">
+      <span class="admin-tooltip" data-tooltip="Eliminar">
+        <button
+          type="button"
+          class="admin-btn admin-btn--ghost admin-btn--danger admin-btn--icon"
+          hx-post="{{ delete_url }}"
+          hx-target="closest tr"
+          hx-swap="outerHTML"
+          hx-confirm="¿Estás seguro de eliminar el anuncio {{ listing.title|truncatechars:64 }}?"
+          hx-indicator="#admin-loading"
+          aria-label="Eliminar anuncio {{ listing.title }}"
+        >
+          <svg class="admin-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9.25 4.75h5.5m-8.5 4h11.5m-10.5 0 .75 10.5h8l.75-10.5M10.75 11.5v4.75m2.5-4.75v4.75" />
+          </svg>
+        </button>
+      </span>
+      <span class="admin-tooltip" data-tooltip="Ver">
+        <a
+          class="admin-btn admin-btn--ghost admin-btn--icon"
+          href="{{ listing_detail_url }}"
+          hx-get="{{ listing_detail_url }}"
+          hx-target="#admin-main-content"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          hx-indicator="#admin-loading"
+          aria-label="Ver anuncio {{ listing.title }}"
+        >
+          <svg class="admin-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="10.75" cy="10.75" r="5.75" />
+            <path d="m15.25 15.25 4.5 4.5" />
+          </svg>
+        </a>
+      </span>
+      {% if listing.status != "archived" %}
+        <span class="admin-tooltip" data-tooltip="Archivar">
+          <button
+            type="button"
+            class="admin-btn admin-btn--ghost admin-btn--danger admin-btn--icon"
+            hx-post="{{ archive_url }}"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+            hx-confirm="¿Seguro quieres archivar el anuncio {{ listing.title|truncatechars:64 }}?"
+            hx-indicator="#admin-loading"
+            aria-label="Archivar anuncio {{ listing.title }}"
+          >
+            <svg class="admin-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M5.25 7.75h13.5v11h-13.5z" />
+              <path d="M4.25 4.75h15.5v3h-15.5zM9.25 11.25h5.5" />
+            </svg>
+          </button>
+        </span>
+      {% else %}
+        <span class="admin-tooltip" data-tooltip="Desarchivar">
+          <button
+            type="button"
+            class="admin-btn admin-btn--ghost admin-btn--icon"
+            hx-post="{{ unarchive_url }}"
+            hx-target="closest tr"
+            hx-swap="outerHTML"
+            hx-confirm="¿Seguro quieres desarchivar el anuncio {{ listing.title|truncatechars:64 }}?"
+            hx-indicator="#admin-loading"
+            aria-label="Desarchivar anuncio {{ listing.title }}"
+          >
+            <svg class="admin-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M5.25 7.75h13.5v11h-13.5z" />
+              <path d="M4.25 4.75h15.5v3h-15.5zM12 15.75v-5.5m0 0-2.25 2.25M12 10.25l2.25 2.25" />
+            </svg>
+          </button>
+        </span>
+      {% endif %}
+    </div>
+  </td>
+</tr>

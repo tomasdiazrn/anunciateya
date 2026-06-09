@@ -6,18 +6,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>{% block admin_title %}{{ admin_page_title|default:"Admin" }} · {{ site_name }}{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  {% include "components/head/fonts.html" %}
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'adminapp/css/variables.css' %}">
   <link rel="stylesheet" href="{% static 'adminapp/css/base.css' %}">
   <link rel="stylesheet" href="{% static 'adminapp/css/components.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" referrerpolicy="no-referrer">
   {% block admin_extra_head %}{% endblock %}
 </head>
 <body
   class="admin-body"
   hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
 >
+  <div id="admin-loading" class="admin-loading" aria-hidden="true"></div>
   <div class="admin-layout" data-admin-shell>
     <button
       type="button"
@@ -54,6 +55,24 @@
         </div>
       {% endif %}
 
+      {% if ADMIN_HOSTING_SHOW_ALERT %}
+        <aside class="admin-hosting-alert" role="status" aria-label="Aviso de hosting">
+          <div class="admin-hosting-alert__content">
+            <i class="fa-solid fa-server" aria-hidden="true"></i>
+            <span>
+              {% if ADMIN_HOSTING_MEMBERSHIP.is_expired %}
+                La membresía de hosting venció. Renovala para mantener soporte y operación prioritaria.
+              {% else %}
+                Tu hosting vence en {{ ADMIN_HOSTING_MEMBERSHIP.days_remaining }} día{{ ADMIN_HOSTING_MEMBERSHIP.days_remaining|pluralize:"s" }}.
+              {% endif %}
+            </span>
+          </div>
+          <a class="admin-hosting-alert__action" href="{{ ADMIN_HOSTING_RENEWAL_URL }}" target="_blank" rel="noopener">
+            Renovar hosting
+          </a>
+        </aside>
+      {% endif %}
+
       <div
         id="admin-main-content"
         class="admin-main"
@@ -64,6 +83,55 @@
       </div>
     </div>
   </div>
+
+  {% if ADMIN_HOSTING_SHOW_POPUP %}
+    <div
+      class="admin-hosting-popup{% if ADMIN_HOSTING_POPUP_BLOCKING %} admin-hosting-popup--blocking{% endif %}"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-hosting-popup-title"
+      data-hosting-popup
+    >
+      <div class="admin-hosting-popup__backdrop" aria-hidden="true"></div>
+      <section class="admin-hosting-popup__card">
+        {% if not ADMIN_HOSTING_POPUP_BLOCKING %}
+          <button
+            type="button"
+            class="admin-hosting-popup__close"
+            data-close-hosting-popup
+            aria-label="Cerrar aviso de hosting"
+          >
+            ×
+          </button>
+        {% endif %}
+        <div class="admin-hosting-popup__icon" aria-hidden="true">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <h2 id="admin-hosting-popup-title" class="admin-hosting-popup__title">
+          {% if ADMIN_HOSTING_MEMBERSHIP.is_expired %}
+            Hosting vencido
+          {% else %}
+            Hosting próximo a vencer
+          {% endif %}
+        </h2>
+        <p class="admin-hosting-popup__text">
+          {% if ADMIN_HOSTING_MEMBERSHIP.is_expired %}
+            La membresía venció el {{ ADMIN_HOSTING_MEMBERSHIP.expires_date|date:"d/m/Y" }}. Renovala para mantener el soporte de AltoValleIT.
+          {% else %}
+            Quedan {{ ADMIN_HOSTING_MEMBERSHIP.days_remaining }} día{{ ADMIN_HOSTING_MEMBERSHIP.days_remaining|pluralize:"s" }} de membresía. Podés renovarla ahora y evitar interrupciones operativas.
+          {% endif %}
+        </p>
+        <div class="admin-hosting-popup__actions">
+          <a class="admin-btn admin-btn--primary" href="{{ ADMIN_HOSTING_RENEWAL_URL }}" target="_blank" rel="noopener">
+            Renovar hosting
+          </a>
+          <a class="admin-btn admin-btn--secondary" href="mailto:info@altovalleit.com">
+            Contactar soporte
+          </a>
+        </div>
+      </section>
+    </div>
+  {% endif %}
 
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
   <script src="{% static 'adminapp/js/admin.js' %}" defer></script>

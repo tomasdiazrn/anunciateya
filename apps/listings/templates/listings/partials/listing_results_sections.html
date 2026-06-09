@@ -10,9 +10,25 @@
 {% endif %}
 
 <section class="listing-results-block" aria-label="Resultados">
-  <h2 class="h-section listing-results-block__title">
-    {% if results_count == 1 %}1 resultado{% else %}{{ results_count }} resultados{% endif %}
-  </h2>
+  <div class="listing-results-toolbar">
+    <h2 class="listing-results-toolbar__title">
+      {% if results_count == 1 %}1 resultado{% else %}{{ results_count }} resultados{% endif %}
+    </h2>
+    {% if template_extras.sort_options %}
+      <div class="listing-results-toolbar__sort">
+        <select
+          id="browse-sort-select"
+          class="browse-sort-select"
+          aria-label="Ordenar resultados"
+          onchange="if (this.value) { window.location.href = this.value; }"
+        >
+          {% for opt in template_extras.sort_options %}
+            <option value="{{ opt.href }}"{% if opt.selected %} selected{% endif %}>{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+  </div>
   {% if listings_results_empty %}
     {% include "listings/partials/listing_empty_results.html" %}
   {% elif normal_cards %}

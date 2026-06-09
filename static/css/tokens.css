@@ -1,42 +1,58 @@
 /*
- * anunciateya.com — tokens de diseño
- * Neuromarketing: teal = confianza (trust, enlaces secundarios); naranja = acción (CTA, contacto).
+ * Marketplace — tokens de diseño
+ * Verde marca = acción clara; verde oscuro = texto/contraste; gris claro = superficie.
  */
 :root {
   /* Marca */
   --brand-name-display: "anunciateya.com";
+  --brand-hero-bg-url: url("/static/img/AnunciateYa_HeroBackground.webp");
 
-  /* Color — confianza / profesional (primario de marca en UI) */
-  --color-primary: #007aab;
-  --color-primary-hover: #006694;
-  --color-primary-muted: rgba(0, 122, 171, 0.12);
-  --color-primary-border: #4a9fb8;
+  /* Color — marca principal */
+  --color-primary: #3cbb6b;
+  --color-primary-hover: #219d5a;
+  --color-primary-strong: #04211f;
+  --color-primary-subtle: #219d5a;
+  --color-primary-muted: rgba(60, 187, 107, 0.12);
+  --color-primary-soft: rgba(60, 187, 107, 0.16);
+  --color-primary-faint: rgba(60, 187, 107, 0.07);
+  --color-primary-focus: rgba(60, 187, 107, 0.3);
+  --color-primary-overlay: rgba(4, 33, 31, 0.62);
+  --color-primary-border: #3cbb6b;
 
-  /* Color — acción / CTA (botones principales, “contactar”) */
-  --color-cta: #ff6a00;
-  --color-cta-hover: #e65f00;
-  --color-cta-shadow: rgba(255, 106, 0, 0.35);
+  /* Color — botón secundario */
+  --color-secondary: #04211f;
+  --color-secondary-hover: #0b332f;
+  --color-secondary-shadow: rgba(4, 33, 31, 0.28);
+
+  /* Color — acción / CTA */
+  --color-cta: #3cbb6b;
+  --color-cta-hover: #219d5a;
+  --color-cta-shadow: rgba(60, 187, 107, 0.35);
+  --color-cta-muted: rgba(60, 187, 107, 0.12);
+  --color-cta-soft: rgba(60, 187, 107, 0.08);
+  --color-cta-faint: rgba(60, 187, 107, 0.1);
 
   /* Texto */
-  --color-text: #1f2937;
-  --color-muted: #6b7280;
-  --color-placeholder: #6b7280;
+  --color-text: #04211f;
+  --color-muted: #36414e;
+  --color-placeholder: #36414e;
 
   /* Superficies */
-  --color-bg: #ffffff;
+  --color-bg: #f9f8f6;
   --color-surface: #ffffff;
-  --color-border: #e5e7eb;
-  --color-border-strong: #d1d5db;
+  --color-border: #e1e3e5;
+  --color-border-strong: #cfd3d6;
 
   /* Estados */
   --color-error: #dc2626;
   --color-error-bg: #fef2f2;
   --color-success-border: #86efac;
   --color-success-bg: #f0fdf4;
+  --color-success-text: #219d5a;
 
-  /* Tipografía: Inter titulares, Roboto cuerpo */
-  --font-display: "Inter", system-ui, -apple-system, sans-serif;
-  --font-body: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Tipografía: General Sans principal para interfaz digital */
+  --font-display: "General Sans", system-ui, -apple-system, sans-serif;
+  --font-body: "General Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --font-h1: 600 1.875rem/1.2 var(--font-display);
   --font-h2: 600 1.375rem/1.25 var(--font-display);

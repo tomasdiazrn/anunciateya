@@ -24,7 +24,7 @@ textarea {
   letter-spacing: inherit;
 }
 
-/* Titulares: Inter, jerarquía clara */
+/* Titulares: General Sans, jerarquía clara */
 h1,
 .h1 {
   font: var(--font-h1);
@@ -50,7 +50,7 @@ h3,
   margin-bottom: var(--space-1);
 }
 
-/* Enlaces: teal (confianza / navegación), no naranja salvo CTA en botón */
+/* Enlaces: verde marca (confianza / navegación), no CTA salvo en botón */
 a {
   color: var(--color-primary);
   text-decoration-thickness: 1px;

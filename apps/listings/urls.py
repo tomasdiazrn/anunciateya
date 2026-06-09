@@ -19,6 +19,7 @@ urlpatterns = [
     path("<slug:slug>/edit/", views.listing_edit_legacy_redirect, name="edit"),
     path("<slug:slug>/delete/", views.listing_delete, name="delete"),
     path("<slug:slug>/contact/", views.listing_contact_panel, name="contact"),
+    path("<slug:slug>/whatsapp/", views.listing_whatsapp_redirect, name="whatsapp"),
     path("<slug:slug>/report/", views.listing_report, name="report"),
     # Legacy detail: /listings/<slug>/ → 301 to /<category>/<slug>/
     path("<slug:slug>/", views.listing_detail_legacy, name="detail"),

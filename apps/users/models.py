@@ -4,6 +4,10 @@ from django.db import models
 from django.urls import reverse
 
 
+USER_NAME_MAX_LENGTH = 25
+USER_EMAIL_MAX_LENGTH = 255
+
+
 class UserManager(BaseUserManager):
     use_in_migrations = True
 
@@ -12,7 +16,7 @@ class UserManager(BaseUserManager):
             raise ValueError("The email must be set")
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
-        user.set_password(password)
+        user.set_unusable_password()
         user.save(using=self._db)
         return user
 
@@ -35,7 +39,21 @@ class User(AbstractUser):
     """Email-first user; username field removed per Django custom user docs."""
 
     username = None
-    email = models.EmailField("email address", unique=True)
+    first_name = models.CharField(
+        "first name",
+        max_length=USER_NAME_MAX_LENGTH,
+        blank=True,
+    )
+    last_name = models.CharField(
+        "last name",
+        max_length=USER_NAME_MAX_LENGTH,
+        blank=True,
+    )
+    email = models.EmailField(
+        "email address",
+        max_length=USER_EMAIL_MAX_LENGTH,
+        unique=True,
+    )
 
     objects = UserManager()
 
@@ -81,3 +99,28 @@ class UserVerification(models.Model):
 
     def __str__(self):
         return f"Verification for {self.user_id}"
+
+
+class UserLoginOTP(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="login_otps",
+    )
+    email = models.EmailField(db_index=True)
+    code_hash = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    expires_at = models.DateTimeField(db_index=True)
+    used_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    max_attempts = models.PositiveSmallIntegerField(default=5)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "email", "used_at"]),
+            models.Index(fields=["email", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"Login OTP for {self.email} at {self.created_at:%Y-%m-%d %H:%M:%S}"

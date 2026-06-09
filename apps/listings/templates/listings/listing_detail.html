@@ -35,11 +35,15 @@
       {% endif %}
 
       <p class="listing-detail__breadcrumb muted small">
-        <a href="{{ detail.category_href }}" data-event="category_click" data-event-detail="breadcrumb">{{ detail.category_label }}</a>
+        <a href="{{ detail.category_href }}" data-event="category_click" data-event-detail="breadcrumb">
+          <i class="fa-solid fa-arrow-left-long" aria-hidden="true"></i>
+          {{ detail.category_label }}
+        </a>
       </p>
 
       <div class="listing-detail__hero listing-hero">
         <div class="listing-detail__hero-main listing-hero__conversion">
+          <p class="listing-detail__eyebrow">Anuncio local</p>
           <p class="listing-detail__price listing-hero__price">{{ detail.price_display }}</p>
           <h1 class="listing-detail__title listing-hero__title" id="listing-title">{{ detail.title }}</h1>
           {% if detail.gallery_count %}
@@ -63,9 +67,15 @@
 
           {% if not detail.is_owner %}
             <div class="listing-detail__hero-cta">
-              <a class="button btn-primary listing-detail__btn-primary" href="{{ detail.primary_cta.scroll_href }}" data-event="contact_click" data-event-detail="hero_cta">{{ detail.primary_cta.label }}</a>
+              <a class="button btn-primary listing-detail__btn-primary" href="{{ detail.primary_cta.scroll_href }}" data-event="contact_click" data-event-detail="hero_cta">
+                {{ detail.primary_cta.label }}
+                <i class="fa-regular fa-envelope" aria-hidden="true"></i>
+              </a>
               {% if detail.secondary_cta %}
-                <a class="button btn-secondary listing-detail__btn-secondary" href="{{ detail.secondary_cta.scroll_href }}">{{ detail.secondary_cta.label }}</a>
+                <a class="button btn-secondary listing-detail__btn-secondary" href="{{ detail.secondary_cta.scroll_href }}">
+                  {{ detail.secondary_cta.label }}
+                  <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
+                </a>
               {% endif %}
             </div>
           {% endif %}
@@ -74,7 +84,8 @@
 
       {% if detail.description %}
         <section class="listing-detail__desc" aria-labelledby="listing-desc-heading">
-          <h2 class="h-section visually-hidden" id="listing-desc-heading">Descripción</h2>
+          <p class="listing-detail__section-eyebrow">Detalle</p>
+          <h2 class="h-section" id="listing-desc-heading">Descripción del anuncio</h2>
           {% if detail.show_description_expand %}
             <p class="listing-detail__desc-preview">{{ detail.description_short }}</p>
             <details class="listing-detail__desc-toggle">
@@ -88,16 +99,47 @@
       {% endif %}
 
       <section class="listing-detail__safety" aria-label="Consejos de seguridad">
-        {{ detail.safety_notice }}
+        <span class="listing-detail__safety-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M12 3.4 18.6 6v5.2c0 4.2-2.7 7.9-6.6 9.2-3.9-1.3-6.6-5-6.6-9.2V6L12 3.4Z" />
+            <path d="m9.4 12.1 1.7 1.7 3.8-4" />
+          </svg>
+        </span>
+        <div>
+          <p class="listing-detail__safety-title">Compra con confianza</p>
+          <p class="listing-detail__safety-copy">{{ detail.safety_notice }}</p>
+        </div>
       </section>
 
       {% if detail.show_similar %}
-        <section class="listing-detail__similar" aria-labelledby="similar-heading">
-          <h2 class="h-section" id="similar-heading">Anuncios similares</h2>
-          <div class="listing-detail__similar-scroll">
-            {% for card in detail.similar_listings %}
-              {% include card.template with card=card %}
-            {% endfor %}
+        <section class="listing-detail__similar" aria-labelledby="similar-heading" data-listing-carousel>
+          <div class="listing-detail__similar-header">
+            <div>
+              <p class="listing-detail__section-eyebrow">También puede interesarte</p>
+              <h2 class="h-section" id="similar-heading">Anuncios similares</h2>
+            </div>
+            <div class="listing-detail__similar-controls" aria-label="Controles de anuncios similares">
+              <button class="listing-detail__similar-nav" type="button" aria-label="Ver anuncio anterior" data-carousel-prev>
+                <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+              </button>
+              <button class="listing-detail__similar-nav" type="button" aria-label="Ver anuncio siguiente" data-carousel-next>
+                <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="listing-detail__similar-shell">
+            <div class="listing-detail__similar-scroll" id="similar-listings-carousel" role="list" tabindex="0" aria-describedby="similar-carousel-help" data-carousel-track>
+              {% for card in detail.similar_listings %}
+                <div class="listing-detail__similar-slide" role="listitem">
+                  {% include card.template with card=card %}
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+          <p class="visually-hidden" id="similar-carousel-help">Desliza, arrastra o usa las flechas para recorrer anuncios similares.</p>
+          <div class="listing-detail__similar-progress" aria-hidden="true">
+            <span data-carousel-progress></span>
           </div>
         </section>
       {% endif %}
@@ -168,7 +210,6 @@
         <p class="listing-detail__meta-line seller-card__trust-line">{{ detail.seller_trust_label }}</p>
       {% endif %}
       <p class="listing-detail__meta-line">{{ detail.seller_joined }}</p>
-      <p class="listing-detail__meta-line">{{ detail.seller_response_speed }}</p>
 
       <p class="listing-detail__contact-nudge small muted">{{ detail.contact_trust_microcopy }}</p>
 
@@ -192,9 +233,13 @@
             data-event-detail="open_contact_panel"
           >
             {{ detail.primary_cta.label }}
+            <i class="fa-regular fa-envelope" aria-hidden="true"></i>
           </button>
           {% if detail.secondary_cta %}
-            <a class="button btn-secondary" href="{{ detail.secondary_cta.scroll_href }}">{{ detail.secondary_cta.label }}</a>
+            <a class="button btn-secondary" href="{{ detail.secondary_cta.scroll_href }}">
+              {{ detail.secondary_cta.label }}
+              <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
+            </a>
           {% endif %}
           <span id="contact-htmx-spinner" class="htmx-indicator muted small" aria-live="polite">Cargando…</span>
           <div id="contact-panel-mount"></div>
@@ -203,6 +248,35 @@
 
       <p class="seller-card__safety small muted">{{ detail.seller_safety_microcopy }}</p>
     </aside>
+  </div>
+
+  <div class="container">
+    <section class="home-final-cta home-final-cta--page-end home-block" aria-labelledby="listing-final-cta-heading">
+      <i class="fa-solid fa-bullhorn home-final-cta__bg-icon" aria-hidden="true"></i>
+
+      <div class="home-final-cta__content">
+        <p class="home-final-cta__eyebrow">Publicar es gratis</p>
+        <h2 id="listing-final-cta-heading" class="home-final-cta__title">
+          ¿Tenés algo para vender en Guayaquil?
+        </h2>
+        <p class="home-final-cta__lead">
+          Creá tu anuncio ahora y llegá a personas que ya están buscando autos, inmuebles,
+          electrónica, motos y más.
+        </p>
+      </div>
+
+      <div class="home-final-cta__actions" aria-label="Acciones principales">
+        <a
+          class="button btn-primary home-final-cta__button home-final-cta__button--primary"
+          href="{% url 'publish' %}"
+          data-event="create_listing"
+          data-event-detail="listing_final_cta_publish"
+        >
+          Publicar anuncio
+          <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
+        </a>
+      </div>
+    </section>
   </div>
 
   <script>

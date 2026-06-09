@@ -1,9 +1,33 @@
-<div class="contact-success">
-  <p class="contact-success-title"><strong>Mensaje enviado</strong></p>
-  <p class="small muted">
-    El vendedor responderá cuando pueda. En próximos contactos revisa siempre la confianza (verificado, opiniones).
-  </p>
-  <p>
+<section class="contact-success" aria-labelledby="contact-success-title">
+  <div class="contact-success__hero">
+    <span class="contact-success__icon" aria-hidden="true">✓</span>
+    <div>
+      <h2 class="contact-success-title" id="contact-success-title">Mensaje enviado</h2>
+      <p class="contact-success__lead">
+        Ya compartimos tu consulta con el vendedor. Te responderá al email que dejaste en el formulario.
+      </p>
+    </div>
+  </div>
+
+  <div class="contact-success__next">
+    <p class="contact-success__next-title">Mientras esperas</p>
+    <ul class="contact-success__tips">
+      <li>Revisa tu correo y la carpeta de spam por si la respuesta llega allí.</li>
+      <li>Compara anuncios similares y prioriza vendedores verificados o con opiniones.</li>
+    </ul>
+  </div>
+
+  <div class="contact-success__actions">
     <a class="button btn-secondary" href="{{ listing.get_absolute_url }}">Volver al anuncio</a>
-  </p>
-</div>
+  </div>
+
+  {% if related_cards %}
+    <section class="contact-success__related" aria-labelledby="contact-related-title">
+      <div class="contact-success__related-header">
+        <h3 class="contact-success__related-title" id="contact-related-title">Anuncios relacionados</h3>
+        <p class="small muted">También podrían interesarte mientras esperas la respuesta.</p>
+      </div>
+      {% include "components/marketplace/listing_grid.html" with listing_cards=related_cards %}
+    </section>
+  {% endif %}
+</section>

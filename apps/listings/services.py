@@ -90,6 +90,7 @@ MOTORCYCLE_HUB_DEFAULT_META_TITLE_CORE = (
 
 MAX_LISTING_IMAGES = 10
 MAX_LISTING_IMAGE_BYTES = 5 * 1024 * 1024
+ALLOWED_LISTING_IMAGE_EXTS = frozenset({"jpg", "jpeg", "png", "webp"})
 
 
 def _listing_has_images_from_cache(listing: Listing) -> bool:
@@ -184,6 +185,7 @@ def compute_listing_quality_score(listing: Listing) -> float:
 class InterestSubmission:
     listing_title: str
     seller_email: str
+    buyer_name: str
     buyer_email: str
     message: str
 
@@ -1208,19 +1210,52 @@ def validate_listing_image_uploads(
                 "Cada imagen debe pesar como máximo 5 MB.",
             )
             return False
+        name = (getattr(f, "name", "") or "").lower().strip()
+        ext = name.rsplit(".", 1)[-1] if "." in name else ""
+        if ext and ext not in ALLOWED_LISTING_IMAGE_EXTS:
+            form.add_error(
+                None,
+                "Formato no soportado. Sube JPG, PNG o WEBP.",
+            )
+            return False
     return True
 
 
 def attach_listing_images(listing, files, start_order: int = 0) -> int:
     """Create ListingImage rows from uploaded file list; returns new count."""
+    from .image_processing import generate_listing_image_variants
+
     count = 0
     for idx, f in enumerate(files):
         if not f:
             continue
-        ListingImage.objects.create(
+        li = ListingImage.objects.create(
             listing=listing,
             image=f,
             sort_order=start_order + idx,
         )
+        # Best-effort variants (never block upload).
+        try:
+            variants = generate_listing_image_variants(li.image)
+            stem = f"li-{li.listing_id}-{li.pk}"
+            li.image_thumb.save(f"{stem}-thumb.jpg", variants["thumb"].content, save=False)
+            li.image_thumb_webp.save(f"{stem}-thumb.webp", variants["thumb_webp"].content, save=False)
+            li.image_medium.save(f"{stem}-medium.jpg", variants["medium"].content, save=False)
+            li.image_medium_webp.save(f"{stem}-medium.webp", variants["medium_webp"].content, save=False)
+            li.image_large.save(f"{stem}-large.jpg", variants["large"].content, save=False)
+            li.image_large_webp.save(f"{stem}-large.webp", variants["large_webp"].content, save=False)
+            li.save(
+                update_fields=[
+                    "image_thumb",
+                    "image_thumb_webp",
+                    "image_medium",
+                    "image_medium_webp",
+                    "image_large",
+                    "image_large_webp",
+                ]
+            )
+        except Exception:
+            # Keep original upload; variants remain null.
+            pass
         count += 1
     return count

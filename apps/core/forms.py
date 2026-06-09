@@ -1,43 +1,19 @@
 from django import forms
 
 
-class WaitlistForm(forms.Form):
-    """Captura mínima para pre-lanzamiento; persistencia se puede añadir después."""
-
-    company_url = forms.CharField(
-        required=False,
-        label="",
-        widget=forms.TextInput(
-            attrs={
-                "autocomplete": "off",
-                "tabindex": "-1",
-                "class": "visually-hidden",
-                "aria-hidden": "true",
-            }
-        ),
-    )
-
+class NewsletterSignupForm(forms.Form):
     email = forms.EmailField(
         label="Correo electrónico",
-        required=True,
+        max_length=254,
+        error_messages={
+            "required": "Ingresá tu email para suscribirte.",
+            "invalid": "Ingresá un email válido.",
+        },
         widget=forms.EmailInput(
             attrs={
-                "class": "form-control",
+                "class": "newsletter-bar__input",
                 "autocomplete": "email",
-                "inputmode": "email",
-                "placeholder": "tu@email.com",
-            }
-        ),
-    )
-    whatsapp = forms.CharField(
-        label="WhatsApp (opcional)",
-        required=False,
-        max_length=40,
-        widget=forms.TextInput(
-            attrs={
-                "class": "form-control",
-                "autocomplete": "tel",
-                "placeholder": "Ej: +593 9 XXXX XXXX",
+                "placeholder": "Ingresá tu email...",
             }
         ),
     )

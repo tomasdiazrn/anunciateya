@@ -11,6 +11,7 @@ from decimal import Decimal
 from typing import Any, Iterable
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.urls import reverse
 from django.utils.html import escape
 
 from .category_extensions import (
@@ -21,7 +22,6 @@ from .category_extensions import (
     VEHICLE_SLUG,
 )
 from .models import Listing
-from .stock_demo_images import stock_demo_gallery_urls, use_stock_demo_photos
 
 LISTING_CARD_DTO_UNIFIED = "components/marketplace/cards/card_dto_unified.html"
 
@@ -47,6 +47,10 @@ class CardContext:
     title: str
     price_display: str
     image_url: str | None
+    image_url_webp: str | None
+    image_url_2: str | None
+    image_url_2_webp: str | None
+    image_count: int
     link: str
     badges: tuple[str, ...]
     attributes: tuple[str, ...]
@@ -55,6 +59,8 @@ class CardContext:
     category_label: str
     category_href: str
     trust_label: str | None
+    contact_whatsapp_url: str | None
+    contact_url: str
     is_featured: bool
     is_featured_top: bool
     is_promoted_featured: bool
@@ -83,8 +89,6 @@ def _plain_seo_text(*, title: str, price_display: str, location: str) -> str:
 
 
 def _first_image(listing: Listing) -> tuple[str | None, str]:
-    if use_stock_demo_photos():
-        return stock_demo_gallery_urls(listing)[0], f"Foto del anuncio: {listing.title}"
     cache = getattr(listing, "_prefetched_objects_cache", None)
     imgs = cache.get("images") if cache else None
     if imgs is not None:
@@ -93,7 +97,73 @@ def _first_image(listing: Listing) -> tuple[str | None, str]:
         img = listing.images.first()
     if not img:
         return None, ""
-    return img.image.url, f"Foto del anuncio: {listing.title}"
+    # Prefer thumb variant when available for cards.
+    u = getattr(img, "image_thumb", None)
+    return (u.url if u else img.image.url), f"Foto del anuncio: {listing.title}"
+
+
+def _first_image_webp(listing: Listing) -> str | None:
+    cache = getattr(listing, "_prefetched_objects_cache", None)
+    imgs = cache.get("images") if cache else None
+    img = (imgs[0] if imgs else None) if imgs is not None else listing.images.first()
+    if not img:
+        return None
+    u = getattr(img, "image_thumb_webp", None)
+    return str(u.url) if u else None
+
+
+def _second_image_thumb(listing: Listing) -> str | None:
+    cache = getattr(listing, "_prefetched_objects_cache", None)
+    imgs = cache.get("images") if cache else None
+    if imgs is not None:
+        if len(imgs) < 2:
+            return None
+        im = imgs[1]
+    else:
+        im = listing.images.all().order_by("sort_order", "id")[1:2].first()
+    if not im:
+        return None
+    u = getattr(im, "image_thumb", None)
+    if u:
+        return str(u.url)
+    return str(im.image.url) if getattr(im, "image", None) else None
+
+
+def _second_image_thumb_webp(listing: Listing) -> str | None:
+    cache = getattr(listing, "_prefetched_objects_cache", None)
+    imgs = cache.get("images") if cache else None
+    if imgs is not None:
+        if len(imgs) < 2:
+            return None
+        im = imgs[1]
+    else:
+        im = listing.images.all().order_by("sort_order", "id")[1:2].first()
+    if not im:
+        return None
+    u = getattr(im, "image_thumb_webp", None)
+    return str(u.url) if u else None
+
+
+def _image_count(listing: Listing) -> int:
+    cache = getattr(listing, "_prefetched_objects_cache", None)
+    imgs = cache.get("images") if cache else None
+    if imgs is not None:
+        return len(imgs)
+    try:
+        return int(listing.images.count())
+    except Exception:
+        return 0
+
+
+def _contact_links(listing: Listing) -> tuple[str | None, str]:
+    """
+    Contact CTAs for cards:
+    - whatsapp: internal redirect; phone is never rendered in card HTML
+    - contact: HTMX endpoint for the secure contact panel
+    """
+    contact_url = reverse("listings:contact", kwargs={"slug": listing.slug})
+    whatsapp_url = reverse("listings:whatsapp", kwargs={"slug": listing.slug})
+    return whatsapp_url, contact_url
 
 
 def _card_is_featured(listing: Listing) -> bool:
@@ -217,14 +287,23 @@ def _finalize(
     a_list = [escape(str(x)) for x in attributes[:_MAX_ATTRIBUTES]]
     tl = escape(str(trust_label)) if trust_label else None
     img = (str(image_url).strip() or None) if image_url else None
+    img_webp = _first_image_webp(listing)
     lid = int(listing.pk) if getattr(listing, "pk", None) is not None else 0
     promo_f, promo_b = _promo_flags(listing)
+    wa_url, contact_url = _contact_links(listing)
+    img2 = _second_image_thumb(listing)
+    img2_webp = _second_image_thumb_webp(listing)
+    icount = _image_count(listing)
     return CardContext(
         template=template,
         css_modifier=str(css_modifier or "").strip(),
         title=safe_title,
         price_display=str(price_display or ""),
         image_url=img,
+        image_url_webp=(str(img_webp).strip() or None) if img_webp else None,
+        image_url_2=(str(img2).strip() or None) if img2 else None,
+        image_url_2_webp=(str(img2_webp).strip() or None) if img2_webp else None,
+        image_count=int(icount or 0),
         link=str(link or ""),
         badges=tuple(b_list),
         attributes=tuple(a_list),
@@ -233,6 +312,8 @@ def _finalize(
         category_label=safe_cat,
         category_href=str(category_href or ""),
         trust_label=tl,
+        contact_whatsapp_url=wa_url,
+        contact_url=contact_url,
         is_featured=bool(is_featured),
         is_featured_top=bool(is_featured_top),
         is_promoted_featured=promo_f,

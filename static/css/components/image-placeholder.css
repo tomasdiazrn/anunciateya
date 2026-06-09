@@ -33,9 +33,3 @@
 .ui-image-placeholder--11 {
   aspect-ratio: 1 / 1;
 }
-
-/* Misma altura que .card-thumb en cards-listings.css (evita CLS en grid). */
-.ui-image-placeholder--card {
-  min-height: 168px;
-  aspect-ratio: auto;
-}

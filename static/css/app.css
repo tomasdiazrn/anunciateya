@@ -1,6 +1,6 @@
 /*
- * anunciateya.com — hoja de entrada del sistema de diseño.
- * Orden: tokens → base → componentes (no crear dependencias circulares).
+ * Marketplace ? hoja de entrada del sistema de dise?o.
+ * Orden: tokens ? base ? componentes (no crear dependencias circulares).
  */
 @import url("tokens.css");
 @import url("base.css");
@@ -16,3 +16,5 @@
 @import url("components/account-dashboard.css");
 @import url("components/image-placeholder.css");
 @import url("components/listing-detail.css");
+@import url("components/error-pages.css");
+@import url("components/legal.css");

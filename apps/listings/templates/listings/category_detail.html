@@ -26,10 +26,8 @@
         {% include "listings/partials/browse_home_filters.html" %}
       {% endif %}
       <div class="browse-main-column">
-        {% include "components/layouts/page_header.html" with title=list_heading subtitle=list_subtitle meta=result_count|intcomma meta_label="resultados" title_tag=page_header_title_tag %}
-        {% include "listings/partials/browse_sort_pills.html" %}
-        {% if category and category.description %}
-          <p class="muted page-category__desc">{{ category.description }}</p>
+        {% if not show_category_hero %}
+          {% include "components/layouts/page_header.html" with title=list_heading subtitle=list_subtitle meta=result_count|intcomma meta_label="resultados" title_tag=page_header_title_tag %}
         {% endif %}
 
         {% include "listings/partials/listing_results_sections.html" %}
@@ -59,5 +57,32 @@
         {% endif %}
       </div>
     </div>
+
+    <section class="home-final-cta home-final-cta--page-end home-block" aria-labelledby="category-final-cta-heading">
+      <i class="fa-solid fa-bullhorn home-final-cta__bg-icon" aria-hidden="true"></i>
+
+      <div class="home-final-cta__content">
+        <p class="home-final-cta__eyebrow">Publicar es gratis</p>
+        <h2 id="category-final-cta-heading" class="home-final-cta__title">
+          ¿Tenés algo para vender en Guayaquil?
+        </h2>
+        <p class="home-final-cta__lead">
+          Creá tu anuncio ahora y llegá a personas que ya están buscando autos, inmuebles,
+          electrónica, motos y más.
+        </p>
+      </div>
+
+      <div class="home-final-cta__actions" aria-label="Acciones principales">
+        <a
+          class="button btn-primary home-final-cta__button home-final-cta__button--primary"
+          href="{% url 'publish' %}"
+          data-event="create_listing"
+          data-event-detail="category_final_cta_publish"
+        >
+          Publicar anuncio
+          <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
+        </a>
+      </div>
+    </section>
   </div>
 {% endblock %}

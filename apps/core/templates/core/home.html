@@ -1,185 +1,280 @@
 {% extends "base.html" %}
-{% load marketplace %}
+{% load marketplace static %}
 
 {% block title %}{{ meta_title }}{% endblock %}
 {% block meta_description %}{{ meta_description }}{% endblock %}
 
 {% block content %}
-  <section class="home-hero-full" aria-labelledby="home-hero-heading">
+  <section class="home-hero-full" aria-labelledby="home-hero-heading" data-home-reveal>
     <div class="home-hero-overlay" aria-hidden="true"></div>
     <div class="container">
       <div class="home-hero-inner">
         <h1 class="home-hero__title" id="home-hero-heading">
-          Encuentra lo que buscas en tu ciudad
+          Compra y vende en Guayaquil
         </h1>
         <p class="home-hero__sub lead">
-          {{ home_hero_sub|capfirst }}
+          Autos, inmuebles, electrónica, motos y más.
         </p>
 
-        {% include "components/search/search_bar.html" with search_categories=search_categories %}
+        {% include "components/search/search_bar.html" with quick_search_categories=quick_search_categories %}
       </div>
+    </div>
+  </section>
+
+  <section class="home-hero-stats" aria-label="Lanzamiento de la plataforma" data-home-reveal>
+    <div class="container">
+      <ul class="home-launch-card" role="list">
+        <li class="home-launch-card__item">
+          <span class="home-launch-card__icon" aria-hidden="true">
+            <i class="fa-solid fa-rocket"></i>
+          </span>
+          <div class="home-launch-card__content">
+            <h2 class="home-launch-card__title">Lanzamiento inicial</h2>
+            <p class="home-launch-card__text">Construimos la comunidad desde Guayaquil.</p>
+          </div>
+        </li>
+
+        <li class="home-launch-card__item">
+          <span class="home-launch-card__icon" aria-hidden="true">
+            <i class="fa-solid fa-bullhorn"></i>
+          </span>
+          <div class="home-launch-card__content">
+            <h2 class="home-launch-card__title">Publicación gratis</h2>
+            <p class="home-launch-card__text">Publica tus anuncios gratis desde hoy.</p>
+          </div>
+        </li>
+
+        <li class="home-launch-card__item">
+          <span class="home-launch-card__icon" aria-hidden="true">
+            <i class="fa-solid fa-handshake"></i>
+          </span>
+          <div class="home-launch-card__content">
+            <h2 class="home-launch-card__title">Contacto directo</h2>
+            <p class="home-launch-card__text">Conecta sin intermediarios y con confianza.</p>
+          </div>
+        </li>
+
+        <li class="home-launch-card__item">
+          <span class="home-launch-card__icon" aria-hidden="true">
+            <i class="fa-solid fa-seedling"></i>
+          </span>
+          <div class="home-launch-card__content">
+            <h2 class="home-launch-card__title">Crecimiento semanal</h2>
+            <p class="home-launch-card__text">Sumamos usuarios y anuncios cada semana.</p>
+          </div>
+        </li>
+      </ul>
     </div>
   </section>
 
   <div class="container home-page">
 
+    <section class="home-how home-block" aria-labelledby="home-how-heading" data-home-reveal>
+      <div class="how-flow">
+        <div class="how-flow__intro">
+          <h2 id="home-how-heading" class="how-flow__title">
+            Publicar es fácil<br>
+            y toma menos de<br>
+            1 minuto
+          </h2>
+          <span class="how-flow__mark" aria-hidden="true"></span>
+        </div>
+
+        <ol class="how-flow__steps" aria-label="Pasos para publicar">
+          <li class="how-flow__step">
+            <span class="how-flow__number" aria-hidden="true">1</span>
+            <div class="how-flow__icon-card" aria-hidden="true">
+              <i class="fa-solid fa-user-plus"></i>
+            </div>
+            <h3 class="how-flow__step-title">Creá tu cuenta</h3>
+            <p class="how-flow__step-text">Registrate con tus datos<br>y empezá a publicar.</p>
+          </li>
+
+          <li class="how-flow__arrow" aria-hidden="true">
+            <i class="fa-solid fa-arrow-right-long"></i>
+          </li>
+
+          <li class="how-flow__step">
+            <span class="how-flow__number" aria-hidden="true">2</span>
+            <div class="how-flow__icon-card" aria-hidden="true">
+              <i class="fa-solid fa-mobile-screen-button"></i>
+            </div>
+            <h3 class="how-flow__step-title">Creá tu anuncio</h3>
+            <p class="how-flow__step-text">Completá los datos<br>y agregá fotos.</p>
+          </li>
+
+          <li class="how-flow__arrow" aria-hidden="true">
+            <i class="fa-solid fa-arrow-right-long"></i>
+          </li>
+
+          <li class="how-flow__step">
+            <span class="how-flow__number" aria-hidden="true">3</span>
+            <div class="how-flow__icon-card" aria-hidden="true">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <h3 class="how-flow__step-title">Llegá a más personas</h3>
+            <p class="how-flow__step-text">Tu anuncio aparece<br>donde tiene que estar.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
     {% if homepage_categories %}
-      <section class="home-categories home-block" aria-labelledby="home-cat-heading">
-        <h2 id="home-cat-heading" class="home-section-title">Explora por categoría</h2>
-        <div class="home-cat-grid" aria-label="Categorías principales">
-          {% for category in homepage_categories %}
-            <a
-              class="home-cat-card home-category-card"
-              href="{{ category.get_absolute_url }}"
-              data-event="category_click"
-              data-event-detail="{{ category.slug }}"
-            >
-              <span class="home-cat-card__icon" aria-hidden="true">
-                {% include "components/category/category_card_media.html" with category=category %}
-              </span>
-              <span class="home-cat-card__title">{{ category.name }}</span>
-              <p class="home-cat-card__desc">
-                {% if category.description %}
-                  {{ category.description|truncatewords:22 }}
-                {% else %}
-                  Explorá anuncios de {{ category.name|lower }} en tu ciudad.
-                {% endif %}
+      <section class="home-categories home-block" aria-labelledby="home-cat-heading" data-home-reveal="fade">
+        <div class="home-cat-panel">
+          <div class="home-cat-panel__main">
+            <div class="home-cat-panel__intro">
+              <h2 id="home-cat-heading" class="home-cat-panel__title">
+                De todo, para<br>
+                todos.
+              </h2>
+              <p class="home-cat-panel__copy">
+                Explorá las categorías más buscadas y encontrá lo que necesitás.
               </p>
-              <span class="home-cat-card__cta button btn-secondary">
-                Ver todos ({{ category.published_count }})
-              </span>
+              <a class="button btn-primary home-cat-panel__button" href="{% url 'browse' %}">
+                Ver categorías
+              </a>
+            </div>
+
+            <div class="home-cat-grid" aria-label="Categorías principales">
+              {% for category in homepage_categories|slice:":8" %}
+                <a
+                  class="home-cat-card"
+                  href="{{ category.get_absolute_url }}"
+                  data-event="category_click"
+                  data-event-detail="{{ category.slug }}"
+                >
+                  <span class="home-cat-card__media" aria-hidden="true">
+                    {% include "components/category/category_card_media.html" with category=category %}
+                  </span>
+                  <span class="home-cat-card__title">{{ category.name }}</span>
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="home-cat-panel__cta">
+            <img class="home-cat-panel__cta-logo" src="{% static brand_favicon %}" alt="" aria-hidden="true">
+            <div class="home-cat-panel__cta-copy">
+              <h3 class="home-cat-panel__cta-title">¿Listo para publicar?</h3>
+              <p class="home-cat-panel__cta-text">
+                Sumate a miles de personas que ya venden en {{ seo_brand_name }}.
+              </p>
+            </div>
+            <a
+              class="button btn-secondary home-cat-panel__cta-button"
+              href="{% url 'publish' %}"
+              data-event="create_listing"
+              data-event-detail="category_panel_cta"
+            >
+              Publicar anuncio
+              <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
             </a>
-          {% endfor %}
+          </div>
         </div>
       </section>
     {% endif %}
 
-    <section class="home-cities home-block" aria-labelledby="home-cities-heading">
-      <h2 id="home-cities-heading" class="home-section-title">Explora por zona en Guayaquil</h2>
-      <div class="home-zones-grid" aria-label="Zonas principales">
-        <article class="zone-card">
-          <a
-            class="zone-card__link"
-            href="{% url 'location_guayaquil' %}"
-            data-event="category_click"
-            data-event-detail="guayaquil_zone"
-          >
-            <div class="zone-card__media" aria-hidden="true">
-              <img
-                src="/static/img/AnunciateYa_GuayaquilCard.webp"
-                alt="Vista urbana de Guayaquil Ecuador"
-                loading="lazy"
-                decoding="async"
-              >
-              <div class="zone-card__overlay"></div>
-            </div>
-
-            <div class="zone-card__content">
-              <h3 class="zone-card__title">Guayaquil</h3>
-              <p class="zone-card__desc">Todos los anuncios activos en la ciudad.</p>
-              <span class="zone-card__cta">Ver todos los anuncios →</span>
-            </div>
-          </a>
-        </article>
-
-        <article class="zone-card">
-          <a
-            class="zone-card__link"
-            href="{% url 'location_samborondon' %}"
-            data-event="category_click"
-            data-event-detail="samborondon_zone"
-          >
-            <div class="zone-card__media" aria-hidden="true">
-              <img
-                src="/static/img/AnunciateYa_SamborondonCard.webp"
-                alt="Zona residencial de Samborondón Ecuador"
-                loading="lazy"
-                decoding="async"
-              >
-              <div class="zone-card__overlay"></div>
-            </div>
-
-            <div class="zone-card__content">
-              <h3 class="zone-card__title">Samborondón</h3>
-              <p class="zone-card__desc">Urbanizaciones, vía a la costa y zonas residenciales.</p>
-              <span class="zone-card__cta">Ver en Samborondón →</span>
-            </div>
-          </a>
-        </article>
+    <section class="home-faq home-block" aria-labelledby="home-faq-heading" data-home-reveal>
+      <div class="home-faq__header">
+        <p class="home-faq__eyebrow">Preguntas frecuentes</p>
+        <h2 id="home-faq-heading" class="home-faq__title">Todo claro antes de publicar</h2>
       </div>
-    </section>
 
-    <section class="home-how home-block" aria-labelledby="home-how-heading">
-      <h2 id="home-how-heading" class="home-section-title">Cómo funciona</h2>
-      <div class="home-steps">
-        <article class="home-step home-step-card">
-          <div class="home-step__icon" aria-hidden="true">
-            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-          </div>
-          <h3 class="home-step__title">Busca o publica</h3>
-          <p class="home-step__text">
-            Explora por categoría o ciudad, o crea tu anuncio con fotos y precio en minutos.
-          </p>
-          <a class="home-step__link" href="{% url 'browse' %}">Explorar anuncios</a>
-        </article>
-        <article class="home-step home-step-card">
-          <div class="home-step__icon" aria-hidden="true">
-            <i class="fa-solid fa-shield" aria-hidden="true"></i>
-          </div>
-          <h3 class="home-step__title">Revisa la confianza</h3>
-          <p class="home-step__text">
-            Mira si el vendedor está verificado, tiene opiniones y el nivel de confianza (Alta / Media / Baja).
-          </p>
-          <a class="home-step__link" href="{% url 'browse' %}">Cómo te protegemos</a>
-        </article>
-        <article class="home-step home-step-card">
-          <div class="home-step__icon" aria-hidden="true">
-            <i class="fa-solid fa-comments" aria-hidden="true"></i>
-          </div>
-          <h3 class="home-step__title">Contacta con seguridad</h3>
-          <p class="home-step__text">
-            Envía un mensaje desde el anuncio. Coordina la entrega sin adelantar dinero a ciegas.
-          </p>
-          <a class="home-step__link" href="{% url 'users:register' %}">Crear cuenta</a>
-        </article>
-      </div>
-    </section>
-
-    <section class="home-cta-final" aria-labelledby="cta-final-heading">
-      <div class="container">
-        <div class="home-cta-card">
-          <div class="home-cta-card__content">
-            <h2 id="cta-final-heading" class="home-cta-card__title">
-              Encuentra lo que necesitas hoy en tu ciudad
-            </h2>
-
-            <p class="home-cta-card__sub">
-              Explorá por categoría o publicá tu anuncio en minutos.
+      <div class="home-faq__grid">
+        <div class="home-faq__column">
+          <details class="home-faq__item">
+            <summary class="home-faq__question">¿Qué es AnunciateYa?</summary>
+            <p class="home-faq__answer">
+              AnunciateYa es un marketplace local donde puedes comprar, vender y descubrir productos y servicios en Guayaquil.
             </p>
+          </details>
 
-            <div class="home-cta-card__actions">
-              <a
-                class="button btn-primary"
-                href="{{ explore_listings_url }}"
-                data-event="category_click"
-                data-event-detail="cta_final_explore_{{ explore_event_slug }}"
-              >Explorar anuncios</a>
-
-              <a
-                class="button btn-secondary"
-                href="{% url 'publish' %}"
-                data-event="create_listing"
-                data-event-detail="cta_final_create"
-              >Crear anuncio</a>
-            </div>
-
-            <p class="home-cta-card__hint">
-              Publicar es gratis. Sin comisiones en esta etapa.
+          <details class="home-faq__item">
+            <summary class="home-faq__question">¿Cuesta dinero publicar un anuncio?</summary>
+            <p class="home-faq__answer">
+              No. Actualmente puedes publicar anuncios de forma gratuita.
             </p>
-          </div>
+          </details>
+
+          <details class="home-faq__item">
+            <summary class="home-faq__question">¿Qué puedo publicar?</summary>
+            <p class="home-faq__answer">
+              Puedes publicar anuncios dentro de las categorías disponibles en la plataforma, incluyendo autos, inmuebles, electrónica, motos, hogar y más.
+            </p>
+          </details>
+
+          <details class="home-faq__item">
+            <summary class="home-faq__question">¿Cómo contacto a un vendedor?</summary>
+            <p class="home-faq__answer">
+              Cada anuncio incluye opciones para comunicarte directamente con la persona que publicó el aviso.
+            </p>
+          </details>
+        </div>
+
+        <div class="home-faq__column">
+          <details class="home-faq__item">
+            <summary class="home-faq__question">¿Necesito crear una cuenta?</summary>
+            <p class="home-faq__answer">
+              Sí. Crear una cuenta te permite publicar anuncios, administrar tus publicaciones y mantener tus datos organizados.
+            </p>
+          </details>
+
+          <details class="home-faq__item">
+            <summary class="home-faq__question">¿Cuánto tiempo toma publicar un anuncio?</summary>
+            <p class="home-faq__answer">
+              Solo unos minutos. Completa la información básica, agrega fotos y publica tu anuncio.
+            </p>
+          </details>
+
+          <details class="home-faq__item">
+            <summary class="home-faq__question">¿Puedo editar o eliminar mis anuncios?</summary>
+            <p class="home-faq__answer">
+              Sí. Desde tu cuenta puedes actualizar, pausar o eliminar tus anuncios cuando lo necesites.
+            </p>
+          </details>
+
+          <details class="home-faq__item">
+            <summary class="home-faq__question">¿En qué ciudades está disponible AnunciateYa?</summary>
+            <p class="home-faq__answer">
+              Actualmente estamos enfocados en Guayaquil y sus alrededores, con planes de seguir creciendo en el futuro.
+            </p>
+          </details>
         </div>
       </div>
     </section>
 
+    <section class="home-final-cta home-block" aria-labelledby="home-final-cta-heading" data-home-reveal>
+      <i class="fa-solid fa-bullhorn home-final-cta__bg-icon" aria-hidden="true"></i>
+
+      <div class="home-final-cta__content">
+        <p class="home-final-cta__eyebrow">Publicar es gratis</p>
+        <h2 id="home-final-cta-heading" class="home-final-cta__title">
+          ¿Tenés algo para vender en Guayaquil?
+        </h2>
+        <p class="home-final-cta__lead">
+          Creá tu anuncio ahora y llegá a personas que ya están buscando autos, inmuebles,
+          electrónica, motos y más.
+        </p>
+      </div>
+
+      <div class="home-final-cta__actions" aria-label="Acciones principales">
+        <a
+          class="button btn-primary home-final-cta__button home-final-cta__button--primary"
+          href="{% url 'publish' %}"
+          data-event="create_listing"
+          data-event-detail="home_final_cta_publish"
+        >
+          Publicar anuncio
+          <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
+        </a>
+      </div>
+    </section>
+
   </div>
+{% endblock %}
+
+{% block extra_js %}
+  {{ block.super }}
+  <script src="{% static 'js/home_reveal.js' %}" defer></script>
 {% endblock %}

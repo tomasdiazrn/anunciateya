@@ -6,40 +6,10 @@ from . import views
 app_name = "users"
 
 urlpatterns = [
-    path("ingresar/", views.EmailLoginView.as_view(), name="login"),
+    path("ingresar/", views.email_login_view, name="login"),
     path("salir/", views.EmailLogoutView.as_view(), name="logout"),
     path("registrarse/", views.RegisterView.as_view(), name="register"),
-    path(
-        "recuperar-clave/",
-        views.EmailPasswordResetView.as_view(),
-        name="password_reset",
-    ),
-    path(
-        "recuperar-clave/enviado/",
-        views.EmailPasswordResetDoneView.as_view(),
-        name="password_reset_done",
-    ),
-    path(
-        "recuperar-clave/<uidb64>/<token>/",
-        views.EmailPasswordResetConfirmView.as_view(),
-        name="password_reset_confirm",
-    ),
-    path(
-        "recuperar-clave/completa/",
-        views.EmailPasswordResetCompleteView.as_view(),
-        name="password_reset_complete",
-    ),
     path("verificar-telefono/", views.verify_phone, name="verify_phone"),
-    path(
-        "mi-cuenta/cambiar-clave/listo/",
-        views.AccountPasswordChangeDoneView.as_view(),
-        name="password_change_done",
-    ),
-    path(
-        "mi-cuenta/cambiar-clave/",
-        views.AccountPasswordChangeView.as_view(),
-        name="password_change",
-    ),
     path(
         "mi-cuenta/anuncios/<slug:slug>/editar/",
         views.listing_edit_dashboard,

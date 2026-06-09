@@ -1,0 +1,30 @@
+.error-page {
+  display: grid;
+  place-items: center;
+  min-height: 52vh;
+  padding-block: clamp(var(--space-4), 9vw, var(--space-6));
+  text-align: center;
+}
+
+.error-page__eyebrow {
+  margin: 0 0 var(--space-1);
+  color: var(--color-primary);
+  font: 800 0.82rem/1 var(--font-display);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.error-page__title {
+  max-width: 42rem;
+  margin-bottom: var(--space-1);
+}
+
+.error-page__copy {
+  max-width: 28rem;
+  margin: 0 0 var(--space-3);
+  color: var(--color-muted);
+}
+
+.error-page__cta {
+  min-width: 10rem;
+}

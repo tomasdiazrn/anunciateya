@@ -1,0 +1,41 @@
+<section class="newsletter-bar" id="newsletter-bar" aria-labelledby="newsletter-heading">
+  <div class="container newsletter-bar__inner">
+    <h2 class="newsletter-bar__title" id="newsletter-heading">Newsletter</h2>
+    <form
+      class="newsletter-bar__form"
+      action="{% url 'core:newsletter_signup' %}"
+      method="post"
+      hx-post="{% url 'core:newsletter_signup' %}"
+      hx-target="#newsletter-bar"
+      hx-swap="outerHTML"
+      data-loading-submit
+      novalidate
+    >
+      {% csrf_token %}
+      <div class="newsletter-bar__field">
+        <label class="visually-hidden" for="newsletter-email">Correo electrónico</label>
+        <input
+          class="newsletter-bar__input"
+          type="email"
+          id="newsletter-email"
+          name="email"
+          placeholder="Ingresá tu email..."
+          autocomplete="email"
+          value="{{ newsletter_form.email.value|default:'' }}"
+          required
+        >
+        {% if newsletter_form.email.errors %}
+          <div class="newsletter-bar__feedback newsletter-bar__feedback--error" role="alert" aria-live="assertive">
+            {{ newsletter_form.email.errors|striptags }}
+          </div>
+        {% endif %}
+        {% if newsletter_message %}
+          <div class="newsletter-bar__feedback newsletter-bar__feedback--{{ newsletter_message_level|default:'success' }}" role="status" aria-live="polite">
+            {{ newsletter_message }}
+          </div>
+        {% endif %}
+      </div>
+      <button class="button btn-primary newsletter-bar__submit" type="submit" data-loading-text="Enviando...">Enviar</button>
+    </form>
+  </div>
+</section>

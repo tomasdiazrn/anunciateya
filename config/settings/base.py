@@ -4,7 +4,7 @@ Environment-specific modules import this and override as needed.
 """
 from pathlib import Path
 
-from decouple import Csv, config
+from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -34,6 +34,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -65,16 +66,13 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
-]
+AUTH_PASSWORD_VALIDATORS = []
 
 LANGUAGE_CODE = "es"
+# Sitio monolingüe: solo español (evita mensajes en inglés si el navegador pide otro idioma).
+LANGUAGES = [("es", "Español")]
 TIME_ZONE = "America/Guayaquil"
-USE_I18N = False
+USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
@@ -99,17 +97,57 @@ AUTH_USER_MODEL = "users.User"
 
 LOGIN_URL = "users:login"
 LOGIN_REDIRECT_URL = "listings:list"
-LOGOUT_REDIRECT_URL = "core:home"
+LOGOUT_REDIRECT_URL = "root_home"
 
-SITE_NAME = config("SITE_NAME", default="anunciateya.com")
-SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
+PUBLIC_SITE_DOMAIN = "anunciateya.com"
+PUBLIC_SITE_URL = "https://anunciateya.com"
+SITE_NAME = PUBLIC_SITE_DOMAIN
+SITE_URL = PUBLIC_SITE_URL
 # Marca y ciudad para títulos SEO (sitio monolingüe español).
-SEO_BRAND_NAME = config("SEO_BRAND_NAME", default="AnunciateYa")
-SEO_MARKET_CITY = config("SEO_MARKET_CITY", default="Guayaquil")
+SEO_BRAND_NAME = "AnunciateYa"
+SEO_MARKET_CITY = "Guayaquil"
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@anunciateya.com")
+CONTACT_EMAIL = config("CONTACT_EMAIL", default="hola@anunciateya.com")
 
-# Demo local: todas las tarjetas/detalle muestran 10 fotos placeholder (picsum.photos).
-STOCK_DEMO_LISTING_PHOTOS = config("STOCK_DEMO_LISTING_PHOTOS", default=False, cast=bool)
+# Hosting membership (custom admin panel only; configured per client/project).
+HOSTING_MEMBERSHIP_START_DATE = config(
+    "HOSTING_MEMBERSHIP_START_DATE",
+    default="",
+).strip()
+HOSTING_MEMBERSHIP_EXPIRES_DATE = config(
+    "HOSTING_MEMBERSHIP_EXPIRES_DATE",
+    default="",
+).strip()
+HOSTING_RENEWAL_URL = config(
+    "HOSTING_RENEWAL_URL",
+    default="https://altovalleit.com/hosting/",
+).strip()
+
+# OTP login product rules. These are not secrets or environment-specific config.
+USER_OTP_EXPIRY_MINUTES = 10
+USER_OTP_MAX_ATTEMPTS = 5
+USER_OTP_SEND_LIMIT = 3
+USER_OTP_SEND_WINDOW_MINUTES = 15
+USER_OTP_RESEND_COOLDOWN_SECONDS = 60
+USER_OTP_ATTEMPT_COOLDOWN_MINUTES = 5
+USER_OTP_SESSION_AGE = 60 * 60 * 24 * 30
+SESSION_COOKIE_AGE = USER_OTP_SESSION_AGE
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# Identidad visual pública (rutas relativas a static/)
+BRAND_LOGO_PATH = config("BRAND_LOGO_PATH", default="img/AnunciateYa_Logo.png")
+BRAND_LOGO_WHITE_PATH = config(
+    "BRAND_LOGO_WHITE_PATH",
+    default="img/AnunciateYa_Logo_White.png",
+)
+BRAND_FAVICON_PATH = config("BRAND_FAVICON_PATH", default="img/AnunciateYa_Favicon.png")
+BRAND_HERO_BG_PATH = config(
+    "BRAND_HERO_BG_PATH",
+    default="img/AnunciateYa_HeroBackground.webp",
+)
+BRAND_FONT_DISPLAY = config("BRAND_FONT_DISPLAY", default="General Sans")
+BRAND_FONT_BODY = config("BRAND_FONT_BODY", default="General Sans")
+BRAND_THEME_COLOR = config("BRAND_THEME_COLOR", default="#3CBB6B")
 
 # Google Tag Manager (e.g. GTM-XXXXXXX). Empty string disables the snippets in templates.
 GOOGLE_TAG_MANAGER_ID = config("GOOGLE_TAG_MANAGER_ID", default="GTM-KSQPQ3PZ")

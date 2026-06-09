@@ -5,7 +5,6 @@ Requisito: haber cargado datos con `python manage.py seed_mvp_data` (opcional pa
 
 Uso:
   python manage.py qa_mvp_trust
-  python manage.py qa_mvp_trust --password seedpass123
   python manage.py qa_mvp_trust --html-report /tmp/informe_qa_mvp.html
 
 Las capturas de pantalla opcionales no están incluidas (evita dependencia de Playwright);
@@ -20,7 +19,6 @@ from django.core.management.base import BaseCommand, CommandError
 from django.test import Client
 
 from apps.trust.qa_mvp import (
-    DEFAULT_SEED_PASSWORD,
     ejecutar_informe_semilla,
     html_informe,
     tiene_datos_semilla,
@@ -34,11 +32,6 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            "--password",
-            default=DEFAULT_SEED_PASSWORD,
-            help="Contraseña de usuarios @mvp-seed.local (la misma que en seed_mvp_data).",
-        )
         parser.add_argument(
             "--html-report",
             default="",
@@ -62,7 +55,7 @@ class Command(BaseCommand):
             )
 
         client = Client()
-        report = ejecutar_informe_semilla(client, options["password"])
+        report = ejecutar_informe_semilla(client)
 
         for r in report.resultados:
             estado = "OK" if r.ok else "FALLO"

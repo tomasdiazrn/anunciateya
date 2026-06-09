@@ -1,59 +1,100 @@
 {% extends "components/marketplace/listing_card_base.html" %}
+{% load marketplace %}
 {% block card_modifier %}{{ card.css_modifier }}{% if card.is_featured_top %} card-listing--featured-top{% endif %}{% endblock %}
 {% block card_inner %}
-  <a href="{{ card.link }}" class="card-listing-motorcycle__stretched">
+  <a href="{{ card.link }}" class="card-listing__stretched">
     <span class="visually-hidden">{{ card.seo_text }}</span>
   </a>
-  <div class="card-listing-motorcycle__surface" aria-hidden="true">
-    <div class="card-thumb-link card-listing-motorcycle__thumb">
-      {% if card.is_featured_top %}
-        <span class="card-badge card-badge--featured card-badge--featured-top">Top destacado</span>
-      {% elif card.is_featured %}
-        <span class="card-badge card-badge--featured">Destacado</span>
+  <div class="card-listing__thumb" aria-hidden="true">
+    {% if card.is_featured_top %}
+      <span class="card-badge card-badge--featured card-badge--featured-top">Top destacado</span>
+    {% elif card.is_featured %}
+      <span class="card-badge card-badge--featured">Destacado</span>
+    {% endif %}
+    {% if card.is_promoted_boost %}
+      <span class="card-badge card-badge--boost">Impulsado</span>
+    {% endif %}
+    {% if card.image_url %}
+      <picture>
+        {% if card.image_url_webp %}<source srcset="{{ card.image_url_webp }}" type="image/webp">{% endif %}
+        <img
+          src="{{ card.image_url }}"
+          alt=""
+          loading="{% if card_idx|default:99 < 3 %}eager{% else %}lazy{% endif %}"
+          fetchpriority="{% if card_idx|default:99 < 3 %}high{% else %}auto{% endif %}"
+          decoding="async"
+          width="400"
+          height="400"
+        >
+      </picture>
+      {% if card.image_url_2 %}
+        <picture>
+          {% if card.image_url_2_webp %}<source srcset="{{ card.image_url_2_webp }}" type="image/webp">{% endif %}
+          <img src="{{ card.image_url_2 }}" alt="" loading="lazy" decoding="async" width="400" height="400">
+        </picture>
       {% endif %}
-      {% if card.is_promoted_boost %}
-        <span class="card-badge card-badge--boost">Impulsado</span>
+    {% else %}
+      {% include "components/ui/image_placeholder.html" with ratio="11" text="" alt_text="" %}
+    {% endif %}
+    {% if card.image_count|default:0|add:0 > 1 %}
+      <span class="card-listing__photo-count" aria-hidden="true">📷 {{ card.image_count }}</span>
+    {% endif %}
+  </div>
+
+  <div class="card-listing__body">
+    <p class="card-listing__price">{{ card.price_display|price_no_decimals }}</p>
+
+    <p class="card-listing__title">{{ card.title|card_title_clean }}</p>
+
+    {% with specs=card.attributes|card_specs_for_title:card.title %}
+      {% if specs %}
+        <p class="card-listing__specs">{{ specs|join:" · " }}</p>
       {% endif %}
-      {% if card.image_url %}
-        <img src="{{ card.image_url }}" alt="" class="card-thumb" loading="lazy" decoding="async" width="400" height="200">
-      {% else %}
-        {% include "components/ui/image_placeholder.html" with ratio="card" text="" alt_text="" %}
-      {% endif %}
-    </div>
-    <div class="card-listing-motorcycle__body">
-      <p class="card-listing-motorcycle__price">{{ card.price_display }}</p>
-      {% if card.badges %}
-        <div class="card-listing-motorcycle__meta">
-          {% for b in card.badges %}
-            <span class="card-listing-motorcycle__pill card-listing-motorcycle__pill--muted{% if b == 'Recomendado' %} card-badge--recommended{% elif b == 'Buen precio' %} card-badge--deal{% endif %}">{{ b }}</span>
-          {% endfor %}
-        </div>
-      {% endif %}
-      <p class="card-listing-motorcycle__headline">
-        <span class="card-listing-motorcycle__headline-inner">
-          <span class="card-listing-motorcycle__headline-main">{{ card.title }}</span>
-        </span>
-      </p>
-      {% if card.attributes %}
-        <ul class="card-listing-property__features card-listing-motorcycle__meta--specs" aria-label="Detalles">
-          {% for a in card.attributes %}
-            <li class="card-listing-property__feature">{{ a }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-      {% if card.category_label or card.location %}
-        <p class="card-listing-motorcycle__location">
-          {% if card.category_href %}
-            <a href="{{ card.category_href }}" class="title-link">{{ card.category_label }}</a>
-          {% else %}
-            {{ card.category_label }}
-          {% endif %}
-          {% if card.location %}<span class="card-listing-property__headline-sep"> · </span>{{ card.location }}{% endif %}
+    {% endwith %}
+
+    {% if card.location %}
+      <p class="card-listing__location"><span class="card-listing__location-icon" aria-hidden="true">📍</span>{{ card.location }}</p>
+    {% elif card.category_label %}
+      <p class="card-listing__location"><span class="card-listing__location-icon" aria-hidden="true">📍</span>{{ card.category_label }}</p>
+    {% endif %}
+
+    {% if card.trust_label %}
+      {% with t=card.trust_label|trust_parts %}
+        <p class="card-listing__trust small">
+          {% if t.verified %}<span class="card-listing__trust-verified">✔ Verificado</span>{% endif %}
+          {% if t.rating %}{% if t.verified %}<span class="card-listing__trust-sep" aria-hidden="true"> · </span>{% endif %}<span class="card-listing__trust-rating">{{ t.rating }}</span>{% endif %}
+          {% if t.confidence %}{% if t.verified or t.rating %}<span class="card-listing__trust-sep" aria-hidden="true"> · </span>{% endif %}<span class="card-listing__trust-confidence">{{ t.confidence }}</span>{% endif %}
         </p>
-      {% endif %}
-      {% if card.trust_label %}
-        <p class="card-trust small card-listing-motorcycle__trust">{{ card.trust_label }}</p>
-      {% endif %}
+      {% endwith %}
+    {% endif %}
+
+    <div class="card-listing__actions" aria-label="Acciones del anuncio">
+      <button
+        type="button"
+        class="button btn-primary card-listing__action card-listing__action--contact"
+        hx-get="{{ card.contact_url }}?surface=modal"
+        hx-target="#listing-contact-modal-body"
+        hx-swap="innerHTML"
+        hx-indicator="#listing-contact-modal-spinner"
+        aria-haspopup="dialog"
+        data-contact-modal-open
+        data-contact-whatsapp-url="{{ card.contact_whatsapp_url|default:'' }}"
+        data-event="contact_click"
+        data-event-detail="card_contact_modal"
+      >
+        <span>Contactar</span>
+      </button>
+      <a class="button btn-secondary card-listing__action card-listing__action--more" href="{{ card.link }}" aria-label="Ver más sobre {{ card.title }}">
+        <span>Ver más</span>
+      </a>
     </div>
+
+    {% if card.badges %}
+      <div class="card-listing__badges" aria-label="Etiquetas">
+        {% for b in card.badges %}
+          <span class="card-listing__badge{% if b == 'Recomendado' %} card-badge--recommended{% elif b == 'Buen precio' %} card-badge--deal{% endif %}">{{ b }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
   </div>
 {% endblock %}

@@ -1,0 +1,32 @@
+<div class="admin-page-header">
+  <h2 class="admin-page-title">Anuncios</h2>
+</div>
+
+<div class="admin-data-page">
+  <section class="admin-data-table" aria-label="Tabla de anuncios">
+    {% include "adminapp/components/data_table_header.html" with action_url=listings_clear_url clear_url=listings_clear_url search_q=search_q selected_category=selected_category selected_visibility=selected_visibility category_options=category_options visibility_options=visibility_options has_filters=has_filters search_label="Buscar anuncios" placeholder="Título, descripción o ubicación…" input_id="admin-listings-q" only %}
+
+    <div class="admin-data-table__scroll">
+      <table class="admin-table" role="grid">
+        {% include "adminapp/components/table_head.html" with headers=listing_table_headers only %}
+        <tbody>
+          {% for listing in listings %}
+            {% include "adminapp/listings/_row.html" %}
+          {% empty %}
+            <tr>
+              <td class="admin-table__empty" colspan="{{ listing_table_headers|length }}">
+                <div class="admin-empty">
+                  <p class="admin-empty__text">No hay anuncios{% if has_filters %} para estos filtros{% endif %}.</p>
+                  {% url 'publish' as publish_url %}
+                  {% include "adminapp/components/button.html" with label="Ir a publicar" variant="primary" url=publish_url only %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% include "adminapp/components/data_table_footer.html" with page_obj=page_obj filters_qs=filters_qs page_base_url=listings_clear_url item_label="anuncios" only %}
+  </section>
+</div>

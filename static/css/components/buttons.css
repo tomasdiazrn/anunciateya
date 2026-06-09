@@ -1,7 +1,7 @@
 /*
- * Botones anunciateya.com: CTA naranja #FF6A00, secundario teal #007AAB.
+ * Botones: primario verde acción (--color-cta), secundario oscuro (--color-secondary).
  * Variantes: .button + .button-primary | .btn-primary (solo clase en <a>/<button>).
- * Transición ~160ms; focus-visible teal (confianza / accesibilidad).
+ * Transición ~160ms; focus-visible verde marca (accesibilidad).
  */
 .button,
 a.btn-primary,
@@ -16,13 +16,14 @@ input[type="submit"].btn-secondary {
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  padding: 0.55rem 1.15rem;
-  border-radius: var(--radius-md);
+  min-height: 2.7rem;
+  padding: 0.65rem 1.1rem;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-strong);
   background: var(--color-surface);
   color: var(--color-text);
   cursor: pointer;
-  font: 500 0.9375rem var(--font-body);
+  font: 700 0.9rem/1.1 var(--font-display);
   text-decoration: none;
   transition:
     background-color var(--duration-fast) var(--ease-out),
@@ -58,7 +59,7 @@ input[type="submit"].btn-secondary:focus-visible {
   outline-offset: 2px;
 }
 
-/* CTA — naranja #FF6A00 (acción / contacto / enviar) */
+/* Primario — verde acción (contacto / publicar / enviar) */
 .button-primary,
 .button.btn-primary,
 a.btn-primary,
@@ -88,14 +89,14 @@ input[type="submit"].btn-primary:active:not(:disabled) {
   transform: translateY(1px);
 }
 
-/* Secundario — teal #007AAB (confianza / alternativa sin competir con CTA) */
+/* Secundario — oscuro (alternativa fuerte sin competir con el primario) */
 .button-secondary,
 .button.btn-secondary,
 a.btn-secondary,
 button.btn-secondary,
 input[type="submit"].btn-secondary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
   color: #fff;
 }
 
@@ -104,10 +105,10 @@ input[type="submit"].btn-secondary {
 a.btn-secondary:hover:not(:disabled),
 button.btn-secondary:hover:not(:disabled),
 input[type="submit"].btn-secondary:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
+  background: var(--color-secondary-hover);
+  border-color: var(--color-secondary-hover);
   color: #fff;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 14px var(--color-secondary-shadow);
 }
 
 .button:disabled,
@@ -123,6 +124,38 @@ input[type="submit"].btn-secondary:disabled {
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
+}
+
+.button.is-loading,
+button.btn-primary.is-loading,
+button.btn-secondary.is-loading {
+  cursor: wait;
+}
+
+.button.is-loading::before,
+button.btn-primary.is-loading::before,
+button.btn-secondary.is-loading::before {
+  content: "";
+  width: 0.9em;
+  height: 0.9em;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  border-top-color: #fff;
+  border-radius: 999px;
+  animation: button-loading-spin 0.7s linear infinite;
+}
+
+@keyframes button-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button.is-loading::before,
+  button.btn-primary.is-loading::before,
+  button.btn-secondary.is-loading::before {
+    animation: none;
+  }
 }
 
 /* Destructivo — no usar para CTA de confianza */

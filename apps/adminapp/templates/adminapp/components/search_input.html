@@ -1,4 +1,4 @@
-{# name, placeholder, value (opcional) #}
+{# name, placeholder, value (opcional), input_id (opcional) #}
 <div class="admin-search">
   <input
     class="admin-search__input"
@@ -7,5 +7,6 @@
     placeholder="{{ placeholder|default:'Buscar…' }}"
     value="{{ value|default:'' }}"
     autocomplete="off"
+    {% if input_id %}id="{{ input_id }}"{% endif %}
   >
 </div>

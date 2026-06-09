@@ -1,0 +1,37 @@
+<div
+  class="listing-contact-modal"
+  data-contact-modal
+  hidden
+  role="dialog"
+  aria-modal="true"
+  aria-label="Contactar vendedor"
+>
+  <div class="listing-contact-modal__backdrop" data-contact-modal-close aria-hidden="true"></div>
+  <section class="listing-contact-modal__panel" role="document">
+    <button
+      type="button"
+      class="listing-contact-modal__close"
+      data-contact-modal-close
+      aria-label="Cerrar contacto"
+    >×</button>
+
+    <div id="listing-contact-modal-body" class="listing-contact-modal__body" aria-live="polite">
+      <p class="small muted">El formulario se cargará aquí.</p>
+    </div>
+
+    <div class="listing-contact-modal__footer">
+      <span id="listing-contact-modal-spinner" class="htmx-indicator muted small" aria-live="polite">Cargando…</span>
+      <a
+        class="listing-contact-modal__whatsapp"
+        data-contact-modal-whatsapp
+        href="#"
+        target="_blank"
+        rel="noopener"
+        hidden
+      >
+        <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+        También puedes contactar por WhatsApp
+      </a>
+    </div>
+  </section>
+</div>

@@ -1,6 +1,7 @@
 from datetime import date
 
 from django import forms
+from django.utils.safestring import mark_safe
 
 from apps.trust.models import ListingReport
 
@@ -15,12 +16,42 @@ from .models import (
     VehicleModel,
 )
 
+# Mensajes de error cortos (alineados a signup / UX en español).
+_MSG_REQUIRED = "Este campo es obligatorio."
+DEFAULT_CONTACT_MESSAGE = (
+    "¡Hola! Quiero que se comuniquen conmigo por este anuncio que vi en AnunciateYa."
+)
+
 
 class ListingInterestForm(forms.Form):
     """Mensaje validado en servidor cuando un comprador contacta (parcial HTMX)."""
 
+    buyer_name = forms.CharField(
+        label="Tu nombre",
+        max_length=120,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "autocomplete": "name",
+                "placeholder": "Ej.: Ana Pérez",
+            }
+        ),
+        error_messages={"required": _MSG_REQUIRED},
+    )
+    buyer_email = forms.EmailField(
+        label="Email",
+        widget=forms.EmailInput(
+            attrs={
+                "class": "form-control",
+                "autocomplete": "email",
+                "placeholder": "tu@email.com",
+            }
+        ),
+        error_messages={"required": _MSG_REQUIRED},
+    )
     message = forms.CharField(
         label="Mensaje al vendedor",
+        initial=DEFAULT_CONTACT_MESSAGE,
         widget=forms.Textarea(
             attrs={
                 "rows": 4,
@@ -31,7 +62,19 @@ class ListingInterestForm(forms.Form):
             }
         ),
         min_length=10,
-        max_length=2000,
+        max_length=500,
+    )
+    accept_terms = forms.BooleanField(
+        required=True,
+        initial=True,
+        label=mark_safe(
+            'Acepto los <a href="/terminos/" target="_blank" rel="noopener">términos</a> '
+            'y la <a href="/privacidad/" target="_blank" rel="noopener">política de privacidad</a>.'
+        ),
+        widget=forms.CheckboxInput(attrs={"class": "checkbox-input"}),
+        error_messages={
+            "required": "Debes aceptar los términos y la política de privacidad para continuar.",
+        },
     )
 
 
@@ -45,6 +88,10 @@ class BaseListingForm(forms.ModelForm):
             (Listing.Status.DRAFT, "Guardar como borrador"),
         ],
         required=True,
+        error_messages={
+            "required": "Indicá si publicás o guardás como borrador.",
+            "invalid_choice": "Elegí una opción válida.",
+        },
         widget=forms.Select(attrs={"class": "form-control"}),
     )
 
@@ -58,24 +105,43 @@ class BaseListingForm(forms.ModelForm):
             "location",
         ]
         labels = {
-            "title": "Título",
+            "title": "Título del anuncio",
             "description": "Descripción",
             "price_amount": "Precio",
             "currency": "Moneda",
             "location": "Ubicación",
         }
         help_texts = {
-            "title": "",
+            "title": (
+                "Se genera automáticamente a partir de los datos. Puedes editarlo."
+            ),
             "description": "Describe el artículo, defectos, entrega o retiro.",
             "price_amount": "",
             "location": "Ciudad, sector o punto de encuentro (obligatorio).",
+        }
+        error_messages = {
+            "title": {
+                "required": _MSG_REQUIRED,
+                "max_length": "El título no puede superar %(limit_value)d caracteres.",
+            },
+            "description": {
+                "required": _MSG_REQUIRED,
+            },
+            "price_amount": {
+                "required": _MSG_REQUIRED,
+                "invalid": "Introduce un precio válido.",
+            },
+            "location": {
+                "required": _MSG_REQUIRED,
+                "max_length": "La ubicación no puede superar %(limit_value)d caracteres.",
+            },
         }
         widgets = {
             "title": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "maxlength": 200,
                     "autocomplete": "off",
+                    "data-autofill": "true",
                     "placeholder": (
                         "Toyota Corolla 2018 automático, excelente estado"
                     ),
@@ -103,13 +169,16 @@ class BaseListingForm(forms.ModelForm):
                 attrs={
                     "class": "form-control",
                     "placeholder": "Urdesa, Guayaquil",
-                    "maxlength": 200,
                 }
             ),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        title_f = Listing._meta.get_field("title")
+        self.fields["title"].widget.attrs["maxlength"] = title_f.max_length
+        loc_f = Listing._meta.get_field("location")
+        self.fields["location"].widget.attrs["maxlength"] = loc_f.max_length
         self.fields["currency"].widget = forms.HiddenInput()
         self.fields["currency"].required = False
         if not self.instance.pk:
@@ -154,6 +223,7 @@ class ListingForm(BaseListingForm):
             "category": "Selecciona la categoría que mejor describe tu anuncio.",
         }
         error_messages = {
+            **BaseListingForm.Meta.error_messages,
             "category": {"required": "Elige una categoría."},
         }
         widgets = {
@@ -205,6 +275,22 @@ class VehicleListingForm(forms.ModelForm):
             "fuel_type": "Combustible",
         }
         help_texts = {}
+        error_messages = {
+            "year": {
+                "required": _MSG_REQUIRED,
+                "invalid": "Introduce un año válido.",
+            },
+            "mileage": {"invalid": "Introduce un kilometraje válido."},
+            "doors": {
+                "required": _MSG_REQUIRED,
+                "invalid": "Introduce un número de puertas válido.",
+            },
+            "transmission": {
+                "required": _MSG_REQUIRED,
+                "invalid_choice": "Elegí una opción válida.",
+            },
+            "fuel_type": {"invalid_choice": "Elegí una opción válida."},
+        }
         widgets = {
             "year": forms.NumberInput(
                 attrs={
@@ -301,6 +387,10 @@ class VehicleListingForm(forms.ModelForm):
         m = cleaned.get("model_fk")
         if b and m and m.brand_id != b.id:
             self.add_error("model_fk", "El modelo seleccionado no pertenece a la marca.")
+        if not b:
+            self.add_error("brand_fk", "Selecciona una marca.")
+        elif not m:
+            self.add_error("model_fk", "Selecciona un modelo.")
         return cleaned
 
     def save(self, commit=True):
@@ -339,6 +429,27 @@ class PropertyListingForm(forms.ModelForm):
             "property_condition": "Estado",
         }
         help_texts = {name: "" for name in fields}
+        error_messages = {
+            "property_type": {
+                "required": _MSG_REQUIRED,
+                "invalid_choice": "Elegí una opción válida.",
+            },
+            "rooms": {
+                "required": _MSG_REQUIRED,
+                "invalid": "Introduce un número válido.",
+            },
+            "bathrooms": {
+                "required": _MSG_REQUIRED,
+                "invalid": "Introduce un número válido.",
+            },
+            "area_m2": {
+                "required": _MSG_REQUIRED,
+                "invalid": "Introduce una superficie válida.",
+            },
+            "operation_type": {"invalid_choice": "Elegí una opción válida."},
+            "property_condition": {"invalid_choice": "Elegí una opción válida."},
+            "parking_spaces": {"invalid": "Introduce un número válido."},
+        }
         widgets = {
             "property_type": forms.Select(attrs={"class": "form-control"}),
             "operation_type": forms.Select(attrs={"class": "form-control"}),
@@ -461,6 +572,34 @@ class MotorcycleListingForm(forms.ModelForm):
             "condition": "Condición",
         }
         help_texts = {name: "" for name in fields}
+        error_messages = {
+            "brand": {
+                "required": _MSG_REQUIRED,
+                "max_length": "La marca no puede superar %(limit_value)d caracteres.",
+            },
+            "model": {
+                "required": _MSG_REQUIRED,
+                "max_length": "El modelo no puede superar %(limit_value)d caracteres.",
+            },
+            "year": {
+                "required": _MSG_REQUIRED,
+                "invalid": "Introduce un año válido.",
+            },
+            "engine_cc": {"invalid": "Introduce una cilindrada válida."},
+            "mileage": {"invalid": "Introduce un kilometraje válido."},
+            "transmission": {
+                "required": _MSG_REQUIRED,
+                "invalid_choice": "Elegí una opción válida.",
+            },
+            "fuel_type": {
+                "required": _MSG_REQUIRED,
+                "invalid_choice": "Elegí una opción válida.",
+            },
+            "condition": {
+                "required": _MSG_REQUIRED,
+                "invalid_choice": "Elegí una opción válida.",
+            },
+        }
         widgets = {
             "brand": forms.TextInput(
                 attrs={
@@ -565,6 +704,21 @@ class ElectronicsListingForm(forms.ModelForm):
             "warranty": "Marcá solo si aplica garantía del fabricante o tienda.",
             "warranty_months": "Opcional. Si aplica, indicá la duración aproximada.",
         }
+        error_messages = {
+            "brand": {
+                "required": _MSG_REQUIRED,
+                "max_length": "La marca no puede superar %(limit_value)d caracteres.",
+            },
+            "model": {
+                "required": _MSG_REQUIRED,
+                "max_length": "El modelo no puede superar %(limit_value)d caracteres.",
+            },
+            "condition": {
+                "required": _MSG_REQUIRED,
+                "invalid_choice": "Elegí una opción válida.",
+            },
+            "warranty_months": {"invalid": "Introduce un número válido."},
+        }
         widgets = {
             "brand": forms.TextInput(
                 attrs={
@@ -618,6 +772,25 @@ class HomeGoodsListingForm(forms.ModelForm):
             "condition": "Nuevo, usado o reacondicionado.",
             "material": "Opcional. Ej.: madera, melamina, metal.",
             "dimensions": "Opcional. Ej.: 180×90 cm.",
+        }
+        error_messages = {
+            "item_type": {
+                "required": _MSG_REQUIRED,
+                "invalid_choice": "Elegí una opción válida.",
+            },
+            "condition": {
+                "required": _MSG_REQUIRED,
+                "invalid_choice": "Elegí una opción válida.",
+            },
+            "brand": {
+                "max_length": "La marca no puede superar %(limit_value)d caracteres.",
+            },
+            "material": {
+                "max_length": "El material no puede superar %(limit_value)d caracteres.",
+            },
+            "dimensions": {
+                "max_length": "Las dimensiones no pueden superar %(limit_value)d caracteres.",
+            },
         }
         widgets = {
             "item_type": forms.Select(attrs={"class": "form-control"}),

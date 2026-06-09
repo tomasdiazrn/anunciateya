@@ -9,12 +9,12 @@
 
 {% block content %}
   <div class="container narrow">
-    <div class="card account-password-card">
+    <div class="card account-security-card">
       <h1 class="page-title">Verifica tu teléfono</h1>
       <p class="muted">
         En esta demo el SMS está simulado: marca la casilla para completar. Así protegemos mejor los contactos entre compradores y vendedores.
       </p>
-      <form method="post" class="stack-form" aria-label="Verificación de teléfono" action="{% url 'users:verify_phone' %}">
+      <form method="post" class="stack-form" aria-label="Verificación de teléfono" action="{% url 'users:verify_phone' %}" data-loading-submit>
         {% csrf_token %}
         {% if next_url %}
           <input type="hidden" name="next" value="{{ next_url }}">
@@ -24,7 +24,7 @@
           {% include "components/ui/form_field.html" with field=field %}
         {% endfor %}
         <div class="form-actions-row">
-          <button type="submit" class="button btn-primary">Completar verificación</button>
+          <button type="submit" class="button btn-primary" data-loading-text="Verificando...">Completar verificación</button>
           <a class="button btn-secondary" href="{% url 'users:account' %}">Volver a Mi cuenta</a>
         </div>
       </form>

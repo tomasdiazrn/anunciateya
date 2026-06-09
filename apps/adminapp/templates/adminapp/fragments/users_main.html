@@ -1,0 +1,30 @@
+<div class="admin-page-header">
+  <h2 class="admin-page-title">Usuarios</h2>
+</div>
+
+<div class="admin-data-page">
+  <section class="admin-data-table" aria-label="Tabla de usuarios">
+    {% include "adminapp/components/data_table_header.html" with action_url=users_clear_url clear_url=users_clear_url search_q=search_q selected_visibility=selected_visibility visibility_options=visibility_options has_filters=has_filters search_label="Buscar usuarios" placeholder="Email, nombre o teléfono…" input_id="admin-users-q" only %}
+
+    <div class="admin-data-table__scroll">
+      <table class="admin-table" role="grid">
+        {% include "adminapp/components/table_head.html" with headers=user_table_headers only %}
+        <tbody>
+          {% for user_obj in users %}
+            {% include "adminapp/users/_row.html" %}
+          {% empty %}
+            <tr>
+              <td class="admin-table__empty" colspan="{{ user_table_headers|length }}">
+                <div class="admin-empty">
+                  <p class="admin-empty__text">No hay usuarios{% if has_filters %} para estos filtros{% endif %}.</p>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% include "adminapp/components/data_table_footer.html" with page_obj=page_obj filters_qs=filters_qs page_base_url=users_clear_url item_label="usuarios" only %}
+  </section>
+</div>

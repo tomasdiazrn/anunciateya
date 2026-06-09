@@ -1,0 +1,52 @@
+<div class="admin-data-table__header">
+  <form
+    class="admin-toolbar__form admin-data-table__tools"
+    method="get"
+    action="{{ action_url }}"
+    hx-get="{{ action_url }}"
+    hx-target="#admin-main-content"
+    hx-push-url="true"
+    hx-swap="innerHTML"
+    hx-indicator="#admin-loading"
+    role="search"
+  >
+    <label class="admin-visually-hidden" for="{{ input_id }}">{{ search_label }}</label>
+    {% include "adminapp/components/search_input.html" with name="q" value=search_q placeholder=placeholder input_id=input_id only %}
+    {% if category_options %}
+      <label class="admin-visually-hidden" for="{{ input_id }}-category">Categoría</label>
+      <select
+        class="admin-select admin-select--filter"
+        name="category"
+        id="{{ input_id }}-category"
+      >
+        <option value="">Todas las categorías</option>
+        {% for category in category_options %}
+          <option
+            value="{{ category.slug }}"
+            {% if selected_category == category.slug %}selected{% endif %}
+          >{{ category.name }}</option>
+        {% endfor %}
+      </select>
+    {% endif %}
+    {% if visibility_options %}
+      <label class="admin-visually-hidden" for="{{ input_id }}-visibility">Estado</label>
+      <select
+        class="admin-select admin-select--filter"
+        name="visibility"
+        id="{{ input_id }}-visibility"
+      >
+        <option value="">Todos los estados</option>
+        {% for value, label in visibility_options %}
+          <option
+            value="{{ value }}"
+            {% if selected_visibility == value %}selected{% endif %}
+          >{{ label }}</option>
+        {% endfor %}
+      </select>
+    {% endif %}
+    {% include "adminapp/components/button.html" with label="Buscar" variant="primary" type="submit" only %}
+    {% if has_filters|default:search_q %}
+      {% include "adminapp/components/button.html" with label="Limpiar" variant="secondary" url=clear_url hx_get=clear_url hx_push_url=1 hx_indicator="#admin-loading" only %}
+    {% endif %}
+  </form>
+</div>

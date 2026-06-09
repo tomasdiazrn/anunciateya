@@ -24,7 +24,6 @@ from apps.users.models import User, UserVerification
 
 # Mismo dominio que seed_mvp_data (evita tocar cuentas reales).
 SEED_EMAIL_DOMAIN = "mvp-seed.local"
-DEFAULT_SEED_PASSWORD = "seedpass123"
 
 def _trust_label_card() -> dict[str, str]:
     return {"high": "Alta", "medium": "Media", "low": "Baja"}
@@ -50,7 +49,7 @@ def _microcopy_safety() -> str:
 
 
 def _contact_cta() -> str:
-    return "Contacta con confianza"
+    return "Contactar por"
 
 
 def _contact_submit() -> str:
@@ -272,7 +271,7 @@ def comprobar_ficha_detalle(client: Client, report: QaReport) -> None:
     )
 
 
-def comprobar_contacto_htmx(client: Client, password: str, report: QaReport) -> None:
+def comprobar_contacto_htmx(client: Client, report: QaReport) -> None:
     """
     Flujo HTMX del panel de contacto: anónimo, sin teléfono verificado, verificado.
     Valida URLs y textos del flujo en español.
@@ -292,39 +291,42 @@ def comprobar_contacto_htmx(client: Client, password: str, report: QaReport) -> 
         listing = alt
 
     url = f"/listings/{listing.slug}/contact/"
-    # Anónimo GET + HX → panel con enlace a login (no formulario seguro)
+    # Anónimo GET + HX → formulario directo sin exponer datos del vendedor
     r = client.get(url, **_hx_headers())
+    anon_body = r.content.decode()
     report.add(
         "CONTACT_ANON_HX",
-        r.status_code == 200 and "/accounts/login/" in r.content.decode(),
-        "Anónimo + HX: respuesta 200 con enlace a inicio de sesión.",
+        r.status_code == 200
+        and _contact_cta() in anon_body
+        and _contact_submit() in anon_body
+        and listing.seller.email not in anon_body,
+        "Anónimo + HX: respuesta 200 con formulario directo sin email del vendedor.",
         f"código {r.status_code}",
     )
-    if _contact_submit() in r.content.decode():
-        report.add(
-            "CONTACT_ANON_NO_FORM",
-            False,
-            "Anónimo no debe ver el botón de enviar mensaje seguro.",
-            "",
-        )
-    else:
-        report.add(
-            "CONTACT_ANON_NO_FORM",
-            True,
-            "Anónimo: formulario seguro no visible.",
-            "",
-        )
-
-    # POST sin sesión, sin HX → redirección a login
-    r_post = client.post(url, {"message": "Hola"})
     report.add(
-        "CONTACT_POST_REDIRECT",
-        r_post.status_code in (301, 302) and "login" in r_post.headers.get("Location", ""),
-        "POST sin autenticación redirige al login.",
+        "CONTACT_ANON_FORM",
+        _contact_submit() in anon_body,
+        "Anónimo: formulario seguro visible.",
+        "",
+    )
+
+    # POST sin sesión, sin HX → envío válido y redirect al anuncio
+    r_post = client.post(
+        url,
+        {
+            "buyer_name": "Comprador QA",
+            "buyer_email": "comprador.qa@example.com",
+            "message": "Hola, ¿sigue disponible este anuncio?",
+        },
+    )
+    report.add(
+        "CONTACT_POST_DIRECT",
+        r_post.status_code in (301, 302) and "login" not in r_post.headers.get("Location", ""),
+        "POST sin autenticación procesa contacto y redirige al anuncio.",
         f"{r_post.status_code} {r_post.headers.get('Location', '')}",
     )
 
-    # Comprador semilla sin verificación (vendedor05 = índice 4 en seed)
+    # Comprador semilla sin verificación también ve formulario directo
     buyer_unverified = User.objects.filter(
         email="vendedor05@mvp-seed.local"
     ).first()
@@ -336,14 +338,18 @@ def comprobar_contacto_htmx(client: Client, password: str, report: QaReport) -> 
             .first()
         )
     if buyer_unverified:
-        client.login(email=buyer_unverified.email, password=password)
+        client.force_login(buyer_unverified)
         r = client.get(url, **_hx_headers())
         body = r.content.decode()
-        ok_verify = r.status_code == 200 and "/accounts/verify-phone/" in body
+        ok_verify = (
+            r.status_code == 200
+            and _contact_submit() in body
+            and "/accounts/verify-phone/" not in body
+        )
         report.add(
             "CONTACT_UNVERIFIED_HX",
             ok_verify,
-            "Usuario autenticado sin teléfono verificado: enlace a verificación.",
+            "Usuario autenticado sin teléfono verificado: formulario directo.",
             "",
         )
         client.logout()
@@ -356,7 +362,7 @@ def comprobar_contacto_htmx(client: Client, password: str, report: QaReport) -> 
         buyer_ok = User.objects.filter(email="vendedor02@mvp-seed.local").first()
 
     if buyer_ok:
-        client.login(email=buyer_ok.email, password=password)
+        client.force_login(buyer_ok)
         r = client.get(url, **_hx_headers())
         body = r.content.decode()
         report.add(
@@ -441,7 +447,7 @@ def comprobar_integridad_datos_semilla(report: QaReport) -> None:
     )
 
 
-def ejecutar_informe_semilla(client: Client, password: str = DEFAULT_SEED_PASSWORD) -> QaReport:
+def ejecutar_informe_semilla(client: Client) -> QaReport:
     """Todas las comprobaciones que dependen de datos semilla + HTTP."""
     report = QaReport()
     if not tiene_datos_semilla():
@@ -455,7 +461,7 @@ def ejecutar_informe_semilla(client: Client, password: str = DEFAULT_SEED_PASSWO
 
     comprobar_etiquetas_en_listados(client, report)
     comprobar_ficha_detalle(client, report)
-    comprobar_contacto_htmx(client, password, report)
+    comprobar_contacto_htmx(client, report)
     comprobar_cache_semilla(report)
     comprobar_integridad_datos_semilla(report)
     return report

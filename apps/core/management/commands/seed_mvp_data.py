@@ -4,7 +4,6 @@ Genera datos de demostración en español para probar confianza, reseñas y anun
 Uso:
   python manage.py seed_mvp_data
   python manage.py seed_mvp_data --clear   # elimina usuarios @mvp-seed.local y datos ligados
-  python manage.py seed_mvp_data --password mi_clave
 """
 
 from __future__ import annotations
@@ -35,8 +34,6 @@ from apps.users.models import User, UserVerification
 
 # Dominio reservado para poder borrar todo con --clear sin tocar cuentas reales.
 SEED_EMAIL_DOMAIN = "mvp-seed.local"
-DEFAULT_PASSWORD = "seedpass123"
-
 # Guayaquil / Samborondón
 LOCATIONS = [
     "Urdesa Central, Guayaquil",
@@ -109,11 +106,6 @@ class Command(BaseCommand):
             help=f'Elimina usuarios con correo @{SEED_EMAIL_DOMAIN} y datos asociados.',
         )
         parser.add_argument(
-            "--password",
-            default=DEFAULT_PASSWORD,
-            help=f"Contraseña para todos los usuarios semilla (default: {DEFAULT_PASSWORD}).",
-        )
-        parser.add_argument(
             "--listings",
             type=int,
             default=75,
@@ -130,7 +122,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("Datos semilla eliminados."))
             return
 
-        pwd = options["password"]
         n_listings = max(50, min(100, options["listings"]))
         random.seed(42)
 
@@ -149,7 +140,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             categories = self._seed_categories()
             vehicle_taxonomy = self._seed_vehicle_taxonomy()
-            users = self._seed_users(pwd)
+            users = self._seed_users()
             self._apply_user_profiles(users)
             listings = self._seed_listings(users, categories, n_listings, vehicle_taxonomy)
             self._seed_reviews(users, listings)
@@ -166,7 +157,7 @@ class Command(BaseCommand):
         )
         bulk_seller_trust(user_ids)
 
-        self._print_summary(users, listings, categories, pwd)
+        self._print_summary(users, listings, categories)
 
     def _clear_seed_data(self):
         """Borra en orden seguro respetando PROTECT y FKs."""
@@ -202,7 +193,7 @@ class Command(BaseCommand):
             out[slug] = cat
         return out
 
-    def _seed_users(self, password: str) -> list[User]:
+    def _seed_users(self) -> list[User]:
         """18 usuarios vendedor/comprador con nombres en español."""
         names = [
             "María José Villamar",
@@ -234,8 +225,8 @@ class Command(BaseCommand):
                 email=email,
                 defaults={"first_name": first_name, "last_name": last_name},
             )
-            if created or not user.has_usable_password():
-                user.set_password(password)
+            if created or user.has_usable_password():
+                user.set_unusable_password()
                 user.save(update_fields=["password"])
             changed = False
             if user.first_name != first_name:
@@ -350,7 +341,6 @@ class Command(BaseCommand):
                 seller=seller,
                 category=cat,
                 status=Listing.Status.PUBLISHED,
-                is_active=True,
                 is_flagged=False,
             )
             if cat.slug == "autos":
@@ -617,7 +607,6 @@ class Command(BaseCommand):
         users: list[User],
         listings: list[Listing],
         categories: dict,
-        password_used: str,
     ) -> None:
         from apps.trust.services import seller_trust_bundle
 
@@ -639,7 +628,7 @@ class Command(BaseCommand):
         self.stdout.write(f"  Reseñas:         {n_reviews}")
         self.stdout.write(f"  Reportes:        {n_reports}")
         self.stdout.write(f"  Anuncios marcados: {n_flagged}")
-        self.stdout.write(f"  Contraseña:      {password_used}")
+        self.stdout.write("  Acceso:          OTP por correo (sin contraseña)")
         self.stdout.write(f"  Correo patrón:   vendedorXX@{SEED_EMAIL_DOMAIN}")
 
         self.stdout.write("\n  Muestra confianza por vendedor (etiqueta + score interno):")

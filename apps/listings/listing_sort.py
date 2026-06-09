@@ -18,6 +18,7 @@ RELEVANCE_ORDER: tuple[str, ...] = (
     "-has_active_featured",
     "-has_active_boost",
     "-boost_score",
+    "-is_featured",
     "-quality_score",
     "-created_at",
 )
@@ -63,7 +64,7 @@ def split_featured_block(
 
 
 def build_sort_template_extras(request: HttpRequest, *, current_sort: str) -> dict[str, Any]:
-    """current_sort, sort_options (href, label, css_class) para pills sin lógica en templates."""
+    """current_sort y sort_options (value, label, href, selected) para el desplegable de orden."""
     path = request.path
     base_params = request.GET.copy()
     base_params.pop("page", None)
@@ -82,10 +83,14 @@ def build_sort_template_extras(request: HttpRequest, *, current_sort: str) -> di
         qs_str = p.urlencode()
         href = f"{path}?{qs_str}" if qs_str else path
         active = value == current_sort
-        css_class = (
-            "browse-sort-pill browse-sort-pill--active" if active else "browse-sort-pill"
+        options.append(
+            {
+                "value": value,
+                "label": label,
+                "href": href,
+                "selected": active,
+            }
         )
-        options.append({"value": value, "label": label, "href": href, "css_class": css_class})
     return {
         "current_sort": current_sort,
         "sort_options": options,

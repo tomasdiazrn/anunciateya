@@ -31,11 +31,8 @@ class VehicleModel(models.Model):
         return f"{self.brand.name} {self.name}"
 class ListingQuerySet(models.QuerySet):
     def published(self):
-        """Listados públicos: publicado y activo (alineado con detalle y SEO)."""
-        return self.filter(
-            status=Listing.Status.PUBLISHED,
-            is_active=True,
-        )
+        """Listados públicos: el estado publicado es la única condición de visibilidad."""
+        return self.filter(status=Listing.Status.PUBLISHED)
 
 
 class Listing(models.Model):
@@ -52,7 +49,6 @@ class Listing(models.Model):
     price_amount = models.DecimalField(max_digits=12, decimal_places=2)
     currency = models.CharField(max_length=3, default="USD")
     location = models.CharField(max_length=200, blank=True)
-    is_active = models.BooleanField(default=True, db_index=True)
     seller = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -86,7 +82,10 @@ class Listing(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["slug"]),
-            models.Index(fields=["status", "is_active", "-created_at"]),
+            models.Index(
+                fields=["status", "-created_at"],
+                name="listing_status_created_idx",
+            ),
             models.Index(fields=["seller", "-created_at"]),
             models.Index(fields=["category", "-created_at"]),
         ]
@@ -444,6 +443,13 @@ class ListingImage(models.Model):
         related_name="images",
     )
     image = models.ImageField(upload_to="listings/%Y/%m/")
+    # Optimized variants (optional; original remains source of truth)
+    image_thumb = models.ImageField(upload_to="listings/%Y/%m/variants/", blank=True, null=True)
+    image_thumb_webp = models.ImageField(upload_to="listings/%Y/%m/variants/", blank=True, null=True)
+    image_medium = models.ImageField(upload_to="listings/%Y/%m/variants/", blank=True, null=True)
+    image_medium_webp = models.ImageField(upload_to="listings/%Y/%m/variants/", blank=True, null=True)
+    image_large = models.ImageField(upload_to="listings/%Y/%m/variants/", blank=True, null=True)
+    image_large_webp = models.ImageField(upload_to="listings/%Y/%m/variants/", blank=True, null=True)
     sort_order = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -1,7 +1,7 @@
 {# Reusable listing grid. Expects: listing_cards (engine DTOs), page_obj (paginación). #}
 <div class="listing-grid grid">
   {% for card in listing_cards %}
-    {% include card.template with card=card %}
+    {% include card.template with card=card card_idx=forloop.counter0 %}
   {% empty %}
     {% include "components/marketplace/empty_state.html" with title=empty_title description=empty_description cta_label=empty_cta_label cta_href=empty_cta_href cta_event=empty_cta_event cta_event_detail=empty_cta_event_detail %}
   {% endfor %}

@@ -21,10 +21,8 @@ if not ALLOWED_HOSTS:
     )
 
 MIDDLEWARE = list(_base_settings.MIDDLEWARE)
-MIDDLEWARE.insert(1, "apps.core.middleware.LandingOnlyMiddleware")
 MIDDLEWARE.append("apps.core.middleware.ContentSecurityPolicyMiddleware")
 
-LANDING_ONLY_ENABLED = config("LANDING_ONLY_ENABLED", default=False, cast=bool)
 RATELIMIT_ENABLE = True
 
 DATABASES = {
@@ -50,10 +48,8 @@ EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@anunciateya.com")
 
-# Redirects raros a https://127.0.0.1: suele ser SECURE_SSL_REDIRECT=True + petición HTTP
-# con Host=127.0.0.1 (curl directo a Gunicorn) o proxy sin X-Forwarded-Proto: https.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
+SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True

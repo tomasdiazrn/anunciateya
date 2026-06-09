@@ -1,7 +1,18 @@
+{% load marketplace %}
 {# Campo reutilizable: label vinculado por Django; errores con role=alert (accesibilidad). #}
 {# field_currency_prefix: solo UI ($) sin tocar valor ni backend #}
+{# Contador de caracteres: solo si hay límite (attrs maxlength o CharField.max_length). #}
 <div class="field{% if field_currency_prefix %} field--currency-prefix{% endif %}">
-  {{ field.label_tag }}
+  {% with char_max=field|field_maxlength %}
+  {% if char_max %}
+    <div class="field-header">
+      {{ field.label_tag }}
+      <span class="char-counter" aria-hidden="true">0 / {{ char_max }}</span>
+    </div>
+  {% else %}
+    {{ field.label_tag }}
+  {% endif %}
+  {% endwith %}
   {% if field_currency_prefix %}
     <div class="field__currency-wrap">
       <span class="field__currency-symbol" aria-hidden="true">$</span>

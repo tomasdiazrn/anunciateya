@@ -1,0 +1,32 @@
+{% url 'adminapp:newsletter_subscriber_toggle_active' subscriber.pk as subscriber_toggle_active_url %}
+<tr>
+  <td>{{ subscriber.created_at|date:"Y-m-d H:i" }}</td>
+  <td>{{ subscriber.email }}</td>
+  <td>
+    <div class="admin-status-control">
+      <button
+        type="button"
+        class="admin-status-toggle{% if subscriber.is_active %} admin-status-toggle--active{% endif %}"
+        role="switch"
+        aria-checked="{% if subscriber.is_active %}true{% else %}false{% endif %}"
+        hx-post="{{ subscriber_toggle_active_url }}"
+        hx-target="closest tr"
+        hx-swap="outerHTML"
+        {% if subscriber.is_active %}
+          hx-confirm="¿Desactivar suscriptor {{ subscriber.email }}? No recibirá comunicaciones del newsletter."
+          aria-label="Desactivar suscriptor {{ subscriber.email }}"
+          title="Desactivar suscriptor"
+        {% else %}
+          hx-confirm="¿Activar suscriptor {{ subscriber.email }}? Volverá a recibir comunicaciones del newsletter."
+          aria-label="Activar suscriptor {{ subscriber.email }}"
+          title="Activar suscriptor"
+        {% endif %}
+        hx-indicator="#admin-loading"
+      >
+        <span class="admin-status-toggle__track" aria-hidden="true">
+          <span class="admin-status-toggle__thumb"></span>
+        </span>
+      </button>
+    </div>
+  </td>
+</tr>

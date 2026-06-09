@@ -4,13 +4,15 @@
     method="post"
     class="stack-form"
     aria-label="Crear cuenta (Paso 1)"
+    novalidate
     hx-post="."
     hx-target="#register-container"
     hx-swap="outerHTML"
+    data-loading-submit
   >
     {% csrf_token %}
     <input type="hidden" name="step" value="1">
-    {% include "components/ui/form_non_field_errors.html" %}
+    {% include "components/ui/form_non_field_errors.html" with form=step1_form %}
 
     {% for field in step1_form %}
       {% if field.name == "first_name" %}
@@ -26,7 +28,7 @@
     {% endfor %}
 
     <div class="form-actions-row">
-      <button type="submit" class="button btn-primary auth-submit">Continuar</button>
+      <button type="submit" class="button btn-primary auth-submit" data-loading-text="Continuando...">Continuar</button>
     </div>
   </form>
 </div>

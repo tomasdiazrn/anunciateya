@@ -8,12 +8,18 @@
 
 html.admin-root {
   -webkit-text-size-adjust: 100%;
+  height: 100%;
 }
 
 body.admin-body {
   margin: 0;
+  height: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   font-family: var(--admin-font-family);
   font-size: var(--admin-font-size-base);
   line-height: var(--admin-line-height);
@@ -22,10 +28,11 @@ body.admin-body {
   background: var(--admin-bg);
 }
 
+/* Misma idea que .account-app-body: el shell ocupa el viewport y el scroll va al panel */
 .admin-layout {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
-  min-height: 100vh;
-  min-height: 100dvh;
   width: 100%;
   align-items: stretch;
 }
@@ -33,26 +40,23 @@ body.admin-body {
 .admin-layout__sidebar {
   flex: 0 0 auto;
   width: var(--admin-sidebar-width);
-  min-height: 100vh;
-  min-height: 100dvh;
   align-self: stretch;
-  border-right: 1px solid var(--admin-border);
+  min-height: 0;
+  border-right: 1px solid var(--admin-sidebar-border);
   background: var(--admin-sidebar-bg);
   display: flex;
   flex-direction: column;
   transition: width var(--admin-transition);
 }
 
-.admin-layout--sidebar-collapsed .admin-layout__sidebar {
-  width: var(--admin-sidebar-collapsed-width);
-}
-
 .admin-layout__main {
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  overflow: hidden;
+  background: var(--admin-bg);
 }
 
 .admin-topbar {
@@ -61,10 +65,17 @@ body.admin-body {
   display: flex;
   align-items: center;
   gap: var(--admin-space-3);
-  padding: 0 var(--admin-space-4);
+  padding: 0 var(--admin-content-padding-x);
   border-bottom: 1px solid var(--admin-border);
   background: var(--admin-bg-elevated);
-  box-shadow: 0 1px 0 rgba(255, 106, 0, 0.07);
+  box-shadow: 0 1px 0 var(--admin-primary-muted);
+}
+
+/* En escritorio el título de la vista va solo en el contenido (como Mi cuenta), no duplicar barra */
+@media (min-width: 768px) {
+  .admin-topbar {
+    display: none;
+  }
 }
 
 .admin-topbar__menu {
@@ -99,18 +110,27 @@ body.admin-body {
 
 .admin-flash {
   flex: 0 0 auto;
-  padding: var(--admin-space-4) var(--admin-space-5) 0;
-  max-width: var(--admin-content-max-width);
+  padding: var(--admin-space-3) var(--admin-content-padding-x) 0;
   width: 100%;
-  margin: 0 auto;
 }
 
 .admin-main {
   flex: 1 1 auto;
-  padding: var(--admin-space-6) var(--admin-space-5);
-  max-width: var(--admin-content-max-width);
+  min-height: 0;
+  padding: var(--admin-main-padding-y) var(--admin-content-padding-x);
+  padding-bottom: var(--admin-space-6);
   width: 100%;
-  margin: 0 auto;
+  max-width: var(--admin-content-max-width);
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-main:has(.admin-data-page) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .admin-visually-hidden {
@@ -129,25 +149,33 @@ body.admin-body {
   display: none;
 }
 
+/* Un bloque de título por vista (como Mi cuenta: un h1 y debajo el contenido) */
+.admin-page-header {
+  margin: 0 0 var(--admin-space-3);
+  flex: 0 0 auto;
+}
+
 .admin-page-title {
-  margin: 0 0 var(--admin-space-2);
-  font-size: var(--admin-font-size-xl);
+  margin: 0;
+  font-size: clamp(1.5rem, 2vw, 2rem);
   font-weight: var(--admin-font-weight-semibold);
   color: var(--admin-text);
+  letter-spacing: -0.02em;
 }
 
 .admin-page-lead {
-  margin: 0 0 var(--admin-space-6);
+  margin: 0;
   color: var(--admin-text-muted);
   font-size: var(--admin-font-size-sm);
+  line-height: 1.4;
 }
 
 .admin-card {
   background: var(--admin-surface);
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius);
-  padding: var(--admin-space-5);
-  margin-bottom: var(--admin-space-5);
+  padding: var(--admin-space-4);
+  margin-bottom: var(--admin-space-4);
 }
 
 .admin-card__title {
@@ -238,33 +266,5 @@ body.admin-body {
 
   .admin-backdrop[hidden] {
     display: none !important;
-  }
-
-  .admin-layout--sidebar-collapsed .admin-layout__sidebar {
-    width: min(var(--admin-sidebar-width), 88vw);
-  }
-}
-
-@media (min-width: 768px) {
-  .admin-layout--sidebar-collapsed .admin-sidebar__brand {
-    justify-content: center;
-  }
-
-  .admin-layout--sidebar-collapsed .admin-sidebar__brand-text,
-  .admin-layout--sidebar-collapsed .admin-nav__label,
-  .admin-layout--sidebar-collapsed .admin-sidebar__collapse-icon--open {
-    display: none;
-  }
-
-  .admin-layout--sidebar-collapsed .admin-sidebar__collapse-icon--closed {
-    display: block !important;
-  }
-
-  .admin-layout--sidebar-collapsed .admin-nav__link {
-    justify-content: center;
-  }
-
-  .admin-layout--sidebar-collapsed .admin-sidebar__footer {
-    align-items: center;
   }
 }

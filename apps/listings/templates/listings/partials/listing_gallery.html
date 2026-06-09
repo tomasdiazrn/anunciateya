@@ -1,3 +1,4 @@
+{% load marketplace %}
 {# Galería DTO-only: ListingDetailContext #}
 <section
   class="listing-gallery
@@ -30,32 +31,40 @@
   {% elif detail.gallery_mosaic %}
     <div class="listing-gallery__mosaic">
       <div class="listing-gallery__mosaic-hero">
-        <img
-          class="listing-gallery__mosaic-img"
-          src="{{ detail.gallery_mosaic_hero }}"
-          alt="{{ detail.gallery_image_alt }}"
-          loading="eager"
-          decoding="async"
-          width="1600"
-          height="1200"
-          data-gallery-idx="0"
-        >
+        <picture>
+          {% if detail.gallery_mosaic_hero_webp %}<source srcset="{{ detail.gallery_mosaic_hero_webp }}" type="image/webp">{% endif %}
+          <img
+            class="listing-gallery__mosaic-img"
+            src="{{ detail.gallery_mosaic_hero }}"
+            alt="{{ detail.gallery_image_alt }}"
+            loading="eager"
+            decoding="async"
+            width="1600"
+            height="1200"
+            data-gallery-idx="0"
+          >
+        </picture>
         <span class="listing-gallery__mosaic-count" aria-hidden="true"><i class="fa-solid fa-camera"></i> {{ detail.gallery_count }}</span>
       </div>
       <div class="listing-gallery__mosaic-grid">
         {% for cell in detail.gallery_mosaic_cells %}
           <div class="listing-gallery__mosaic-cell">
             {% if cell %}
-              <img
-                class="listing-gallery__mosaic-img listing-gallery__mosaic-img--tile"
-                src="{{ cell }}"
-                alt="{{ detail.gallery_image_alt }}"
-                loading="lazy"
-                decoding="async"
-                width="800"
-                height="600"
-                data-gallery-idx="{{ forloop.counter }}"
-              >
+              {% with webp=detail.gallery_mosaic_cells_webp|seq_get:forloop.counter0 %}
+                <picture>
+                  {% if webp %}<source srcset="{{ webp }}" type="image/webp">{% endif %}
+                  <img
+                    class="listing-gallery__mosaic-img listing-gallery__mosaic-img--tile"
+                    src="{{ cell }}"
+                    alt="{{ detail.gallery_image_alt }}"
+                    loading="lazy"
+                    decoding="async"
+                    width="800"
+                    height="600"
+                    data-gallery-idx="{{ forloop.counter }}"
+                  >
+                </picture>
+              {% endwith %}
             {% else %}
               <div class="listing-gallery__mosaic-ph" aria-hidden="true"><i class="fa-regular fa-image"></i></div>
             {% endif %}
@@ -74,16 +83,21 @@
       <div class="listing-gallery__scroller" data-gallery-scroll data-gallery-track>
         {% for url in detail.gallery_images %}
           <div class="listing-gallery__slide{% if forloop.first %} listing-gallery__slide--cover{% endif %}" id="listing-gallery-slide-{{ forloop.counter0 }}">
-            <img
-              class="listing-gallery__img"
-              src="{{ url }}"
-              alt="{{ detail.gallery_image_alt }}"
-              loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"
-              decoding="async"
-              width="1600"
-              height="1200"
-              data-gallery-idx="{{ forloop.counter0 }}"
-            >
+            {% with webp=detail.gallery_images_webp|seq_get:forloop.counter0 %}
+              <picture>
+                {% if webp %}<source srcset="{{ webp }}" type="image/webp">{% endif %}
+                <img
+                  class="listing-gallery__img"
+                  src="{{ url }}"
+                  alt="{{ detail.gallery_image_alt }}"
+                  loading="{% if forloop.counter0 < 2 %}eager{% else %}lazy{% endif %}"
+                  decoding="async"
+                  width="1600"
+                  height="1200"
+                  data-gallery-idx="{{ forloop.counter0 }}"
+                >
+              </picture>
+            {% endwith %}
           </div>
         {% endfor %}
       </div>
@@ -119,16 +133,21 @@
     <div class="listing-gallery__viewport">
       <div class="listing-gallery__scroller" data-gallery-scroll data-gallery-track>
         <div class="listing-gallery__slide listing-gallery__slide--cover" id="listing-gallery-slide-0">
-          <img
-            class="listing-gallery__img"
-            src="{{ detail.gallery_images.0 }}"
-            alt="{{ detail.gallery_image_alt }}"
-            loading="eager"
-            decoding="async"
-            width="1600"
-            height="1200"
-            data-gallery-idx="0"
-          >
+          {% with webp=detail.gallery_images_webp|seq_get:0 %}
+            <picture>
+              {% if webp %}<source srcset="{{ webp }}" type="image/webp">{% endif %}
+              <img
+                class="listing-gallery__img"
+                src="{{ detail.gallery_images.0 }}"
+                alt="{{ detail.gallery_image_alt }}"
+                loading="eager"
+                decoding="async"
+                width="1600"
+                height="1200"
+                data-gallery-idx="0"
+              >
+            </picture>
+          {% endwith %}
         </div>
       </div>
     </div>

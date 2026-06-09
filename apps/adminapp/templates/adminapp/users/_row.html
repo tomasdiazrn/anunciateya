@@ -1,0 +1,111 @@
+{% url 'adminapp:user_detail' user_obj.pk as user_detail_url %}
+{% url 'adminapp:user_delete' user_obj.pk as user_delete_url %}
+{% url 'adminapp:user_toggle_active' user_obj.pk as user_toggle_active_url %}
+<tr>
+  <td>{{ user_obj.date_joined|date:"Y-m-d H:i" }}</td>
+  <td>
+    <span class="admin-email-status">
+      <span>{{ user_obj.email }}</span>
+      {% if user_obj.is_staff or user_obj.is_superuser %}
+        <svg class="admin-inline-icon admin-role-icon admin-role-icon--admin" viewBox="0 0 24 24" title="Usuario admin" aria-hidden="true" focusable="false">
+          <path d="M12 3.25 18.75 6v5.25c0 4.5-2.75 7.25-6.75 9.5-4-2.25-6.75-5-6.75-9.5V6L12 3.25Z" />
+          <circle cx="12" cy="10.25" r="2.25" />
+          <path d="M8.75 16.25c.8-1.35 1.9-2 3.25-2s2.45.65 3.25 2" />
+        </svg>
+        <span class="admin-visually-hidden">Usuario admin</span>
+      {% endif %}
+    </span>
+  </td>
+  <td>{{ user_obj.public_name }}</td>
+  <td>
+    <span class="admin-phone-status">
+      {% if user_obj.verification.phone_number %}
+        <span>{{ user_obj.verification.phone_country_code }} {{ user_obj.verification.phone_number }}</span>
+      {% else %}
+        <span class="admin-text-muted">Sin teléfono</span>
+      {% endif %}
+      {% if user_obj.verification.phone_verified %}
+        <svg class="admin-inline-icon admin-verification-icon admin-verification-icon--verified" viewBox="0 0 24 24" title="Teléfono verificado" aria-hidden="true" focusable="false">
+          <path d="M6.75 4.75 9 4.25l2 4-1.35 1.1a10.5 10.5 0 0 0 5 5L15.75 13l4 2-.5 2.25c-.2.9-1 1.5-1.9 1.5C10.6 18.75 5.25 13.4 5.25 6.65c0-.9.6-1.7 1.5-1.9Z" />
+          <path d="m15.75 7.25 1.75 1.75 3.25-3.5" />
+        </svg>
+        <span class="admin-visually-hidden">Teléfono verificado</span>
+      {% endif %}
+    </span>
+  </td>
+  <td>
+    <div class="admin-status-control">
+      <button
+        type="button"
+        class="admin-status-toggle{% if user_obj.is_active %} admin-status-toggle--active{% endif %}"
+        role="switch"
+        aria-checked="{% if user_obj.is_active %}true{% else %}false{% endif %}"
+        hx-post="{{ user_toggle_active_url }}"
+        hx-target="closest tr"
+        hx-swap="outerHTML"
+        {% if user_obj.is_active %}
+          hx-confirm="¿Desactivar a {{ user_obj.public_name }}?{% if user_obj.active_listings_count %} Se ocultarán {{ user_obj.active_listings_count }} anuncio{{ user_obj.active_listings_count|pluralize }} activo{{ user_obj.active_listings_count|pluralize }} de este usuario.{% endif %}"
+          aria-label="Desactivar usuario {{ user_obj.public_name }}"
+          title="Desactivar usuario"
+        {% else %}
+          hx-confirm="¿Activar a {{ user_obj.public_name }}? Sus anuncios permanecerán con la visibilidad actual."
+          aria-label="Activar usuario {{ user_obj.public_name }}"
+          title="Activar usuario"
+        {% endif %}
+        hx-indicator="#admin-loading"
+      >
+        <span class="admin-status-toggle__track" aria-hidden="true">
+          <span class="admin-status-toggle__thumb"></span>
+        </span>
+      </button>
+      {% if action_error %}
+        <div class="admin-inline-error" role="alert">{{ action_error }}</div>
+      {% endif %}
+    </div>
+  </td>
+  <td>
+    {% if user_obj.last_login %}
+      {{ user_obj.last_login|date:"Y-m-d H:i" }}
+    {% else %}
+      <span class="admin-text-muted">Nunca</span>
+    {% endif %}
+  </td>
+  <td>{{ user_obj.listings_count|default:0 }}</td>
+  <td class="admin-table__cell--rich admin-table__cell--actions">
+    <div class="admin-actions">
+      <span class="admin-tooltip" data-tooltip="Eliminar">
+        <button
+          type="button"
+          class="admin-btn admin-btn--ghost admin-btn--danger admin-btn--icon"
+          hx-post="{{ user_delete_url }}"
+          hx-target="closest tr"
+          hx-swap="outerHTML"
+          hx-confirm="¿Estás seguro de eliminar a {{ user_obj.public_name }}?{% if user_obj.active_listings_count %} Tiene {{ user_obj.active_listings_count }} anuncio{{ user_obj.active_listings_count|pluralize }} activo{{ user_obj.active_listings_count|pluralize }} asociado{{ user_obj.active_listings_count|pluralize }}.{% endif %}"
+          hx-indicator="#admin-loading"
+          aria-label="Eliminar usuario {{ user_obj.public_name }}"
+        >
+          <svg class="admin-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9.25 4.75h5.5m-8.5 4h11.5m-10.5 0 .75 10.5h8l.75-10.5M10.75 11.5v4.75m2.5-4.75v4.75" />
+          </svg>
+        </button>
+      </span>
+      <span class="admin-tooltip" data-tooltip="Ver">
+        <a
+          class="admin-btn admin-btn--ghost admin-btn--icon"
+          href="{{ user_detail_url }}"
+          hx-get="{{ user_detail_url }}"
+          hx-target="#admin-main-content"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          hx-indicator="#admin-loading"
+          aria-label="Ver usuario {{ user_obj.public_name }}"
+        >
+          <svg class="admin-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="10.75" cy="10.75" r="5.75" />
+            <path d="m15.25 15.25 4.5 4.5" />
+          </svg>
+        </a>
+      </span>
+    </div>
+  </td>
+</tr>

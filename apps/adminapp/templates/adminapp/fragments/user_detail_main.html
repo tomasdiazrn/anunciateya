@@ -1,0 +1,50 @@
+<div class="admin-page-header">
+  <p class="admin-back-nav">
+    <a
+      href="{% url 'adminapp:users' %}"
+      hx-get="{% url 'adminapp:users' %}"
+      hx-target="#admin-main-content"
+      hx-push-url="true"
+      hx-swap="innerHTML"
+      hx-indicator="#admin-loading"
+      class="admin-link-back"
+    >← Usuarios</a>
+  </p>
+  <h2 class="admin-page-title">{{ user_obj.email }}</h2>
+</div>
+<div class="admin-card">
+  <h3 class="admin-card__title">Datos</h3>
+  <dl class="admin-dl">
+    <dt>ID</dt><dd>{{ user_obj.pk }}</dd>
+    <dt>Nombre</dt><dd>{{ user_obj.public_name }}</dd>
+    <dt>Teléfono</dt>
+    <dd>
+      {% if user_obj.verification.phone_number %}
+        {{ user_obj.verification.phone_country_code }} {{ user_obj.verification.phone_number }}
+      {% else %}
+        <span class="admin-text-muted">Sin teléfono</span>
+      {% endif %}
+    </dd>
+    <dt>Teléfono verificado</dt>
+    <dd>
+      {% if user_obj.verification.phone_verified %}
+        <span class="admin-verification-status">
+          <svg class="admin-inline-icon admin-verification-icon admin-verification-icon--verified" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6.75 4.75 9 4.25l2 4-1.35 1.1a10.5 10.5 0 0 0 5 5L15.75 13l4 2-.5 2.25c-.2.9-1 1.5-1.9 1.5C10.6 18.75 5.25 13.4 5.25 6.65c0-.9.6-1.7 1.5-1.9Z" />
+            <path d="m15.75 7.25 1.75 1.75 3.25-3.5" />
+          </svg>
+          Sí
+        </span>
+      {% else %}
+        No
+      {% endif %}
+    </dd>
+    <dt>Registro</dt><dd>{{ user_obj.date_joined|date:"Y-m-d H:i" }}</dd>
+    {% if listings_count is not None %}
+      <dt>Anuncios</dt><dd>{{ listings_count }}</dd>
+    {% endif %}
+  </dl>
+  <div class="admin-card__actions">
+    {% include "adminapp/components/button.html" with label="Ver perfil público" variant="secondary" url=user_obj.get_absolute_url only %}
+  </div>
+</div>

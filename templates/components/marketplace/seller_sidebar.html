@@ -2,7 +2,7 @@
 <aside class="card seller-box" id="listing-sidebar" aria-label="Información del vendedor">
   <h2 class="h-aside">Vendedor</h2>
   <p class="seller-name">
-    <a href="{{ listing.seller.get_absolute_url }}">{{ listing.seller.get_full_name|default:listing.seller.email }}</a>
+    <a href="{{ listing.seller.get_absolute_url }}">{{ listing.seller.get_full_name|default:"Vendedor" }}</a>
   </p>
 
   <p class="seller-activity-badge small muted">Última actividad: hoy</p>

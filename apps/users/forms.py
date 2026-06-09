@@ -2,30 +2,13 @@ import re
 
 from django import forms
 from django.utils.safestring import mark_safe
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.forms import PasswordChangeForm as DjangoPasswordChangeForm
 from django.contrib.auth.forms import UserChangeForm as DjangoUserChangeForm
-from django.contrib.auth.forms import UserCreationForm as DjangoUserCreationForm
 from django.contrib.auth import get_user_model
-from django.contrib.auth import password_validation
 
-from .models import User
-
-
-class EmailAuthenticationForm(AuthenticationForm):
-    def __init__(self, request=None, *args, **kwargs):
-        super().__init__(request, *args, **kwargs)
-        self.fields["username"].label = "Correo electrónico"
-        self.fields["username"].widget = forms.EmailInput(
-            attrs={"class": "form-control", "autocomplete": "email", "autofocus": True}
-        )
-        self.fields["password"].widget.attrs.setdefault("class", "form-control")
-        self.fields["password"].widget.attrs.setdefault(
-            "autocomplete", "current-password"
-        )
+from .models import USER_EMAIL_MAX_LENGTH, USER_NAME_MAX_LENGTH, User
 
 
-class UserCreationForm(DjangoUserCreationForm):
+class UserCreationForm(forms.ModelForm):
     phone_country_code = forms.CharField(
         label="Teléfono",
         max_length=8,
@@ -70,35 +53,27 @@ class UserCreationForm(DjangoUserCreationForm):
                 attrs={
                     "class": "form-control",
                     "autocomplete": "email",
+                    "maxlength": USER_EMAIL_MAX_LENGTH,
                 }
             ),
             "first_name": forms.TextInput(
                 attrs={
                     "class": "form-control",
                     "autocomplete": "given-name",
+                    "maxlength": USER_NAME_MAX_LENGTH,
                 }
             ),
             "last_name": forms.TextInput(
                 attrs={
                     "class": "form-control",
                     "autocomplete": "family-name",
+                    "maxlength": USER_NAME_MAX_LENGTH,
                 }
             ),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for name in ("password1", "password2"):
-            self.fields[name].widget.attrs.setdefault("class", "form-control")
-            self.fields[name].widget.attrs.setdefault("autocomplete", "new-password")
-
-        # Spanish labels + compact, friendly help text (avoid long default bullet list).
-        self.fields["password1"].label = "Contraseña"
-        self.fields["password2"].label = "Confirmar contraseña"
-        self.fields["password1"].help_text = "Mínimo 8 caracteres."
-        self.fields["password2"].help_text = "Repite tu contraseña para confirmar."
-
-        # Put phone right before password, checkbox at the end.
         self.order_fields(
             [
                 "email",
@@ -106,8 +81,6 @@ class UserCreationForm(DjangoUserCreationForm):
                 "last_name",
                 "phone_country_code",
                 "phone_number",
-                "password1",
-                "password2",
                 "accept_terms",
             ]
         )
@@ -133,23 +106,56 @@ class UserCreationForm(DjangoUserCreationForm):
             raise forms.ValidationError("Introduce un teléfono válido (7 a 15 dígitos).")
         return digits
 
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip().lower()
+        UserModel = get_user_model()
+        if UserModel.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("Ya existe una cuenta con ese correo electrónico.")
+        return email
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = (user.email or "").strip().lower()
+        user.set_unusable_password()
+        if commit:
+            user.save()
+        return user
+
 
 class RegisterStepOneForm(forms.Form):
     email = forms.EmailField(
         label="Correo electrónico",
+        max_length=USER_EMAIL_MAX_LENGTH,
         widget=forms.EmailInput(
-            attrs={"class": "form-control", "autocomplete": "email", "autofocus": True}
+            attrs={
+                "class": "form-control",
+                "autocomplete": "email",
+                "autofocus": True,
+                "maxlength": USER_EMAIL_MAX_LENGTH,
+            }
         ),
     )
     first_name = forms.CharField(
         label="Nombre",
-        max_length=150,
-        widget=forms.TextInput(attrs={"class": "form-control", "autocomplete": "given-name"}),
+        max_length=USER_NAME_MAX_LENGTH,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "autocomplete": "given-name",
+                "maxlength": USER_NAME_MAX_LENGTH,
+            }
+        ),
     )
     last_name = forms.CharField(
         label="Apellido",
-        max_length=150,
-        widget=forms.TextInput(attrs={"class": "form-control", "autocomplete": "family-name"}),
+        max_length=USER_NAME_MAX_LENGTH,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "autocomplete": "family-name",
+                "maxlength": USER_NAME_MAX_LENGTH,
+            }
+        ),
     )
 
     def clean_email(self):
@@ -181,24 +187,6 @@ class RegisterStepTwoForm(forms.Form):
             }
         ),
     )
-    password1 = forms.CharField(
-        label="Contraseña",
-        strip=False,
-        widget=forms.PasswordInput(
-            attrs={"class": "form-control", "autocomplete": "new-password"},
-            render_value=False,
-        ),
-        help_text="Mínimo 8 caracteres.",
-    )
-    password2 = forms.CharField(
-        label="Confirmar contraseña",
-        strip=False,
-        widget=forms.PasswordInput(
-            attrs={"class": "form-control", "autocomplete": "new-password"},
-            render_value=False,
-        ),
-        help_text="Repite tu contraseña para confirmar.",
-    )
     accept_terms = forms.BooleanField(
         required=True,
         label=mark_safe(
@@ -208,6 +196,10 @@ class RegisterStepTwoForm(forms.Form):
             "required": "Debes aceptar los Términos & Condiciones para continuar.",
         },
     )
+
+    def __init__(self, *args, profile=None, **kwargs):
+        self._profile = profile or {}
+        super().__init__(*args, **kwargs)
 
     def clean_phone_country_code(self):
         raw = (self.cleaned_data.get("phone_country_code") or "").strip()
@@ -229,32 +221,6 @@ class RegisterStepTwoForm(forms.Form):
         if not (7 <= len(digits) <= 15):
             raise forms.ValidationError("Introduce un teléfono válido (7 a 15 dígitos).")
         return digits
-
-    def clean(self):
-        cleaned = super().clean()
-        p1 = cleaned.get("password1") or ""
-        p2 = cleaned.get("password2") or ""
-        if p1 and p2 and p1 != p2:
-            self.add_error("password2", "Las contraseñas no coinciden.")
-            return cleaned
-        if p1:
-            password_validation.validate_password(p1)
-        return cleaned
-
-
-class AccountPasswordChangeForm(DjangoPasswordChangeForm):
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(user, *args, **kwargs)
-        for name in ("old_password", "new_password1", "new_password2"):
-            self.fields[name].widget.attrs.setdefault("class", "form-control")
-        self.fields["old_password"].label = "Contraseña actual"
-        self.fields["old_password"].widget.attrs.setdefault("autocomplete", "current-password")
-        self.fields["new_password1"].label = "Nueva contraseña"
-        self.fields["new_password2"].label = "Confirmar nueva contraseña"
-        self.fields["new_password1"].help_text = "Mínimo 8 caracteres."
-        self.fields["new_password2"].help_text = ""
-        self.fields["new_password1"].widget.attrs.setdefault("autocomplete", "new-password")
-        self.fields["new_password2"].widget.attrs.setdefault("autocomplete", "new-password")
 
 
 class UserChangeForm(DjangoUserChangeForm):

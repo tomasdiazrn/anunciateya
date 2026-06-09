@@ -1,0 +1,20 @@
+{% extends "emails/base.html" %}
+
+{% block email_title %}Código de ingreso | {{ seo_brand_name }}{% endblock %}
+{% block preheader %}Tu código de ingreso a {{ seo_brand_name }} vence en {{ expires_in_minutes }} minutos.{% endblock %}
+
+{% block heading %}Código de ingreso{% endblock %}
+
+{% block content %}
+  <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#36414e;">
+    Usa este código para ingresar a tu cuenta. Por seguridad, no lo compartas con nadie.
+  </p>
+  <div style="margin:0 0 18px;padding:18px 16px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;text-align:center;">
+    <p style="margin:0;font-size:34px;line-height:1;font-weight:700;letter-spacing:0.22em;color:#04211f;">
+      {{ code }}
+    </p>
+  </div>
+  <p style="margin:0;font-size:14px;line-height:1.6;color:#36414e;">
+    Este código vence en {{ expires_in_minutes }} minutos. Si no solicitaste este acceso, puedes ignorar este mensaje.
+  </p>
+{% endblock %}

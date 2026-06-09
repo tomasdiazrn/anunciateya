@@ -1,45 +1,162 @@
-<h2 class="admin-page-title">Admin Panel</h2>
-<p class="admin-page-lead">Vista inicial del panel. Los estilos están aislados bajo <span class="admin-code">static/adminapp/</span>.</p>
+<div class="admin-page-header">
+  <h2 class="admin-page-title">Admin Panel</h2>
+</div>
 
-<section class="admin-card" aria-labelledby="admin-demo-components">
-  <h3 id="admin-demo-components" class="admin-card__title">Componentes base</h3>
-  <p class="admin-card__lede">Ejemplos reutilizables (tabla vacía, búsqueda, badge, botón).</p>
-  <div class="admin-demo-toolbar">
-    {% include "adminapp/components/badge.html" with label="Panel" variant="primary" only %}
-    {% include "adminapp/components/badge.html" with label="OK" variant="success" only %}
-    {% include "adminapp/components/badge.html" with label="Neutral" only %}
-    {% include "adminapp/components/button.html" with label="Secundario" variant="secondary" url="#" only %}
-    {% include "adminapp/components/button.html" with label="Primario" variant="primary" url="#" only %}
-  </div>
-  <div class="admin-demo-narrow">
-    {% include "adminapp/components/search_input.html" with name="demo_q" placeholder="Buscar en el admin…" only %}
-  </div>
-  {% include "adminapp/components/table.html" with headers=admin_demo_table_headers rows=admin_demo_table_rows empty_text="Sin datos todavía." only %}
+<section class="admin-dashboard-grid admin-dashboard-grid--primary" aria-label="KPIs principales">
+  {% for card in dashboard_primary_cards %}
+    <article class="admin-kpi-card admin-kpi-card--{{ card.variant }}">
+      <span class="admin-kpi-card__label">{{ card.label }}</span>
+      <strong class="admin-kpi-card__value">{{ card.value }}</strong>
+      <span class="admin-kpi-card__meta">{{ card.meta }}</span>
+      {% include "adminapp/components/button.html" with label="Gestionar" variant="secondary" url=card.url hx_get=card.url hx_push_url=1 hx_indicator="#admin-loading" only %}
+    </article>
+  {% endfor %}
 </section>
 
-<section class="admin-card" aria-labelledby="admin-waitlist-heading">
-  <h3 id="admin-waitlist-heading" class="admin-card__title">Lista de espera (próximamente)</h3>
-  <p class="admin-card__lede">
-    Inscripciones desde <span class="admin-code">/proximamente/</span>.
-    Total: <strong>{{ waitlist_total }}</strong>
-  </p>
-  <form class="admin-demo-toolbar" method="get" action="{% url 'adminapp:dashboard' %}" role="search">
-    <label class="admin-visually-hidden" for="admin-waitlist-q">Buscar por correo</label>
-    <div class="admin-search">
-      <input
-        id="admin-waitlist-q"
-        class="admin-search__input"
-        type="search"
-        name="q"
-        value="{{ waitlist_q }}"
-        placeholder="Buscar por correo…"
-        autocomplete="off"
-      >
+<section class="admin-dashboard-grid admin-dashboard-grid--secondary" aria-label="Métricas de salud">
+  {% for card in dashboard_secondary_cards %}
+    <article class="admin-metric-card">
+      <span class="admin-metric-card__label">{{ card.label }}</span>
+      <strong class="admin-metric-card__value">{{ card.value }}</strong>
+      <span class="admin-metric-card__meta">{{ card.meta }}</span>
+    </article>
+  {% endfor %}
+</section>
+
+<section class="admin-card" aria-labelledby="admin-attention-heading">
+  <div class="admin-section-heading">
+    <div>
+      <h3 id="admin-attention-heading" class="admin-card__title">Requieren atención</h3>
+      <p class="admin-card__lede">Anuncios reportados, sin imágenes o con calidad baja.</p>
     </div>
-    <button type="submit" class="admin-btn admin-btn--primary">Buscar</button>
-    {% if waitlist_q %}
-      <a class="admin-btn admin-btn--secondary" href="{% url 'adminapp:dashboard' %}">Limpiar</a>
-    {% endif %}
-  </form>
-  {% include "adminapp/components/table.html" with headers=waitlist_headers rows=waitlist_rows empty_text="Sin inscripciones todavía." only %}
+    {% include "adminapp/components/button.html" with label="Ver anuncios" variant="secondary" url=listings_url hx_get=listings_url hx_push_url=1 hx_indicator="#admin-loading" only %}
+  </div>
+
+  <div class="admin-table-wrap">
+    <table class="admin-table" role="grid">
+      <thead>
+        <tr>
+          <th scope="col">Anuncio</th>
+          <th scope="col">Motivo</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Calidad</th>
+          <th scope="col">Actualización</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for listing in attention_listings %}
+          {% url 'adminapp:listing_detail' listing.pk as listing_detail_url %}
+          <tr>
+            <td>
+              <a
+                class="admin-table__title-link"
+                href="{{ listing_detail_url }}"
+                hx-get="{{ listing_detail_url }}"
+                hx-target="#admin-main-content"
+                hx-swap="innerHTML"
+                hx-push-url="true"
+                hx-indicator="#admin-loading"
+              >{{ listing.title|truncatechars:42 }}</a>
+              <div class="admin-table__subtext">{{ listing.seller.email }}</div>
+            </td>
+            <td>
+              <div class="admin-badge-list">
+                {% if listing.is_flagged %}
+                  <span class="admin-badge admin-badge--danger">Reportado</span>
+                {% endif %}
+                {% if not listing.has_images %}
+                  <span class="admin-badge admin-badge--warning">Sin imágenes</span>
+                {% endif %}
+                {% if listing.quality_score < low_quality_threshold %}
+                  <span class="admin-badge">Baja calidad</span>
+                {% endif %}
+              </div>
+            </td>
+            <td>{{ listing.get_status_display }}</td>
+            <td>{{ listing.quality_score|floatformat:1 }}</td>
+            <td>{{ listing.updated_at|date:"Y-m-d H:i" }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td class="admin-table__empty" colspan="5">
+              <div class="admin-empty">
+                <p class="admin-empty__text">No hay anuncios que requieran atención.</p>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="admin-activity-grid" aria-label="Actividad reciente">
+  <article class="admin-card admin-activity-card">
+    <h3 class="admin-card__title">Últimos usuarios</h3>
+    <ul class="admin-activity-list">
+      {% for user_obj in recent_users %}
+        {% url 'adminapp:user_detail' user_obj.pk as user_detail_url %}
+        <li class="admin-activity-list__item">
+          <a
+            class="admin-activity-list__title"
+            href="{{ user_detail_url }}"
+            hx-get="{{ user_detail_url }}"
+            hx-target="#admin-main-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            hx-indicator="#admin-loading"
+          >{{ user_obj.public_name }}</a>
+          <span class="admin-activity-list__meta">{{ user_obj.date_joined|date:"Y-m-d H:i" }}</span>
+        </li>
+      {% empty %}
+        <li class="admin-activity-list__empty">Sin usuarios todavía.</li>
+      {% endfor %}
+    </ul>
+  </article>
+
+  <article class="admin-card admin-activity-card">
+    <h3 class="admin-card__title">Últimos anuncios</h3>
+    <ul class="admin-activity-list">
+      {% for listing in recent_listings %}
+        {% url 'adminapp:listing_detail' listing.pk as listing_detail_url %}
+        <li class="admin-activity-list__item">
+          <a
+            class="admin-activity-list__title"
+            href="{{ listing_detail_url }}"
+            hx-get="{{ listing_detail_url }}"
+            hx-target="#admin-main-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            hx-indicator="#admin-loading"
+          >{{ listing.title|truncatechars:38 }}</a>
+          <span class="admin-activity-list__meta">{{ listing.created_at|date:"Y-m-d H:i" }} · {{ listing.get_status_display }}</span>
+        </li>
+      {% empty %}
+        <li class="admin-activity-list__empty">Sin anuncios todavía.</li>
+      {% endfor %}
+    </ul>
+  </article>
+
+  <article class="admin-card admin-activity-card">
+    <h3 class="admin-card__title">Últimos reportes</h3>
+    <ul class="admin-activity-list">
+      {% for report in recent_reports %}
+        {% url 'adminapp:listing_detail' report.listing.pk as listing_detail_url %}
+        <li class="admin-activity-list__item">
+          <a
+            class="admin-activity-list__title"
+            href="{{ listing_detail_url }}"
+            hx-get="{{ listing_detail_url }}"
+            hx-target="#admin-main-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            hx-indicator="#admin-loading"
+          >{{ report.listing.title|truncatechars:38 }}</a>
+          <span class="admin-activity-list__meta">{{ report.get_reason_display }} · {{ report.created_at|date:"Y-m-d H:i" }}</span>
+        </li>
+      {% empty %}
+        <li class="admin-activity-list__empty">Sin reportes todavía.</li>
+      {% endfor %}
+    </ul>
+  </article>
 </section>

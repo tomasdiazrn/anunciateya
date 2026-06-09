@@ -1,18 +1,56 @@
 {% load static %}
 <header class="site-header">
   <div class="container header-inner">
-    <a class="logo brand-lockup" href="{% url 'core:home' %}" aria-label="{{ site_name }}">
-      <img class="site-logo" src="{% static 'img/AnunciateYa_Logo.png' %}" alt="{{ site_name }}">
-      <span class="site-title" aria-hidden="true">{{ seo_brand_name }}</span>
+    <a class="logo brand-lockup" href="{% url 'root_home' %}" aria-label="{{ site_name }}">
+      <img class="site-logo site-logo--default" src="{% static brand_logo %}" alt="{{ site_name }}">
+      <img class="site-logo site-logo--white" src="{% static brand_logo_white %}" alt="" aria-hidden="true">
     </a>
-    <nav class="nav-links" aria-label="Navegación principal">
+    <a
+      class="button btn-primary nav-publish-mobile"
+      href="/publicar/"
+      aria-label="Publicar anuncio"
+      data-event="click_publish"
+      data-event-detail="mobile_nav"
+    >Publicar</a>
+    <button
+      class="nav-menu-toggle"
+      type="button"
+      aria-expanded="false"
+      aria-controls="site-nav-links"
+      data-nav-menu-toggle
+    >
+      <span class="visually-hidden">Abrir menú</span>
+      <span class="nav-menu-toggle__bar" aria-hidden="true"></span>
+      <span class="nav-menu-toggle__bar" aria-hidden="true"></span>
+      <span class="nav-menu-toggle__bar" aria-hidden="true"></span>
+    </button>
+    <nav class="nav-links" id="site-nav-links" aria-label="Navegación principal" data-nav-menu>
       <div class="nav-links__primary" aria-label="Secciones">
-        <a href="{% url 'browse' %}">Anuncios</a>
+        <a class="nav-menu-link nav-menu-link--featured" href="{% url 'browse' %}">
+          <span>Anuncios</span>
+          <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
+        </a>
       </div>
+
+      {% if footer_nav_categories %}
+        <div class="nav-links__categories" aria-labelledby="nav-categories-heading">
+          <span class="nav-mobile-section-title" id="nav-categories-heading">Categorías</span>
+          <div class="nav-category-grid">
+            {% for category in footer_nav_categories|slice:":6" %}
+              <a
+                class="nav-category-link"
+                href="{{ category.get_absolute_url }}"
+                data-event="category_click"
+                data-event-detail="{{ category.slug }}"
+              >{{ category.name }}</a>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
 
       <div class="nav-links__cta" aria-label="Acciones">
         {% if request.user.is_authenticated %}
-          <a class="button btn-secondary nav-publish" href="/publicar/" data-event="click_publish" data-event-detail="nav">Publicar anuncio</a>
+          <a class="button btn-primary nav-publish" href="/publicar/" data-event="click_publish" data-event-detail="nav">Publicar anuncio</a>
           <a class="nav-icon-button" href="{% url 'users:account' %}" aria-label="Mi cuenta">
             <i class="fa-solid fa-user" aria-hidden="true"></i>
           </a>
@@ -23,8 +61,8 @@
             </button>
           </form>
         {% else %}
-          <a class="button btn-secondary nav-publish" href="/publicar/" data-event="click_publish" data-event-detail="nav">Publicar anuncio</a>
-          <a class="button btn-primary nav-login" href="{% url 'users:login' %}">Iniciar sesión</a>
+          <a class="button btn-primary nav-publish" href="/publicar/" data-event="click_publish" data-event-detail="nav">Publicar anuncio</a>
+          <a class="button btn-secondary nav-login" href="{% url 'users:login' %}">Iniciar sesión</a>
         {% endif %}
       </div>
     </nav>

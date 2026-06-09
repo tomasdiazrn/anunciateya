@@ -34,12 +34,6 @@
     <section class="account-overview__section card" aria-labelledby="overview-security-heading">
       <h2 id="overview-security-heading" class="account-overview__section-title">Seguridad</h2>
       <ul class="account-overview__actions">
-        <li>
-          <a href="{% url 'users:password_change' %}">
-            <i class="fa-solid fa-key" aria-hidden="true"></i>
-            Cambiar contraseña
-          </a>
-        </li>
         {% if not phone_verified %}
           <li>
             <a href="{% url 'users:verify_phone' %}">
@@ -124,7 +118,6 @@
                   <tr>
                     <th scope="col" class="account-data-table__col-anuncio">Anuncio</th>
                     <th scope="col">Estado</th>
-                    <th scope="col">Visible</th>
                     <th scope="col">Actualizado</th>
                     <th scope="col" class="account-data-table__col-actions">Acciones</th>
                   </tr>
@@ -147,7 +140,6 @@
                         </a>
                       </td>
                       <td class="account-data-table__muted">{{ listing.get_status_display }}</td>
-                      <td class="account-data-table__muted">{% if listing.is_active %}Sí{% else %}No{% endif %}</td>
                       <td class="account-data-table__muted account-data-table__date">{{ listing.updated_at|date:"d/m/Y H:i" }}</td>
                       <td class="account-data-table__actions">
                         <a
@@ -236,8 +228,9 @@
           method="post"
           action="{{ form_action_url }}"
           enctype="multipart/form-data"
-          class="stack-form listing-form account-listing-form"
+          class="stack-form listing-form listing-editor account-listing-form"
           aria-label="Formulario de anuncio"
+          novalidate
         >
           {% csrf_token %}
           <div class="listing-editor__grid">
@@ -284,8 +277,9 @@
         method="post"
         action="{{ form_action_url }}"
         enctype="multipart/form-data"
-        class="stack-form listing-form account-listing-form"
+        class="stack-form listing-form listing-editor account-listing-form"
         aria-label="Editar anuncio"
+        novalidate
       >
         {% csrf_token %}
         <div class="listing-editor__grid">

@@ -1,0 +1,110 @@
+.legal-page {
+  padding-block: var(--space-2) var(--space-4);
+}
+
+.legal-hero {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at top right, var(--color-primary-soft), transparent 34%),
+    var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.legal-hero__eyebrow {
+  margin: 0 0 var(--space-1);
+  color: var(--color-primary-hover);
+  font: var(--font-label);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.legal-hero__title {
+  max-width: 48rem;
+  margin-bottom: var(--space-2);
+}
+
+.legal-hero__intro {
+  max-width: 50rem;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: clamp(1rem, 1.8vw, 1.125rem);
+}
+
+.legal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 16rem) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.legal-sidebar {
+  position: sticky;
+  top: calc(64px + var(--space-3));
+  display: grid;
+  gap: var(--space-2);
+}
+
+.legal-sidebar__card {
+  display: grid;
+  gap: 0.25rem;
+  padding: var(--card-padding);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.legal-sidebar__label {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+
+.legal-content {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 52rem;
+}
+
+.legal-section {
+  padding: var(--card-padding);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.legal-section > :last-child {
+  margin-bottom: 0;
+}
+
+.legal-section p {
+  margin-top: 0;
+  color: var(--color-muted);
+}
+
+.legal-section ul {
+  margin: 0 0 var(--space-2);
+  padding-left: 1.25rem;
+  color: var(--color-muted);
+}
+
+.legal-section li + li {
+  margin-top: 0.35rem;
+}
+
+@media (max-width: 899px) {
+  .legal-layout {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+
+  .legal-sidebar {
+    position: static;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  }
+}
