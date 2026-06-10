@@ -9,6 +9,12 @@ urlpatterns = [
     path("logout/", views.admin_logout_view, name="logout"),
     path("", views.dashboard_view, name="dashboard"),
     path("hosting/", views.hosting_view, name="hosting"),
+    path("anuncios/publicar/", views.admin_listing_publish_view, name="listing_publish"),
+    path(
+        "anuncios/publicar/<slug:category_slug>/",
+        views.admin_listing_publish_in_category_view,
+        name="listing_publish_in_category",
+    ),
     path("anuncios/", views.admin_listings_view, name="listings"),
     path("anuncios/<int:pk>/", views.admin_listing_detail_view, name="listing_detail"),
     path(

@@ -167,6 +167,7 @@ class CategoryEngineContractTests(TestCase):
             self.assertFalse(card.is_promoted_featured)
             self.assertFalse(card.is_promoted_boost)
             self.assertEqual(card.listing_id, listing.pk)
+            self.assertIsInstance(card.publisher_label, str)
 
     def test_category_hub_seo_bundle_canonical_absolute(self) -> None:
         rf = RequestFactory()

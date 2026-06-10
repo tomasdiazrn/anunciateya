@@ -87,6 +87,15 @@ def _is_listing_public(listing):
     return listing.status == Listing.Status.PUBLISHED
 
 
+def _is_admin_user(user) -> bool:
+    return user.is_staff or user.is_superuser
+
+
+def _admin_panel_redirect(request):
+    messages.info(request, "Los administradores deben usar el panel de administración.")
+    return redirect("adminapp:dashboard")
+
+
 def _render_listing_not_found(request):
     brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
     return render(
@@ -515,15 +524,28 @@ def _publish_meta_description(category: Category, category_slug: str) -> str:
     )
 
 
-def _commit_base_listing(base_form, user, category) -> Listing:
+def _commit_base_listing(
+    base_form,
+    user,
+    category,
+    *,
+    published_by_platform: bool = False,
+) -> Listing:
     listing = base_form.save(commit=False)
     listing.seller = user
     listing.category = category
+    listing.published_by_platform = published_by_platform
     listing.status = base_form.cleaned_data.get("publish_state") or Listing.Status.PUBLISHED
     if not listing.currency:
         listing.currency = "USD"
     listing.save()
     return listing
+
+
+def _created_listing_redirect(listing, *, admin_dashboard: bool):
+    if admin_dashboard:
+        return redirect("adminapp:listing_detail", pk=listing.pk)
+    return redirect(listing)
 
 
 def _account_dashboard_extra_context(request, **overrides):
@@ -566,7 +588,28 @@ def _render_listing_edit_response(request, ctx: dict, *, account_dashboard: bool
     return render(request, "users/account_dashboard.html", merged)
 
 
-def _render_publish_response(request, template_name, context, *, account_dashboard: bool):
+def _render_publish_response(
+    request,
+    template_name,
+    context,
+    *,
+    account_dashboard: bool,
+    admin_dashboard: bool = False,
+):
+    if admin_dashboard:
+        admin_context = {
+            **context,
+            "admin_section": "listings",
+            "admin_page_title": context.get("heading") or "Publicar anuncio",
+            "listings_clear_url": reverse("adminapp:listings"),
+            "publish_admin": True,
+        }
+        template = (
+            "adminapp/fragments/listing_publish_main.html"
+            if getattr(request, "htmx", False)
+            else "adminapp/listings/publish.html"
+        )
+        return render(request, template, admin_context)
     if not account_dashboard:
         return render(request, template_name, context)
     merged = {**_account_dashboard_extra_context(request), **context}
@@ -576,47 +619,71 @@ def _render_publish_response(request, template_name, context, *, account_dashboa
     return render(request, "users/account_dashboard.html", merged)
 
 
-def create_listing_base(request, account_dashboard: bool = False):
+def create_listing_base(
+    request,
+    account_dashboard: bool = False,
+    admin_dashboard: bool = False,
+):
     """Selector: todas las categorías raíz desde BD (sin hardcode en plantillas)."""
+    if _is_admin_user(request.user) and not admin_dashboard:
+        return _admin_panel_redirect(request)
+
     brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
+    heading = "Publicar anuncio"
+    if admin_dashboard:
+        heading = f"Publicar anuncio de {brand}"
     ctx = {
         "meta_title": f"Publicar anuncio | {brand}",
         "meta_description": (
             "Elegí una categoría y completá tu anuncio con fotos y precio. "
             "Algunas categorías incluyen campos extra para describir mejor tu producto."
         ),
-        "heading": "Publicar anuncio",
+        "heading": heading,
         "publish_categories": root_categories(),
         "publish_mode": "chooser",
         "use_account_urls": account_dashboard,
+        "use_admin_urls": admin_dashboard,
     }
     return _render_publish_response(
         request,
         "listings/create/base.html",
         ctx,
         account_dashboard=account_dashboard,
+        admin_dashboard=admin_dashboard,
     )
 
 
 @login_required
-def create_listing_in_category(request, category_slug, *, account_dashboard: bool = False):
+def create_listing_in_category(
+    request,
+    category_slug,
+    *,
+    account_dashboard: bool = False,
+    admin_dashboard: bool = False,
+):
     """
     Publicar en una categoría raíz: /publicar/<slug>/.
     Slugs extendidos (OneToOne): autos, inmuebles, motos, electronica, hogar.
     Resto → formulario base.
     """
+    if _is_admin_user(request.user) and not admin_dashboard:
+        return _admin_panel_redirect(request)
+
     category = get_object_or_404(
         Category.objects.filter(parent__isnull=True),
         slug=category_slug,
     )
     kind = publish_flow_kind(category_slug)
     brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
-    url_name = (
-        "users:account_publish_in_category"
-        if account_dashboard
-        else "publish_in_category"
-    )
-    cancel_name = "users:account_publish" if account_dashboard else "publish"
+    if admin_dashboard:
+        url_name = "adminapp:listing_publish_in_category"
+        cancel_name = "adminapp:listing_publish"
+    elif account_dashboard:
+        url_name = "users:account_publish_in_category"
+        cancel_name = "users:account_publish"
+    else:
+        url_name = "publish_in_category"
+        cancel_name = "publish"
     meta_description = _publish_meta_description(category, category.slug)
     specific = None
     template_name = "listings/create/simple.html"
@@ -633,15 +700,23 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
                     with transaction.atomic():
-                        listing = _commit_base_listing(base, request.user, category)
+                        listing = _commit_base_listing(
+                            base,
+                            request.user,
+                            category,
+                            published_by_platform=admin_dashboard,
+                        )
                         veh = specific.save(commit=False)
                         veh.listing = listing
                         veh.save()
                         attach_listing_images(
                             listing, request.FILES.getlist("images")
                         )
-                    messages.success(request, "Tu anuncio ya está publicado.")
-                    return redirect(listing)
+                    messages.success(request, "El anuncio ya está publicado.")
+                    return _created_listing_redirect(
+                        listing,
+                        admin_dashboard=admin_dashboard,
+                    )
         else:
             base = BaseListingForm(initial={"currency": "USD"})
             specific = VehicleListingForm()
@@ -655,15 +730,23 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
                     with transaction.atomic():
-                        listing = _commit_base_listing(base, request.user, category)
+                        listing = _commit_base_listing(
+                            base,
+                            request.user,
+                            category,
+                            published_by_platform=admin_dashboard,
+                        )
                         prop = specific.save(commit=False)
                         prop.listing = listing
                         prop.save()
                         attach_listing_images(
                             listing, request.FILES.getlist("images")
                         )
-                    messages.success(request, "Tu anuncio ya está publicado.")
-                    return redirect(listing)
+                    messages.success(request, "El anuncio ya está publicado.")
+                    return _created_listing_redirect(
+                        listing,
+                        admin_dashboard=admin_dashboard,
+                    )
         else:
             base = BaseListingForm(initial={"currency": "USD"})
             specific = PropertyListingForm()
@@ -679,15 +762,23 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
                     with transaction.atomic():
-                        listing = _commit_base_listing(base, request.user, category)
+                        listing = _commit_base_listing(
+                            base,
+                            request.user,
+                            category,
+                            published_by_platform=admin_dashboard,
+                        )
                         mot = specific.save(commit=False)
                         mot.listing = listing
                         mot.save()
                         attach_listing_images(
                             listing, request.FILES.getlist("images")
                         )
-                    messages.success(request, "Tu anuncio ya está publicado.")
-                    return redirect(listing)
+                    messages.success(request, "El anuncio ya está publicado.")
+                    return _created_listing_redirect(
+                        listing,
+                        admin_dashboard=admin_dashboard,
+                    )
         else:
             base = BaseListingForm(initial={"currency": "USD"})
             specific = MotorcycleListingForm()
@@ -703,15 +794,23 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
                     with transaction.atomic():
-                        listing = _commit_base_listing(base, request.user, category)
+                        listing = _commit_base_listing(
+                            base,
+                            request.user,
+                            category,
+                            published_by_platform=admin_dashboard,
+                        )
                         elec = specific.save(commit=False)
                         elec.listing = listing
                         elec.save()
                         attach_listing_images(
                             listing, request.FILES.getlist("images")
                         )
-                    messages.success(request, "Tu anuncio ya está publicado.")
-                    return redirect(listing)
+                    messages.success(request, "El anuncio ya está publicado.")
+                    return _created_listing_redirect(
+                        listing,
+                        admin_dashboard=admin_dashboard,
+                    )
         else:
             base = BaseListingForm(initial={"currency": "USD"})
             specific = ElectronicsListingForm()
@@ -727,15 +826,23 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
                     with transaction.atomic():
-                        listing = _commit_base_listing(base, request.user, category)
+                        listing = _commit_base_listing(
+                            base,
+                            request.user,
+                            category,
+                            published_by_platform=admin_dashboard,
+                        )
                         hg = specific.save(commit=False)
                         hg.listing = listing
                         hg.save()
                         attach_listing_images(
                             listing, request.FILES.getlist("images")
                         )
-                    messages.success(request, "Tu anuncio ya está publicado.")
-                    return redirect(listing)
+                    messages.success(request, "El anuncio ya está publicado.")
+                    return _created_listing_redirect(
+                        listing,
+                        admin_dashboard=admin_dashboard,
+                    )
         else:
             base = BaseListingForm(initial={"currency": "USD"})
             specific = HomeGoodsListingForm()
@@ -746,12 +853,20 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
             if base.is_valid():
                 if validate_listing_image_uploads(request, base):
                     with transaction.atomic():
-                        listing = _commit_base_listing(base, request.user, category)
+                        listing = _commit_base_listing(
+                            base,
+                            request.user,
+                            category,
+                            published_by_platform=admin_dashboard,
+                        )
                         attach_listing_images(
                             listing, request.FILES.getlist("images")
                         )
-                    messages.success(request, "Tu anuncio ya está publicado.")
-                    return redirect(listing)
+                    messages.success(request, "El anuncio ya está publicado.")
+                    return _created_listing_redirect(
+                        listing,
+                        admin_dashboard=admin_dashboard,
+                    )
         else:
             base = BaseListingForm(initial={"currency": "USD"})
 
@@ -760,8 +875,16 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
         "specific_form": specific,
         "include_category": False,
         "category": category,
-        "heading": f"Publicar en {category.name}",
-        "submit_label": "Publicar anuncio",
+        "heading": (
+            f"Publicar en {category.name}"
+            if not admin_dashboard
+            else f"Publicar en {category.name} como {brand}"
+        ),
+        "submit_label": (
+            "Publicar anuncio"
+            if not admin_dashboard
+            else f"Publicar como {brand}"
+        ),
         "meta_title": f"Publicar en {category.name} | {brand}",
         "meta_description": meta_description,
         "publish_mode": publish_mode,
@@ -773,12 +896,14 @@ def create_listing_in_category(request, category_slug, *, account_dashboard: boo
         ),
         "cancel_url": reverse(cancel_name),
         "use_account_urls": account_dashboard,
+        "use_admin_urls": admin_dashboard,
     }
     return _render_publish_response(
         request,
         template_name,
         ctx,
         account_dashboard=account_dashboard,
+        admin_dashboard=admin_dashboard,
     )
 
 
@@ -790,6 +915,9 @@ def listing_create(request):
 
 @login_required
 def my_listings(request):
+    if _is_admin_user(request.user):
+        return _admin_panel_redirect(request)
+
     qs = user_listings_queryset(request.user)
     paginator = Paginator(qs, 20)
     page = paginator.get_page(request.GET.get("page") or 1)
@@ -825,12 +953,18 @@ def _cleanup_extensions_if_category_changed(listing, old_slug: str, new_slug: st
 @login_required
 def listing_edit_legacy_redirect(request, slug):
     """Legado /listings/<slug>/edit/ → edición en Mi cuenta (URL en español)."""
+    if _is_admin_user(request.user):
+        return _admin_panel_redirect(request)
+
     get_owned_listing(request.user, slug)
     return redirect("users:account_listing_edit", slug=slug)
 
 
 @login_required
 def listing_edit(request, slug, *, account_dashboard: bool = False):
+    if _is_admin_user(request.user):
+        return _admin_panel_redirect(request)
+
     listing = get_owned_listing(request.user, slug)
     cat_slug = listing.category.slug
     brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
@@ -990,6 +1124,9 @@ def _listing_edit_generic(request, listing, brand: str, account_dashboard: bool)
 
 @login_required
 def listing_delete(request, slug):
+    if _is_admin_user(request.user):
+        return _admin_panel_redirect(request)
+
     listing = get_owned_listing(request.user, slug)
     if request.method == "POST":
         title = listing.title

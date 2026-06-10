@@ -2,19 +2,17 @@
 <aside class="account-sidebar" id="account-sidebar" aria-label="Menú de cuenta">
   <div class="account-sidebar__header">
     <a class="account-sidebar__logo" href="{% url 'root_home' %}" aria-label="{{ site_name }} — Ir al inicio">
-      <img class="account-sidebar__logo-img" src="{% static brand_logo %}" alt="" decoding="async" loading="lazy">
+      <img class="account-sidebar__logo-img" src="{% static brand_logo_white %}" alt="" decoding="async" loading="lazy">
     </a>
     <button
       type="button"
-      class="account-sidebar__collapse"
-      data-account-sidebar-collapse
-      aria-expanded="true"
+      class="account-sidebar__close"
+      data-account-sidebar-panel-close
       aria-controls="account-sidebar-nav"
-      aria-label="Contraer menú lateral"
-      title="Contraer menú"
+      aria-label="Cerrar menú lateral"
+      title="Cerrar menú"
     >
-      <i class="fa-solid fa-angles-left account-sidebar__collapse-icon account-sidebar__collapse-icon--open" aria-hidden="true"></i>
-      <i class="fa-solid fa-angles-right account-sidebar__collapse-icon account-sidebar__collapse-icon--closed" aria-hidden="true"></i>
+      <span aria-hidden="true">⟨</span>
     </button>
   </div>
   <nav class="account-nav" id="account-sidebar-nav" aria-label="Secciones">

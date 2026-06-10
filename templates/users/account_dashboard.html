@@ -43,11 +43,10 @@
       if (!root) return;
 
       var toggle = root.querySelector("[data-account-sidebar-toggle]");
-      var collapseBtn = root.querySelector("[data-account-sidebar-collapse]");
+      var panelClose = root.querySelector("[data-account-sidebar-panel-close]");
       var sidebar = document.getElementById("account-sidebar");
       var backdrop = root.querySelector("[data-account-sidebar-close]");
       var mqMobile = window.matchMedia("(max-width: 899px)");
-      var STORAGE_KEY = "hm_account_sidebar_collapsed";
 
       function syncSidebarAria() {
         if (!sidebar) return;
@@ -72,49 +71,14 @@
         syncSidebarAria();
       }
 
-      function readCollapsedPref() {
-        try {
-          return localStorage.getItem(STORAGE_KEY) === "1";
-        } catch (e) {
-          return false;
-        }
-      }
-
-      function setCollapsed(collapsed) {
-        if (mqMobile.matches) return;
-        root.classList.toggle("account-dashboard--sidebar-collapsed", collapsed);
-        if (collapseBtn) {
-          collapseBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-          collapseBtn.setAttribute("aria-label", collapsed ? "Expandir menú lateral" : "Contraer menú lateral");
-          collapseBtn.setAttribute("title", collapsed ? "Expandir menú" : "Contraer menú");
-        }
-        try {
-          localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0");
-        } catch (e) {}
-      }
-
-      function syncDesktopCollapse() {
-        if (mqMobile.matches) {
-          root.classList.remove("account-dashboard--sidebar-collapsed");
-          if (collapseBtn) {
-            collapseBtn.setAttribute("aria-expanded", "true");
-            collapseBtn.setAttribute("aria-label", "Contraer menú lateral");
-            collapseBtn.setAttribute("title", "Contraer menú");
-          }
-        } else {
-          setCollapsed(readCollapsedPref());
-        }
-      }
-
       if (toggle && sidebar) {
         toggle.addEventListener("click", function () {
           setOpen(!root.classList.contains("account-dashboard--nav-open"));
         });
       }
-      if (collapseBtn) {
-        collapseBtn.addEventListener("click", function () {
-          if (mqMobile.matches) return;
-          setCollapsed(!root.classList.contains("account-dashboard--sidebar-collapsed"));
+      if (panelClose) {
+        panelClose.addEventListener("click", function () {
+          setOpen(false);
         });
       }
       if (backdrop) {
@@ -127,10 +91,8 @@
       });
       mqMobile.addEventListener("change", function () {
         setOpen(false);
-        syncDesktopCollapse();
       });
       syncSidebarAria();
-      syncDesktopCollapse();
 
       document.body.addEventListener("htmx:afterSettle", function () {
         setOpen(false);

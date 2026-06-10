@@ -507,6 +507,11 @@
   gap: clamp(0.85rem, 1.5vw, 1.15rem);
 }
 
+.home-cat-grid--comfortable {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr));
+  gap: var(--space-3);
+}
+
 .home-cat-card {
   display: grid;
   grid-template-rows: minmax(6.6rem, 1fr) auto;
@@ -536,9 +541,7 @@
   justify-content: center;
   min-height: 6.6rem;
   padding: 0.7rem;
-  background:
-    radial-gradient(circle at 50% 20%, rgba(60, 187, 107, 0.1), transparent 48%),
-    #f9f8f6;
+  background: #f9f8f6;
   color: #050807;
 }
 

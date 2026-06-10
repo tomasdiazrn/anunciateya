@@ -16,6 +16,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.categories.models import Category
 from apps.core.models import NewsletterSubscriber
+from apps.listings import views as listing_publish_views
 from apps.listings.models import Listing, ListingImage, ListingPromotion
 from apps.trust.models import ListingReport
 from apps.users.models import User, UserVerification
@@ -261,6 +262,24 @@ def hosting_view(request):
 
 @staff_required
 @require_http_methods(["GET"])
+def admin_listing_publish_view(request):
+    return listing_publish_views.create_listing_base(
+        request,
+        admin_dashboard=True,
+    )
+
+
+@staff_required
+def admin_listing_publish_in_category_view(request, category_slug):
+    return listing_publish_views.create_listing_in_category(
+        request,
+        category_slug,
+        admin_dashboard=True,
+    )
+
+
+@staff_required
+@require_http_methods(["GET"])
 def admin_listings_view(request):
     q = (request.GET.get("q") or "").strip()
     category_slug = (request.GET.get("category") or "").strip()
@@ -296,6 +315,7 @@ def admin_listings_view(request):
         "has_filters": bool(q or category_slug or visibility),
         "filters_qs": filters_qs,
         "listings_clear_url": reverse("adminapp:listings"),
+        "listing_publish_url": reverse("adminapp:listing_publish"),
         "listing_table_headers": [
             "Publicación",
             "Título",

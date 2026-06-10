@@ -303,6 +303,15 @@ def _default_post_login_url(user) -> str:
     return reverse("users:account")
 
 
+def _is_admin_user(user) -> bool:
+    return user.is_staff or user.is_superuser
+
+
+def _admin_panel_redirect(request):
+    messages.info(request, "Los administradores deben usar el panel de administración.")
+    return redirect("adminapp:dashboard")
+
+
 def _resolve_post_login_url(request, user, next_url: str = "") -> str:
     if _is_safe_next_url(request, next_url):
         return next_url
@@ -396,6 +405,9 @@ _ACCOUNT_SECTION_TITLES = {
 
 @login_required
 def account_dashboard(request, section="overview"):
+    if _is_admin_user(request.user):
+        return _admin_panel_redirect(request)
+
     allowed = {"overview", "listings"}
     if section not in allowed:
         section = "overview"
@@ -436,18 +448,24 @@ def account_dashboard(request, section="overview"):
 @login_required
 def listing_edit_dashboard(request, slug):
     """Editar anuncio dentro del panel Mi cuenta (ruta en español)."""
+    if _is_admin_user(request.user):
+        return _admin_panel_redirect(request)
     return listing_edit(request, slug, account_dashboard=True)
 
 
 @login_required
 def listing_create_dashboard(request):
     """Selector de tipo de publicación (Mi cuenta)."""
+    if _is_admin_user(request.user):
+        return _admin_panel_redirect(request)
     return create_listing_base(request, account_dashboard=True)
 
 
 @login_required
 def listing_publish_in_category_dashboard(request, category_slug):
     """Publicar en /mi-cuenta/publicar/<categoría>/."""
+    if _is_admin_user(request.user):
+        return _admin_panel_redirect(request)
     return create_listing_in_category(
         request,
         category_slug,

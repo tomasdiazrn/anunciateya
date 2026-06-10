@@ -1,0 +1,50 @@
+<div class="admin-page-header admin-page-header--split">
+  <div>
+    <h2 class="admin-page-title">{{ heading }}</h2>
+    <p class="admin-page-subtitle">
+      Estos anuncios quedan publicados como {{ site_name }} y no dependen de límites o membresías de usuarios.
+    </p>
+  </div>
+  {% include "adminapp/components/button.html" with label="Volver a anuncios" variant="secondary" url=listings_clear_url|default:"/admin/anuncios/" hx_get=listings_clear_url|default:"/admin/anuncios/" hx_push_url=1 hx_indicator="#admin-loading" only %}
+</div>
+
+{% if publish_mode == "chooser" %}
+  {% include "listings/create/partials/publish_chooser.html" %}
+{% else %}
+  <form
+    method="post"
+    enctype="multipart/form-data"
+    class="admin-publish-form listing-form"
+    action="{{ form_action_url }}"
+    aria-label="Formulario de anuncio administrado"
+    novalidate
+  >
+    {% csrf_token %}
+    <div class="admin-publish-form__grid">
+      <div class="admin-publish-form__main">
+        {% include "listings/partials/listing_form_fields.html" with form=form specific_form=specific_form include_category=False listing=None show_submit_row=False submit_label=submit_label cancel_url=cancel_url specific_section_title=specific_section_title specific_fields_grid=specific_fields_grid %}
+      </div>
+      <aside class="admin-publish-form__side" aria-label="Opciones de publicación">
+        <section class="admin-publish-form__card">
+          <h3 class="admin-publish-form__title">Publicación</h3>
+          {% include "components/ui/form_field.html" with field=form.publish_state %}
+          <p class="admin-publish-form__note">
+            Se marcará como publicado por la plataforma para separarlo de futuras reglas de membresía.
+          </p>
+          <div class="admin-publish-form__actions">
+            <button type="submit" class="admin-btn admin-btn--primary">{{ submit_label }}</button>
+            <a
+              class="admin-btn admin-btn--secondary"
+              href="{{ cancel_url }}"
+              hx-get="{{ cancel_url }}"
+              hx-target="#admin-main-content"
+              hx-swap="innerHTML"
+              hx-push-url="true"
+              hx-indicator="#admin-loading"
+            >Cancelar</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </form>
+{% endif %}

@@ -362,6 +362,22 @@
   text-overflow: ellipsis;
 }
 
+.card-listing__publisher {
+  margin: 0 0 6px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .card-listing__trust-rating {
   color: var(--color-text);
   font-weight: 650;

@@ -7,6 +7,8 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.categories.models import Category
+
 from .forms import RegisterStepOneForm, UserCreationForm
 from .models import User, UserLoginOTP, UserVerification
 from .otp_auth import request_user_otp
@@ -238,3 +240,51 @@ class UserPasswordlessAuthTests(TestCase):
             status_code=301,
             target_status_code=200,
         )
+
+
+class AdminAccountAccessTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = User.objects.create_user(
+            email="staff-account@example.com",
+            password="ignored",
+            is_staff=True,
+            is_superuser=True,
+            is_active=True,
+        )
+        cls.category = Category.objects.create(name="Hogar", slug="hogar")
+
+    def setUp(self):
+        self.client.force_login(self.admin)
+
+    def test_staff_account_redirects_to_admin_panel(self):
+        response = self.client.get(reverse("users:account"))
+
+        self.assertRedirects(response, reverse("adminapp:dashboard"))
+
+    def test_staff_nav_points_to_admin_panel(self):
+        response = self.client.get(reverse("root_home"))
+
+        self.assertContains(response, 'href="/admin/"')
+        self.assertContains(response, 'aria-label="Panel admin"')
+        self.assertNotContains(response, 'aria-label="Mi cuenta"')
+
+    def test_staff_account_listings_redirects_to_admin_panel(self):
+        response = self.client.get(reverse("users:account_listings"))
+
+        self.assertRedirects(response, reverse("adminapp:dashboard"))
+
+    def test_staff_account_publish_redirects_to_admin_panel(self):
+        response = self.client.get(reverse("users:account_publish"))
+
+        self.assertRedirects(response, reverse("adminapp:dashboard"))
+
+    def test_staff_account_publish_category_redirects_to_admin_panel(self):
+        response = self.client.get(
+            reverse(
+                "users:account_publish_in_category",
+                kwargs={"category_slug": self.category.slug},
+            )
+        )
+
+        self.assertRedirects(response, reverse("adminapp:dashboard"))

@@ -5,13 +5,31 @@
       <img class="site-logo site-logo--default" src="{% static brand_logo %}" alt="{{ site_name }}">
       <img class="site-logo site-logo--white" src="{% static brand_logo_white %}" alt="" aria-hidden="true">
     </a>
-    <a
-      class="button btn-primary nav-publish-mobile"
-      href="/publicar/"
-      aria-label="Publicar anuncio"
-      data-event="click_publish"
-      data-event-detail="mobile_nav"
-    >Publicar</a>
+    {% if request.user.is_authenticated %}
+      {% if request.user.is_staff or request.user.is_superuser %}
+        <a
+          class="button btn-primary nav-publish-mobile"
+          href="{% url 'adminapp:dashboard' %}"
+          aria-label="Panel admin"
+        >Admin</a>
+      {% else %}
+        <a
+          class="button btn-primary nav-publish-mobile"
+          href="/publicar/"
+          aria-label="Publicar anuncio"
+          data-event="click_publish"
+          data-event-detail="mobile_nav"
+        >Publicar</a>
+      {% endif %}
+    {% else %}
+      <a
+        class="button btn-primary nav-publish-mobile"
+        href="/publicar/"
+        aria-label="Publicar anuncio"
+        data-event="click_publish"
+        data-event-detail="mobile_nav"
+      >Publicar</a>
+    {% endif %}
     <button
       class="nav-menu-toggle"
       type="button"
@@ -50,10 +68,17 @@
 
       <div class="nav-links__cta" aria-label="Acciones">
         {% if request.user.is_authenticated %}
-          <a class="button btn-primary nav-publish" href="/publicar/" data-event="click_publish" data-event-detail="nav">Publicar anuncio</a>
-          <a class="nav-icon-button" href="{% url 'users:account' %}" aria-label="Mi cuenta">
-            <i class="fa-solid fa-user" aria-hidden="true"></i>
-          </a>
+          {% if request.user.is_staff or request.user.is_superuser %}
+            <a class="button btn-primary nav-publish" href="{% url 'adminapp:dashboard' %}">Panel admin</a>
+            <a class="nav-icon-button" href="{% url 'adminapp:dashboard' %}" aria-label="Panel admin">
+              <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
+            </a>
+          {% else %}
+            <a class="button btn-primary nav-publish" href="/publicar/" data-event="click_publish" data-event-detail="nav">Publicar anuncio</a>
+            <a class="nav-icon-button" href="{% url 'users:account' %}" aria-label="Mi cuenta">
+              <i class="fa-solid fa-user" aria-hidden="true"></i>
+            </a>
+          {% endif %}
           <form method="post" action="{% url 'users:logout' %}" class="nav-logout">
             {% csrf_token %}
             <button type="submit" class="nav-icon-button" aria-label="Cerrar sesión">

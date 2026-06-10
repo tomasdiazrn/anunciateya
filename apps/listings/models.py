@@ -70,6 +70,11 @@ class Listing(models.Model):
         db_index=True,
         help_text="Set when multiple users report this listing.",
     )
+    published_by_platform = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Marks listings created by staff on behalf of the marketplace.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     featured_until = models.DateTimeField(null=True, blank=True, db_index=True)
@@ -120,6 +125,17 @@ class Listing(models.Model):
                 "listing_slug": self.slug,
             },
         )
+
+    @property
+    def is_platform_listing(self) -> bool:
+        return bool(self.published_by_platform)
+
+    @property
+    def public_publisher_label(self) -> str:
+        if not self.is_platform_listing:
+            return ""
+        brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
+        return f"Publicado por {brand}"
 
 
 class VehicleListing(models.Model):

@@ -1,5 +1,6 @@
 <div class="admin-page-header">
   <h2 class="admin-page-title">Anuncios</h2>
+  {% include "adminapp/components/button.html" with label="Publicar anuncio" variant="primary" url=listing_publish_url hx_get=listing_publish_url hx_push_url=1 hx_indicator="#admin-loading" only %}
 </div>
 
 <div class="admin-data-page">

@@ -58,6 +58,10 @@
       <p class="card-listing__location"><span class="card-listing__location-icon" aria-hidden="true">📍</span>{{ card.category_label }}</p>
     {% endif %}
 
+    {% if card.publisher_label %}
+      <p class="card-listing__publisher">{{ card.publisher_label }}</p>
+    {% endif %}
+
     {% if card.trust_label %}
       {% with t=card.trust_label|trust_parts %}
         <p class="card-listing__trust small">

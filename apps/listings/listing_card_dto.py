@@ -66,6 +66,7 @@ class CardContext:
     is_promoted_featured: bool
     is_promoted_boost: bool
     listing_id: int
+    publisher_label: str
 
 
 def _format_money(currency: str, amount: Decimal | float, *, decimals: int) -> str:
@@ -294,6 +295,7 @@ def _finalize(
     img2 = _second_image_thumb(listing)
     img2_webp = _second_image_thumb_webp(listing)
     icount = _image_count(listing)
+    publisher_label = escape(getattr(listing, "public_publisher_label", "") or "")
     return CardContext(
         template=template,
         css_modifier=str(css_modifier or "").strip(),
@@ -319,6 +321,7 @@ def _finalize(
         is_promoted_featured=promo_f,
         is_promoted_boost=promo_b,
         listing_id=lid,
+        publisher_label=publisher_label,
     )
 
 
