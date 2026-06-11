@@ -43,6 +43,19 @@
       <span class="account-nav__label">Mis anuncios</span>
     </a>
     <a
+      href="{% url 'users:account_leads' %}"
+      class="account-nav__link {% if section == 'leads' %}is-active{% endif %}"
+      data-account-nav-link
+      title="Contactos recibidos"
+      hx-get="{% url 'users:account_leads' %}"
+      hx-target="#account-dashboard-main"
+      hx-swap="innerHTML"
+      hx-push-url="true"
+    >
+      <i class="fa-solid fa-inbox" aria-hidden="true"></i>
+      <span class="account-nav__label">Contactos</span>
+    </a>
+    <a
       href="{% url 'users:account_publish' %}"
       class="account-nav__link {% if section == 'create' %}is-active{% endif %}"
       data-account-nav-link

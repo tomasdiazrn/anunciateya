@@ -1,10 +1,11 @@
 {# Expects: form, optional listing, optional specific_form, include_category (omit = show), show_submit_row, submit_label #}
+{% firstof listing_form_layout publish_mode "simple" as form_layout %}
 {% include "components/ui/form_non_field_errors.html" %}
 {% if specific_form and specific_form.non_field_errors %}
   <div class="form-errors" role="alert" aria-live="assertive">{{ specific_form.non_field_errors }}</div>
 {% endif %}
 
-{% if specific_form and specific_form.brand_fk and specific_form.model_fk %}
+{% if specific_form and form_layout == "vehicle" %}
   <nav class="listing-progress" aria-label="Progreso del formulario">
     <span class="listing-progress__step is-active" data-step="basic">Datos básicos</span>
     <span class="listing-progress__sep">→</span>
@@ -27,7 +28,7 @@
 </div>
 
 {% if specific_form %}
-  {% if specific_form.brand_fk and specific_form.model_fk %}
+  {% if form_layout == "vehicle" %}
     <div class="vehicle-specific form-group card form-group-card" data-step-section="vehicle">
       <h2 class="h-section form-group__title">Datos del vehículo</h2>
       <div class="vehicle-specific__fields">
@@ -51,7 +52,7 @@
       </div>
       <p class="small muted vehicle-specific__trust-note">Más detalles = más contactos</p>
     </div>
-  {% elif specific_form.property_type %}
+  {% elif form_layout == "property" %}
     <div class="property-specific form-group card form-group-card" data-step-section="property">
       <h2 class="h-section form-group__title">Datos del inmueble</h2>
       <div class="property-specific__fields">
@@ -80,13 +81,13 @@
       </div>
       <p class="small muted vehicle-specific__trust-note">Más detalles = más contactos</p>
     </div>
-  {% elif specific_form.brand and specific_form.model and specific_form.transmission and not specific_form.doors and not specific_form.brand_fk %}
+  {% elif form_layout == "motorcycle" %}
     <div class="motorcycle-specific form-group card form-group-card" data-step-section="motorcycle">
       <h2 class="h-section form-group__title">Datos de la moto</h2>
       <div class="motorcycle-specific__fields">
         <div class="motorcycle-specific__row motorcycle-specific__row--brand-model">
-          {% include "components/ui/form_field.html" with field=specific_form.brand %}
-          {% include "components/ui/form_field.html" with field=specific_form.model %}
+          {% include "components/ui/form_field.html" with field=specific_form.brand_fk %}
+          {% include "components/ui/form_field.html" with field=specific_form.model_fk %}
         </div>
         <div class="motorcycle-specific__row motorcycle-specific__row--year-cc">
           {% include "components/ui/form_field.html" with field=specific_form.year %}
@@ -127,449 +128,18 @@
   {{ form.currency }}
 </div>
 
-<script>
-  (function () {
-    function mountVehicleBrandModelUX() {
-      const brand = document.getElementById("id_brand_fk");
-      const model = document.getElementById("id_model_fk");
-      const year = document.getElementById("id_year");
-      const mileage = document.getElementById("id_mileage");
-      const draftNote = document.getElementById("listing-draft-note");
-      if (!brand || !model) return;
-
-      function setModelStateDisabled(message) {
-        model.disabled = true;
-        model.innerHTML = `<option value="">${message}</option>`;
-      }
-
-      function setModelStateEnabled() {
-        model.disabled = false;
-      }
-
-      function setModelPlaceholder(message) {
-        model.innerHTML = `<option value="">${message}</option>`;
-      }
-
-      function syncInitialState() {
-        if (!brand.value) {
-          setModelStateDisabled("Primero elige marca");
-        } else {
-          // En edición, el servidor ya cargó el queryset y seleccionó el valor si existe.
-          // Si por algún motivo quedó vacío, igual mantenemos el select habilitado.
-          setModelStateEnabled();
-        }
-      }
-
-      // Inicial
-      syncInitialState();
-
-      // Al cambiar marca: resetea modelo y deja que HTMX cargue las opciones.
-      brand.addEventListener("change", function () {
-        if (!brand.value) {
-          setModelStateDisabled("Primero elige marca");
-          return;
-        }
-        // UX inmediata: habilita y muestra placeholder sin depender de HTMX.
-        setModelStateEnabled();
-        setModelPlaceholder("Selecciona modelo");
-        // Micro-interacción: mueve el foco al siguiente paso.
-        model.focus({ preventScroll: true });
-      });
-
-      // Después del swap HTMX, habilita el modelo si hay marca; si no, lo mantiene bloqueado.
-      document.body.addEventListener("htmx:afterSwap", function (evt) {
-        if (evt && evt.target && evt.target.id === "id_model_fk") {
-          if (!brand.value) {
-            setModelStateDisabled("Primero elige marca");
-          } else {
-            setModelStateEnabled();
-          }
-        }
-      });
-
-      // Percepción: nota de "borrador guardado" solo en autos.
-      if (draftNote) {
-        draftNote.hidden = false;
-      }
-
-      // Validación ligera en cliente (no reemplaza backend).
-      function showInlineError(input, message) {
-        if (!input) return;
-        input.classList.add("is-invalid");
-        let el = document.getElementById(input.id + "__inline_error");
-        if (!el) {
-          el = document.createElement("div");
-          el.id = input.id + "__inline_error";
-          el.className = "form-errors";
-          el.setAttribute("role", "alert");
-          el.setAttribute("aria-live", "polite");
-          input.insertAdjacentElement("afterend", el);
-        }
-        el.textContent = message;
-      }
-
-      function clearInlineError(input) {
-        if (!input) return;
-        input.classList.remove("is-invalid");
-        const el = document.getElementById(input.id + "__inline_error");
-        if (el) el.remove();
-      }
-
-      function validateYear() {
-        if (!year || !year.value) {
-          clearInlineError(year);
-          return true;
-        }
-        const y = parseInt(year.value, 10);
-        const max = new Date().getFullYear() + 1;
-        if (Number.isNaN(y) || y < 1980 || y > max) {
-          showInlineError(year, `Año entre 1980 y ${max}.`);
-          return false;
-        }
-        clearInlineError(year);
-        return true;
-      }
-
-      function validateMileage() {
-        if (!mileage || mileage.value === "") {
-          clearInlineError(mileage);
-          return true;
-        }
-        const v = parseInt(mileage.value, 10);
-        if (Number.isNaN(v) || v < 0) {
-          showInlineError(mileage, "Km no puede ser negativo.");
-          return false;
-        }
-        clearInlineError(mileage);
-        return true;
-      }
-
-      if (year) year.addEventListener("blur", function () { validateYear(); });
-      if (mileage) mileage.addEventListener("blur", function () { validateMileage(); });
-
-      // Progreso: paso activo según foco dentro de secciones.
-      const progress = document.querySelector(".listing-progress");
-      if (progress) {
-        const steps = progress.querySelectorAll(".listing-progress__step[data-step]");
-        function setActive(stepKey) {
-          steps.forEach((s) => s.classList.toggle("is-active", s.dataset.step === stepKey));
-        }
-        document.querySelectorAll("[data-step-section]").forEach((section) => {
-          section.addEventListener("focusin", () => {
-            const key = section.getAttribute("data-step-section");
-            if (key) setActive(key);
-          });
-        });
-      }
-
-      // UX imágenes (preview ligero sin librerías).
-      const images = document.getElementById("id_images");
-      const grid = document.getElementById("image-preview-grid");
-      const count = document.getElementById("image-dropzone-count");
-      if (images && grid && count && images.dataset.previewInit !== "1") {
-        images.dataset.previewInit = "1";
-        function renderPreviews() {
-          const files = Array.from(images.files || []);
-          if (files.length === 0) {
-            count.textContent = "Sin fotos seleccionadas";
-            grid.hidden = true;
-            grid.innerHTML = "";
-            return;
-          }
-          count.textContent =
-            files.length === 1 ? "1 foto seleccionada" : `${files.length} fotos seleccionadas`;
-          grid.hidden = false;
-          grid.innerHTML = "";
-          files.slice(0, 8).forEach((f) => {
-            const url = URL.createObjectURL(f);
-            const wrap = document.createElement("div");
-            wrap.className = "image-preview";
-            const img = document.createElement("img");
-            img.alt = "Vista previa";
-            img.loading = "lazy";
-            img.decoding = "async";
-            img.src = url;
-            img.addEventListener(
-              "load",
-              () => {
-                URL.revokeObjectURL(url);
-              },
-              { once: true }
-            );
-            wrap.appendChild(img);
-            grid.appendChild(wrap);
-          });
-        }
-        images.addEventListener("change", renderPreviews);
-        renderPreviews();
-      }
-    }
-
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", mountVehicleBrandModelUX);
-    } else {
-      mountVehicleBrandModelUX();
-    }
-
-    document.body.addEventListener("htmx:afterSettle", mountVehicleBrandModelUX);
-  })();
-
-  (function listingVehicleAssist() {
-    function getSelectText(sel) {
-      if (!sel || sel.selectedIndex < 0) return "";
-      const opt = sel.options[sel.selectedIndex];
-      if (!opt || !String(opt.value).length) return "";
-      return (opt.text || "").trim();
-    }
-
-    function syncTitleFromVehicle() {
-      const title = document.getElementById("id_title");
-      const brand = document.getElementById("id_brand_fk");
-      const model = document.getElementById("id_model_fk");
-      const year = document.getElementById("id_year");
-      if (!title || !brand || title.dataset.userEdited === "1") return;
-      const b = getSelectText(brand);
-      const m = getSelectText(model);
-      const y = year && year.value ? String(year.value).trim() : "";
-      const parts = [b, m, y].filter(Boolean);
-      if (!parts.length) return;
-      title.value = parts.join(" ");
-    }
-
-    document.addEventListener(
-      "input",
-      function (e) {
-        if (e.target && e.target.id === "id_title") {
-          e.target.dataset.userEdited = "1";
-        }
-      },
-      true
-    );
-
-    document.addEventListener(
-      "change",
-      function (e) {
-        const id = e.target && e.target.id;
-        if (id === "id_brand_fk" || id === "id_model_fk" || id === "id_year") {
-          syncTitleFromVehicle();
-        }
-      },
-      true
-    );
-
-    document.body.addEventListener("htmx:afterSwap", function (ev) {
-      if (ev.target && ev.target.id === "id_model_fk") {
-        syncTitleFromVehicle();
-      }
-    });
-
-    function initTitleGuard() {
-      const t = document.getElementById("id_title");
-      if (t && t.value.trim()) t.dataset.userEdited = "1";
-    }
-
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", initTitleGuard);
-    } else {
-      initTitleGuard();
-    }
-
-    document.addEventListener(
-      "submit",
-      function (ev) {
-        const form = ev.target;
-        if (!form || !form.matches("form.listing-editor")) return;
-        if (!document.getElementById("id_brand_fk")) return;
-        const year = document.getElementById("id_year");
-        const mileage = document.getElementById("id_mileage");
-        let ok = true;
-        if (year && year.value) {
-          const y = parseInt(year.value, 10);
-          const max = new Date().getFullYear() + 1;
-          if (Number.isNaN(y) || y < 1980 || y > max) {
-            year.classList.add("is-invalid");
-            let el = document.getElementById(year.id + "__inline_error");
-            if (!el) {
-              el = document.createElement("div");
-              el.id = year.id + "__inline_error";
-              el.className = "form-errors";
-              el.setAttribute("role", "alert");
-              year.insertAdjacentElement("afterend", el);
-            }
-            el.textContent = `Año entre 1980 y ${max}.`;
-            ok = false;
-          }
-        }
-        if (mileage && mileage.value !== "") {
-          const v = parseInt(mileage.value, 10);
-          if (Number.isNaN(v) || v < 0) {
-            mileage.classList.add("is-invalid");
-            let el = document.getElementById(mileage.id + "__inline_error");
-            if (!el) {
-              el = document.createElement("div");
-              el.id = mileage.id + "__inline_error";
-              el.className = "form-errors";
-              mileage.insertAdjacentElement("afterend", el);
-            }
-            el.textContent = "Km no puede ser negativo.";
-            ok = false;
-          }
-        }
-        if (!ok) {
-          ev.preventDefault();
-          const first = form.querySelector(".is-invalid");
-          if (first && first.focus) first.focus({ preventScroll: false });
-        }
-      },
-      true
-    );
-  })();
-
-  (function listingPropertyAssist() {
-    function getSelectText(sel) {
-      if (!sel || sel.selectedIndex < 0) return "";
-      const opt = sel.options[sel.selectedIndex];
-      if (!opt || !String(opt.value).length) return "";
-      return (opt.text || "").trim();
-    }
-
-    function syncTitleFromProperty() {
-      const title = document.getElementById("id_title");
-      const tipo = document.getElementById("id_property_type");
-      const rooms = document.getElementById("id_rooms");
-      const loc = document.getElementById("id_location");
-      if (!title || !tipo || title.dataset.userEdited === "1") return;
-      const typeLabel = getSelectText(tipo);
-      const r = rooms && rooms.value ? String(rooms.value).trim() : "";
-      const locRaw = loc && loc.value ? String(loc.value).trim() : "";
-      const shortLoc = locRaw ? (locRaw.split(",")[0] || locRaw).trim() : "";
-      const parts = [];
-      if (typeLabel) parts.push(typeLabel);
-      if (r) parts.push(r + " hab");
-      let out = parts.join(" ");
-      if (shortLoc) {
-        out = out ? out + " en " + shortLoc : shortLoc;
-      }
-      if (out) title.value = out;
-    }
-
-    document.addEventListener(
-      "input",
-      function (e) {
-        if (e.target && e.target.id === "id_title") {
-          e.target.dataset.userEdited = "1";
-        }
-      },
-      true
-    );
-
-    document.addEventListener(
-      "change",
-      function (e) {
-        const id = e.target && e.target.id;
-        if (
-          id === "id_property_type" ||
-          id === "id_rooms" ||
-          id === "id_location"
-        ) {
-          syncTitleFromProperty();
-        }
-      },
-      true
-    );
-
-    document.addEventListener(
-      "input",
-      function (e) {
-        if (e.target && e.target.id === "id_location") {
-          syncTitleFromProperty();
-        }
-      },
-      true
-    );
-
-    function initPropertyTitleGuard() {
-      const t = document.getElementById("id_title");
-      if (t && t.value.trim()) t.dataset.userEdited = "1";
-    }
-
-    if (document.getElementById("id_property_type")) {
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initPropertyTitleGuard);
-      } else {
-        initPropertyTitleGuard();
-      }
-    }
-  })();
-
-  (function listingMotorcycleAssist() {
-    function syncTitleFromMoto() {
-      const title = document.getElementById("id_title");
-      const brand = document.getElementById("id_brand");
-      const model = document.getElementById("id_model");
-      const year = document.getElementById("id_year");
-      if (!title || !brand || title.dataset.userEdited === "1") return;
-      const b = (brand.value || "").trim();
-      const m = (model && model.value) ? String(model.value).trim() : "";
-      const y = year && year.value ? String(year.value).trim() : "";
-      const parts = [b, m, y].filter(Boolean);
-      if (parts.length) title.value = parts.join(" ");
-    }
-
-    document.addEventListener(
-      "input",
-      function (e) {
-        if (e.target && e.target.id === "id_title") {
-          e.target.dataset.userEdited = "1";
-        }
-      },
-      true
-    );
-
-    document.addEventListener(
-      "change",
-      function (e) {
-        const id = e.target && e.target.id;
-        if (id === "id_brand" || id === "id_model" || id === "id_year") {
-          syncTitleFromMoto();
-        }
-      },
-      true
-    );
-
-    document.addEventListener(
-      "input",
-      function (e) {
-        if (e.target && e.target.id === "id_location") {
-          syncTitleFromMoto();
-        }
-      },
-      true
-    );
-
-    function initMotoGuard() {
-      const t = document.getElementById("id_title");
-      if (t && t.value.trim()) t.dataset.userEdited = "1";
-    }
-
-    if (document.getElementById("id_brand") && document.getElementById("id_model") && document.getElementById("id_transmission") && !document.getElementById("id_brand_fk")) {
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initMotoGuard);
-      } else {
-        initMotoGuard();
-      }
-    }
-  })();
-</script>
-
 <div class="form-group card form-group-card" data-step-section="images">
   <h2 class="h-section form-group__title">Imágenes</h2>
   <div class="image-dropzone" id="image-dropzone">
+    <p class="image-dropzone__title">Fotos del anuncio</p>
     <p class="small muted image-dropzone__hint" id="id_images_help">
-      Hasta 10 fotos · 5 MB c/u · arrastra o elige archivos
+      Hasta 10 fotos · 5 MB c/u · JPG, PNG o WEBP
     </p>
     <div class="image-dropzone__actions">
-      <label class="image-dropzone__button" for="id_images">Seleccionar fotos</label>
+      <button class="image-dropzone__button" type="button" data-image-picker-trigger>
+        <span aria-hidden="true"><i class="fa-regular fa-image"></i></span>
+        <span>Seleccionar fotos</span>
+      </button>
       <span class="small muted" id="image-dropzone-count">Sin fotos seleccionadas</span>
     </div>
     <input
@@ -577,10 +147,16 @@
       name="images"
       id="id_images"
       class="image-dropzone__input"
-      accept="image/*"
+      accept="image/jpeg,image/png,image/webp"
       multiple
-      aria-describedby="id_images_help"
+      tabindex="-1"
+      data-max-files="10"
+      data-max-bytes="5242880"
+      data-existing-count="{% if listing %}{{ listing.images.count }}{% else %}0{% endif %}"
+      aria-hidden="true"
+      aria-describedby="id_images_help image-dropzone-status"
     >
+    <p class="small image-dropzone__status" id="image-dropzone-status" role="status" aria-live="polite" hidden></p>
     <div class="image-preview-grid" id="image-preview-grid" hidden></div>
   </div>
 </div>

@@ -2,6 +2,10 @@
 
 {% block title %}{{ profile_user.get_full_name|default:profile_user.email }} · {{ site_name }}{% endblock %}
 {% block meta_description %}Perfil público en {{ site_name }}: confianza del vendedor y señales de verificación.{% endblock %}
+{% block social_title %}{{ profile_user.get_full_name|default:profile_user.email }} · {{ site_name }}{% endblock %}
+{% block social_description %}Perfil público en {{ site_name }}: confianza del vendedor y señales de verificación.{% endblock %}
+{% block twitter_title %}{{ profile_user.get_full_name|default:profile_user.email }} · {{ site_name }}{% endblock %}
+{% block twitter_description %}Perfil público en {{ site_name }}: confianza del vendedor y señales de verificación.{% endblock %}
 
 {% block content %}
   <div class="container narrow">

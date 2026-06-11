@@ -11,26 +11,60 @@
   {% if request.GET.q %}
     <input type="hidden" name="q" value="{{ request.GET.q }}">
   {% endif %}
-  {% if request.GET.location %}
-    <input type="hidden" name="location" value="{{ request.GET.location }}">
-  {% endif %}
-
   <aside class="browse-filters-sidebar">
     <details class="browse-filters-accordion" open>
       <summary class="browse-filters-summary">Filtrar electrónica</summary>
       <div class="browse-filters-inner">
         <div class="form-group">
-          <label for="id_browse_elec_brand">Marca</label>
-          <input
+          <label for="id_browse_elec_item_type">Tipo</label>
+          <select
             class="form-control"
-            type="text"
+            name="item_type"
+            id="id_browse_elec_item_type"
+            hx-get="{% url 'electronics_brand_options' %}"
+            hx-target="#id_browse_elec_brand"
+            hx-swap="innerHTML"
+            hx-trigger="change"
+            onchange="document.getElementById('id_browse_elec_model').innerHTML='<option value=&quot;&quot;>Todos los modelos</option>';"
+          >
+            <option value="">Todos</option>
+            {% for val, label in electronics_item_type_choices %}
+              <option value="{{ val }}" {% if request.GET.item_type == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="id_browse_elec_brand">Marca</label>
+          <select
+            class="form-control"
             name="brand"
             id="id_browse_elec_brand"
-            maxlength="80"
-            placeholder="Ej. Samsung"
-            value="{{ request.GET.brand|default:'' }}"
-            autocomplete="off"
+            hx-get="{% url 'electronics_model_options' %}"
+            hx-target="#id_browse_elec_model"
+            hx-include="#id_browse_elec_item_type"
+            hx-swap="innerHTML"
+            hx-trigger="change"
           >
+            <option value="">Todas las marcas</option>
+            {% for brand in electronics_browse_brands %}
+              <option value="{{ brand.pk }}" {% if electronics_filter_params.brand_id == brand.pk %}selected{% endif %}>{{ brand.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="id_browse_elec_model">Modelo</label>
+          <select
+            class="form-control"
+            name="model"
+            id="id_browse_elec_model"
+          >
+            <option value="">Todos los modelos</option>
+            {% for pk, name in electronics_browse_model_choices %}
+              <option value="{{ pk }}" {% if electronics_filter_params.model_id == pk %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
         </div>
 
         <div class="form-group">
@@ -60,7 +94,9 @@
               type="text"
               name="price_from"
               id="id_browse_elec_price_from"
-              inputmode="decimal"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="50"
               value="{{ request.GET.price_from|default:'' }}"
               autocomplete="off"
@@ -73,7 +109,9 @@
               type="text"
               name="price_to"
               id="id_browse_elec_price_to"
-              inputmode="decimal"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="1500"
               value="{{ request.GET.price_to|default:'' }}"
               autocomplete="off"

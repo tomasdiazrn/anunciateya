@@ -6,7 +6,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.analytics.models import Event
-from apps.categories.services import root_categories_for_homepage_annotated
+from apps.categories.services import root_categories, root_categories_for_homepage_annotated
 
 from .forms import NewsletterSignupForm
 from .models import NewsletterSubscriber
@@ -89,6 +89,69 @@ def privacy_policy(request):
 
 def healthcheck(_request):
     return HttpResponse("ok", content_type="text/plain")
+
+
+def robots_txt(_request):
+    site_url = getattr(settings, "PUBLIC_SITE_URL", "https://anunciateya.com").rstrip("/")
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /admin/",
+        "Disallow: /events/",
+        "Disallow: /health/",
+        "Disallow: /api/",
+        "Disallow: /newsletter/",
+        "Disallow: /ingresar/",
+        "Disallow: /salir/",
+        "Disallow: /registrarse/",
+        "Disallow: /registrarse/verificar/",
+        "Disallow: /verificar-telefono/",
+        "Disallow: /mi-cuenta/",
+        "Disallow: /publicar/",
+        "Disallow: /listings/",
+        "",
+        f"Sitemap: {site_url}/sitemap.xml",
+        "",
+    ]
+    return HttpResponse("\n".join(lines), content_type="text/plain")
+
+
+def llms_txt(_request):
+    site_url = getattr(settings, "PUBLIC_SITE_URL", "https://anunciateya.com").rstrip("/")
+    brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
+    city = getattr(settings, "SEO_MARKET_CITY", "Guayaquil")
+    category_lines = [
+        f"- {category.name}: {site_url}{category.get_absolute_url()}"
+        for category in root_categories()
+        if category.slug in QUICK_CATEGORY_SLUGS
+    ]
+    lines = [
+        f"# {brand}",
+        "",
+        (
+            f"{brand} es un marketplace de anuncios clasificados en {city} y Ecuador, "
+            "enfocado en compra y venta local con señales de confianza para compradores "
+            "y vendedores."
+        ),
+        "",
+        "## URLs publicas principales",
+        f"- Home: {site_url}/",
+        f"- Anuncios: {site_url}/anuncios/",
+        f"- Publicar anuncio: {site_url}/publicar/",
+        f"- Sitemap XML: {site_url}/sitemap.xml",
+        "",
+        "## Categorias principales",
+        *(category_lines or [f"- Anuncios: {site_url}/anuncios/"]),
+        "",
+        "## Guia para crawlers",
+        (
+            "Usa sitemap.xml como fuente canonica de URLs indexables. No uses rutas de "
+            "cuenta, autenticacion, admin, APIs, eventos ni flujos internos como fuentes "
+            "de contenido publico."
+        ),
+        "",
+    ]
+    return HttpResponse("\n".join(lines), content_type="text/plain")
 
 
 def _newsletter_redirect_url(request):

@@ -46,6 +46,14 @@ def find_valid_login_user(email: str):
     ).first()
 
 
+def find_signup_verification_user(user_id, email: str):
+    normalized = normalize_email(email)
+    if not user_id or not normalized:
+        return None
+    UserModel = get_user_model()
+    return UserModel.objects.filter(pk=user_id, email__iexact=normalized).first()
+
+
 def _active_otps(user, email, now):
     return UserLoginOTP.objects.filter(
         user=user,
@@ -55,10 +63,9 @@ def _active_otps(user, email, now):
     )
 
 
-def request_user_otp(email: str) -> OTPRequestResult:
-    normalized = normalize_email(email)
-    user = find_valid_login_user(normalized)
-    if user is None:
+def request_otp_for_user(user, email: str | None = None) -> OTPRequestResult:
+    normalized = normalize_email(email or getattr(user, "email", ""))
+    if user is None or not normalized:
         return OTPRequestResult(email=normalized)
 
     now = timezone.now()
@@ -123,13 +130,31 @@ def request_user_otp(email: str) -> OTPRequestResult:
     return OTPRequestResult(email=normalized, user_id=user.pk, sent=True, reason="sent")
 
 
-def verify_user_otp(user_id, email: str, code: str) -> OTPVerifyResult:
+def request_user_otp(email: str) -> OTPRequestResult:
+    normalized = normalize_email(email)
+    user = find_valid_login_user(normalized)
+    if user is None:
+        return OTPRequestResult(email=normalized)
+
+    return request_otp_for_user(user, normalized)
+
+
+def verify_user_otp(
+    user_id,
+    email: str,
+    code: str,
+    *,
+    allow_inactive: bool = False,
+) -> OTPVerifyResult:
     normalized = normalize_email(email)
     raw_code = (code or "").strip()
     if not user_id or not normalized or not raw_code:
         return OTPVerifyResult(success=False)
 
-    user = find_valid_login_user(normalized)
+    if allow_inactive:
+        user = find_signup_verification_user(user_id, normalized)
+    else:
+        user = find_valid_login_user(normalized)
     if user is None or str(user.pk) != str(user_id):
         return OTPVerifyResult(success=False)
 

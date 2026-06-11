@@ -14,6 +14,7 @@ from django.views import View
 
 from django_htmx.http import HttpResponseClientRedirect
 
+from apps.listings.models import ListingLead
 from apps.listings.services import user_listings_queryset
 from apps.listings.views import (
     create_listing_base,
@@ -24,13 +25,14 @@ from apps.trust.services import seller_trust_bundle
 from apps.core.constants import COUNTRY_PHONE_CODES
 
 from .forms import (
+    ContactPreferenceForm,
     PhoneVerificationForm,
     RegisterStepOneForm,
     RegisterStepTwoForm,
     UserCreationForm,
 )
 from .models import USER_EMAIL_MAX_LENGTH, UserVerification
-from .otp_auth import normalize_email, request_user_otp, verify_user_otp
+from .otp_auth import normalize_email, request_otp_for_user, request_user_otp, verify_user_otp
 
 
 USER_OTP_GENERIC_MESSAGE = "Si la cuenta existe, recibirás un código de acceso."
@@ -40,6 +42,8 @@ class RegisterView(View):
     template_name = "users/register.html"
     success_url = reverse_lazy("users:account")
     session_key = "register_step1"
+    otp_user_session_key = "signup_otp_user_id"
+    otp_email_session_key = "signup_otp_email"
 
     def get(self, request):
         # Initial load always shows Step 1 (SSR). Non-HTMX fallback is provided via <noscript>.
@@ -189,22 +193,40 @@ class RegisterView(View):
                     },
                 )
 
-            user = full_form.save()
+            user = full_form.save(commit=False)
+            user.is_active = False
+            user.save()
             verification, _ = UserVerification.objects.get_or_create(user=user)
             verification.phone_country_code = full_form.cleaned_data.get("phone_country_code", "+593")
             verification.phone_number = full_form.cleaned_data.get("phone_number", "")
             verification.save(update_fields=["phone_country_code", "phone_number"])
 
             request.session.pop(self.session_key, None)
+            otp_result = request_otp_for_user(user)
+            request.session[self.otp_user_session_key] = user.pk
+            request.session[self.otp_email_session_key] = otp_result.email or user.email
             request.session.modified = True
 
-            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-            next_url = resolve_url(self.success_url)
+            if otp_result.sent:
+                messages.success(
+                    request,
+                    "Creamos tu cuenta. Te enviamos un código para confirmarla.",
+                )
+            else:
+                _add_user_otp_request_message(request, otp_result)
+
+            next_url = reverse("users:register_verify")
             if request.htmx:
                 return HttpResponseClientRedirect(next_url)
             return redirect(next_url)
 
         return HttpResponseBadRequest("Invalid step")
+
+
+def _clear_signup_otp_session(request):
+    request.session.pop(RegisterView.otp_user_session_key, None)
+    request.session.pop(RegisterView.otp_email_session_key, None)
+    request.session.modified = True
 
 
 def _clear_user_otp_session(request):
@@ -278,6 +300,13 @@ def _add_user_otp_verify_message(request, result):
         )
 
 
+def _signup_otp_context(request):
+    return {
+        "otp_email": request.session.get(RegisterView.otp_email_session_key, ""),
+        "user_email_max_length": USER_EMAIL_MAX_LENGTH,
+    }
+
+
 def _login_context(request, *, step=None, email="", next_url=""):
     session_email = request.session.get("user_otp_email", "")
     return {
@@ -316,6 +345,50 @@ def _resolve_post_login_url(request, user, next_url: str = "") -> str:
     if _is_safe_next_url(request, next_url):
         return next_url
     return _default_post_login_url(user)
+
+
+def register_verify_view(request):
+    user_id = request.session.get(RegisterView.otp_user_session_key)
+    email = request.session.get(RegisterView.otp_email_session_key, "")
+    if not user_id or not email:
+        messages.info(request, "Empieza el registro para recibir tu código de confirmación.")
+        return redirect("users:register")
+
+    if request.user.is_authenticated:
+        _clear_signup_otp_session(request)
+        return redirect(_resolve_post_login_url(request, request.user))
+
+    if request.method == "GET":
+        return render(request, "users/register_verify.html", _signup_otp_context(request))
+
+    action = request.POST.get("action") or "verify_code"
+    user = get_object_or_404(get_user_model(), pk=user_id, email__iexact=email)
+
+    if action == "request_code":
+        result = request_otp_for_user(user, email)
+        _add_user_otp_request_message(request, result)
+        return render(request, "users/register_verify.html", _signup_otp_context(request))
+
+    if action == "verify_code":
+        result = verify_user_otp(
+            user_id,
+            email,
+            _posted_otp_code(request),
+            allow_inactive=True,
+        )
+        if result.success:
+            if not result.user.is_active:
+                result.user.is_active = True
+                result.user.save(update_fields=["is_active"])
+            login(request, result.user, backend="django.contrib.auth.backends.ModelBackend")
+            request.session.set_expiry(settings.USER_OTP_SESSION_AGE)
+            _clear_signup_otp_session(request)
+            return redirect("users:account")
+
+        _add_user_otp_verify_message(request, result)
+        return render(request, "users/register_verify.html", _signup_otp_context(request))
+
+    return redirect("users:register_verify")
 
 
 def email_login_view(request):
@@ -399,6 +472,7 @@ class EmailLogoutView(LogoutView):
 _ACCOUNT_SECTION_TITLES = {
     "overview": "Mi cuenta",
     "listings": "Mis anuncios",
+    "leads": "Contactos recibidos",
     "create": "Crear anuncio",
 }
 
@@ -408,7 +482,7 @@ def account_dashboard(request, section="overview"):
     if _is_admin_user(request.user):
         return _admin_panel_redirect(request)
 
-    allowed = {"overview", "listings"}
+    allowed = {"overview", "listings", "leads"}
     if section not in allowed:
         section = "overview"
 
@@ -416,10 +490,22 @@ def account_dashboard(request, section="overview"):
     user = User.objects.get(pk=request.user.pk)
     verification, _ = UserVerification.objects.get_or_create(user=user)
     phone_verified = bool(verification.phone_verified)
+    contact_preference_form = ContactPreferenceForm(instance=verification)
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if action != "contact_preferences":
+            return HttpResponseBadRequest("Invalid action")
+        contact_preference_form = ContactPreferenceForm(request.POST, instance=verification)
+        if contact_preference_form.is_valid():
+            contact_preference_form.save()
+            return redirect("users:account")
+        messages.error(request, "No pudimos actualizar tu preferencia. Intenta nuevamente.")
 
     context = {
         "account_user": user,
         "verification": verification,
+        "contact_preference_form": contact_preference_form,
         "phone_verified": phone_verified,
         "section": section,
         "account_page_title": _ACCOUNT_SECTION_TITLES[section],
@@ -435,6 +521,24 @@ def account_dashboard(request, section="overview"):
                 Q(title__icontains=listings_q)
                 | Q(description__icontains=listings_q)
                 | Q(location__icontains=listings_q)
+            )
+        paginator = Paginator(qs, 20)
+        context["page_obj"] = paginator.get_page(request.GET.get("page") or 1)
+
+    if section == "leads":
+        qs = (
+            ListingLead.objects.filter(seller=user)
+            .select_related("listing", "buyer_user")
+            .order_by("-created_at")
+        )
+        leads_q = (request.GET.get("q") or "").strip()
+        context["leads_q"] = leads_q
+        if leads_q:
+            qs = qs.filter(
+                Q(listing__title__icontains=leads_q)
+                | Q(buyer_name__icontains=leads_q)
+                | Q(buyer_email__icontains=leads_q)
+                | Q(message__icontains=leads_q)
             )
         paginator = Paginator(qs, 20)
         context["page_obj"] = paginator.get_page(request.GET.get("page") or 1)

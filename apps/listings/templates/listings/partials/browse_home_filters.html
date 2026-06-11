@@ -11,17 +11,22 @@
   {% if request.GET.q %}
     <input type="hidden" name="q" value="{{ request.GET.q }}">
   {% endif %}
-  {% if request.GET.location %}
-    <input type="hidden" name="location" value="{{ request.GET.location }}">
-  {% endif %}
-
   <aside class="browse-filters-sidebar">
     <details class="browse-filters-accordion" open>
       <summary class="browse-filters-summary">Filtrar hogar</summary>
       <div class="browse-filters-inner">
         <div class="form-group">
           <label for="id_browse_home_item_type">Tipo de artículo</label>
-          <select class="form-control" name="item_type" id="id_browse_home_item_type">
+          <select
+            class="form-control"
+            name="item_type"
+            id="id_browse_home_item_type"
+            hx-get="{% url 'homegoods_brand_options' %}"
+            hx-target="#id_browse_home_brand"
+            hx-swap="innerHTML"
+            hx-trigger="change"
+            onchange="document.getElementById('id_browse_home_model').innerHTML='<option value=&quot;&quot;>Todos los modelos</option>';"
+          >
             <option value="">Todos</option>
             {% for val, label in home_item_type_choices %}
               <option value="{{ val }}" {% if request.GET.item_type == val %}selected{% endif %}>{{ label }}</option>
@@ -39,6 +44,39 @@
           </select>
         </div>
 
+        <div class="form-group">
+          <label for="id_browse_home_brand">Marca</label>
+          <select
+            class="form-control"
+            name="brand"
+            id="id_browse_home_brand"
+            hx-get="{% url 'homegoods_model_options' %}"
+            hx-target="#id_browse_home_model"
+            hx-include="#id_browse_home_item_type"
+            hx-swap="innerHTML"
+            hx-trigger="change"
+          >
+            <option value="">Todas las marcas</option>
+            {% for brand in home_browse_brands %}
+              <option value="{{ brand.pk }}" {% if home_filter_params.brand_id == brand.pk %}selected{% endif %}>{{ brand.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="id_browse_home_model">Modelo</label>
+          <select
+            class="form-control"
+            name="model"
+            id="id_browse_home_model"
+          >
+            <option value="">Todos los modelos</option>
+            {% for pk, name in home_browse_model_choices %}
+              <option value="{{ pk }}" {% if home_filter_params.model_id == pk %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
         <div class="form-group browse-filter-row">
           <div>
             <label for="id_browse_home_price_from">Precio desde (USD)</label>
@@ -47,7 +85,9 @@
               type="text"
               name="price_from"
               id="id_browse_home_price_from"
-              inputmode="decimal"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="20"
               value="{{ request.GET.price_from|default:'' }}"
               autocomplete="off"
@@ -60,7 +100,9 @@
               type="text"
               name="price_to"
               id="id_browse_home_price_to"
-              inputmode="decimal"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="800"
               value="{{ request.GET.price_to|default:'' }}"
               autocomplete="off"

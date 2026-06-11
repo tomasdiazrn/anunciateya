@@ -1,4 +1,4 @@
-{# Filtros GET para inmuebles: action = /anuncios/ (browse) o "" (/inmuebles/, /guayaquil/inmuebles/, …) #}
+{# Filtros GET para inmuebles: action = /anuncios/ (browse) o "" (/inmuebles/). #}
 <form
   class="browse-filter-form browse-filter-form--sidebar"
   method="get"
@@ -11,10 +11,6 @@
   {% if request.GET.q %}
     <input type="hidden" name="q" value="{{ request.GET.q }}">
   {% endif %}
-  {% if request.GET.location %}
-    <input type="hidden" name="location" value="{{ request.GET.location }}">
-  {% endif %}
-
   <aside class="browse-filters-sidebar">
     <details class="browse-filters-accordion" open>
       <summary class="browse-filters-summary">Filtrar inmuebles</summary>
@@ -23,8 +19,9 @@
           <label for="id_browse_prop_tipo">Tipo de propiedad</label>
           <select class="form-control" name="tipo" id="id_browse_prop_tipo">
             <option value="">Todos</option>
-            <option value="casa" {% if property_filter_params.property_type == "casa" %}selected{% endif %}>Casa</option>
-            <option value="departamento" {% if property_filter_params.property_type == "departamento" %}selected{% endif %}>Departamento</option>
+            {% for value, label in property_type_choices %}
+              <option value="{{ value }}" {% if property_filter_params.property_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
           </select>
         </div>
 
@@ -32,8 +29,9 @@
           <label for="id_browse_prop_operation">Operación</label>
           <select class="form-control" name="operation" id="id_browse_prop_operation">
             <option value="">Todas</option>
-            <option value="venta" {% if property_filter_params.operation_type == "venta" %}selected{% endif %}>Venta</option>
-            <option value="alquiler" {% if property_filter_params.operation_type == "alquiler" %}selected{% endif %}>Alquiler</option>
+            {% for value, label in property_operation_choices %}
+              <option value="{{ value }}" {% if property_filter_params.operation_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
           </select>
         </div>
 
@@ -42,13 +40,15 @@
             <label for="id_browse_prop_rooms">Habitaciones (mín.)</label>
             <input
               class="form-control browse-filter-input--compact"
-              type="number"
+              type="text"
               name="rooms"
               id="id_browse_prop_rooms"
               min="1"
               max="99"
               step="1"
               inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="Ej. 3"
               value="{{ request.GET.rooms|default:'' }}"
             >
@@ -57,13 +57,15 @@
             <label for="id_browse_prop_bathrooms">Baños (mín.)</label>
             <input
               class="form-control browse-filter-input--compact"
-              type="number"
+              type="text"
               name="bathrooms"
               id="id_browse_prop_bathrooms"
               min="1"
               max="99"
               step="1"
               inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="Ej. 2"
               value="{{ request.GET.bathrooms|default:'' }}"
             >
@@ -78,7 +80,9 @@
               type="text"
               name="price_from"
               id="id_browse_prop_price_from"
-              inputmode="decimal"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="Ej. 50000"
               value="{{ request.GET.price_from|default:'' }}"
               autocomplete="off"
@@ -91,7 +95,9 @@
               type="text"
               name="price_to"
               id="id_browse_prop_price_to"
-              inputmode="decimal"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="Ej. 150000"
               value="{{ request.GET.price_to|default:'' }}"
               autocomplete="off"

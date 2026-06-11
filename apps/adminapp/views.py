@@ -28,17 +28,13 @@ PAGE_SIZE = 20
 
 
 def staff_required(view_func):
-    """Authenticated staff only; others redirect to home with a message."""
+    """Authenticated staff only; others redirect to their account."""
 
     @wraps(view_func)
     @login_required
     def _wrapped(request, *args, **kwargs):
         if not (request.user.is_staff or request.user.is_superuser):
-            messages.warning(
-                request,
-                "No tienes permisos para acceder al panel de administración.",
-            )
-            return redirect(reverse("root_home"))
+            return redirect(reverse("users:account"))
         return view_func(request, *args, **kwargs)
 
     return _wrapped

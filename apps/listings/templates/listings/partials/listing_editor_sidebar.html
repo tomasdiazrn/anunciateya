@@ -9,12 +9,17 @@
 
       <div class="listing-editor__actions">
         <p class="small muted listing-editor__draft-note" id="listing-draft-note" hidden>Borrador guardado automáticamente</p>
-        <button type="submit" class="button btn-primary listing-editor__submit">{{ submit_label }}</button>
-        {% if listing %}
-          <a class="button btn-secondary" href="{{ listing.get_absolute_url }}">Cancelar</a>
-        {% else %}
-          <a class="button btn-secondary" href="{{ cancel_url|default_if_none:''|default:'' }}">Cancelar</a>
-        {% endif %}
+        <button type="submit" class="button btn-primary listing-editor__submit" data-loading-text="Guardando...">{{ submit_label }}</button>
+        <a
+          class="button btn-secondary"
+          href="{% if cancel_url %}{{ cancel_url }}{% elif listing %}{{ listing.get_absolute_url }}{% else %}{% url 'publish' %}{% endif %}"
+          {% if cancel_hx_target %}
+            hx-get="{% if cancel_url %}{{ cancel_url }}{% elif listing %}{{ listing.get_absolute_url }}{% else %}{% url 'publish' %}{% endif %}"
+            hx-target="{{ cancel_hx_target }}"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+          {% endif %}
+        >Cancelar</a>
       </div>
     </section>
   </div>

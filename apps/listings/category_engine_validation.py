@@ -36,8 +36,6 @@ SUPPORTED_SEARCH_FIELDS_BY_SLUG: dict[str, frozenset[str]] = {
     HOMEGOODS_SLUG: frozenset({"title", "description", "homegoods"}),
 }
 
-VALID_LOCATION_MODES = frozenset({"none", "city", "city+category"})
-
 _EXTENSION_REL_PREFIX: dict[str, str] = {
     VEHICLE_SLUG: "vehicle",
     PROPERTY_SLUG: "property",
@@ -58,14 +56,10 @@ def validate_category_engine_at_startup() -> None:
     from .category_engine import (
         BROWSE_FRAME_SEO_BUILDER,
         CATEGORY_CONTRACT_REGISTRY,
-        LOCATION_LANDING_CONFIG,
     )
 
     if not callable(BROWSE_FRAME_SEO_BUILDER):
         raise RuntimeError("category_engine.BROWSE_FRAME_SEO_BUILDER debe ser un callable.")
-
-    if not LOCATION_LANDING_CONFIG:
-        raise RuntimeError("LOCATION_LANDING_CONFIG no puede estar vacío.")
 
     reg_keys = frozenset(CATEGORY_CONTRACT_REGISTRY.keys())
     if reg_keys != EXPECTED_CONTRACT_SLUGS:
@@ -117,11 +111,6 @@ def validate_category_engine_at_startup() -> None:
             raise RuntimeError(
                 f"{slug}: QueryPlan hub (tras merge con base) debe incluir relación "
                 f"{_EXTENSION_REL_PREFIX[slug]!r}; select_related={sorted(paths)}.",
-            )
-
-        if spec.allowed_location_mode not in VALID_LOCATION_MODES:
-            raise RuntimeError(
-                f"{slug}: allowed_location_mode inválido: {spec.allowed_location_mode!r}",
             )
 
         exp_search = SUPPORTED_SEARCH_FIELDS_BY_SLUG.get(slug)

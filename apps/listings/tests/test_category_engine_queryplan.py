@@ -15,6 +15,8 @@ from apps.listings.category_engine_queryplan import browse_listings_query_plan
 from apps.listings.models import (
     ItemCondition,
     Listing,
+    MarketBrand,
+    MarketModel,
     MotorcycleListing,
     PropertyListing,
     VehicleListing,
@@ -44,6 +46,21 @@ class BrowseQueryPlanQueryBudgetTests(TestCase):
             slug=MOTORCYCLE_SLUG,
             defaults={"name": "Motos", "order": 2},
         )
+
+        def market_model(brand_name: str, model_name: str, category_slug: str):
+            brand, _ = MarketBrand.objects.get_or_create(
+                name=brand_name,
+                defaults={"slug": f"{brand_name.lower()}-{category_slug}", "is_active": True},
+            )
+            model, _ = MarketModel.objects.get_or_create(
+                brand=brand,
+                category_slug=category_slug,
+                item_type="",
+                name=model_name,
+                defaults={"slug": f"{model_name.lower()}-{category_slug}", "is_active": True},
+            )
+            return brand, model
+
         la = Listing.objects.create(
             title="A1",
             description="d",
@@ -54,10 +71,11 @@ class BrowseQueryPlanQueryBudgetTests(TestCase):
             category=cls.cat_autos,
             status=Listing.Status.PUBLISHED,
         )
+        v_brand, v_model = market_model("B", "M", VEHICLE_SLUG)
         VehicleListing.objects.create(
             listing=la,
-            brand="B",
-            model="M",
+            brand_fk=v_brand,
+            model_fk=v_model,
             year=2020,
             doors=4,
             transmission=VehicleListing.Transmission.MANUAL,
@@ -91,10 +109,11 @@ class BrowseQueryPlanQueryBudgetTests(TestCase):
             category=cls.cat_motos,
             status=Listing.Status.PUBLISHED,
         )
+        m_brand, m_model = market_model("MB", "MM", MOTORCYCLE_SLUG)
         MotorcycleListing.objects.create(
             listing=lm,
-            brand="MB",
-            model="MM",
+            brand_fk=m_brand,
+            model_fk=m_model,
             year=2018,
             transmission=MotorcycleListing.Transmission.MANUAL,
             fuel_type=MotorcycleListing.FuelType.GASOLINA,

@@ -41,6 +41,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
+    "apps.core.middleware.HtmxClientRedirectMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -106,6 +107,7 @@ SITE_URL = PUBLIC_SITE_URL
 # Marca y ciudad para títulos SEO (sitio monolingüe español).
 SEO_BRAND_NAME = "AnunciateYa"
 SEO_MARKET_CITY = "Guayaquil"
+SOCIAL_SHARE_IMAGE_PATH = "img/AnunciateYa_ShareImage_Home.png"
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@anunciateya.com")
 CONTACT_EMAIL = config("CONTACT_EMAIL", default="hola@anunciateya.com")
 
@@ -133,6 +135,11 @@ USER_OTP_ATTEMPT_COOLDOWN_MINUTES = 5
 USER_OTP_SESSION_AGE = 60 * 60 * 24 * 30
 SESSION_COOKIE_AGE = USER_OTP_SESSION_AGE
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+USER_PUBLIC_PROFILE_LINKS_ENABLED = config(
+    "USER_PUBLIC_PROFILE_LINKS_ENABLED",
+    default=False,
+    cast=bool,
+)
 
 # Identidad visual pública (rutas relativas a static/)
 BRAND_LOGO_PATH = config("BRAND_LOGO_PATH", default="img/AnunciateYa_Logo.png")

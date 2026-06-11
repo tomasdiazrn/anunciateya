@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -21,7 +22,11 @@ from apps.trust.models import ListingReport
 from apps.trust.services import bulk_seller_trust, seller_trust_bundle, sync_listing_flag
 from apps.users.models import UserVerification
 
-from .category_engine import browse_category_canonical_redirect, build_category_page
+from .category_engine import (
+    browse_category_canonical_redirect,
+    build_category_page,
+    vehicle_legacy_filter_canonical_redirect,
+)
 from .category_engine_queryplan import LISTING_DETAIL_ORM_PLAN, apply_query_plan
 from .category_extensions import (
     ELECTRONICS_SLUG,
@@ -49,11 +54,16 @@ from .models import (
     HomeGoodsListing,
     ItemCondition,
     Listing,
+    MarketBrand,
+    MarketModel,
     MotorcycleListing,
     PropertyListing,
-    VehicleBrand,
-    VehicleModel,
     VehicleListing,
+)
+from .market_taxonomy import (
+    market_brand_queryset,
+    market_model_queryset,
+    scoped_brand_id_from_request_value,
 )
 from .listing_card_dto import build_listing_cards_for_listings
 from .listing_detail_dto import build_listing_detail_context, listing_gallery_absolute_urls
@@ -69,6 +79,7 @@ from .services import (
     MAX_LISTING_IMAGE_BYTES,
     MAX_LISTING_IMAGES,
     record_listing_interest,
+    record_listing_whatsapp_lead,
     user_listings_queryset,
     validate_listing_image_uploads,
 )
@@ -77,6 +88,7 @@ from .services_promotions import create_listing_promotion
 # Legacy names (imports elsewhere may reference)
 MAX_IMAGES = MAX_LISTING_IMAGES
 MAX_IMAGE_BYTES = MAX_LISTING_IMAGE_BYTES
+PRIVATE_PAGE_ROBOTS = "noindex, nofollow"
 
 
 def _is_listing_owner(request, listing):
@@ -152,16 +164,30 @@ def _build_listing_json_ld(request, listing, trust):
     brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
     abs_listing = request.build_absolute_uri(listing.get_absolute_url())
     seller = listing.seller
-    seller_path = reverse("users:profile", kwargs={"pk": seller.pk})
-    seller_url = request.build_absolute_uri(seller_path)
+    try:
+        verification = seller.verification
+    except ObjectDoesNotExist:
+        verification = None
+    show_seller_name = bool(getattr(verification, "show_name_in_listings", True))
+    seller_url = ""
+    seller_profile_links_enabled = getattr(
+        settings,
+        "USER_PUBLIC_PROFILE_LINKS_ENABLED",
+        False,
+    )
+    if show_seller_name and seller_profile_links_enabled:
+        seller_path = reverse("users:profile", kwargs={"pk": seller.pk})
+        seller_url = request.build_absolute_uri(seller_path)
 
     image_urls = listing_gallery_absolute_urls(request, listing, limit=10)
 
-    seller_name = (
-        getattr(seller, "public_name", None)
-        or seller.get_full_name()
-        or "Vendedor"
-    )
+    seller_name = "Vendedor"
+    if show_seller_name:
+        seller_name = (
+            getattr(seller, "public_name", None)
+            or seller.get_full_name()
+            or "Vendedor"
+        )
     seller_node = _prune_json_ld(
         {
             "@type": "Person",
@@ -260,16 +286,6 @@ def listing_detail_legacy(request, slug):
     return redirect(listing, permanent=True)
 
 
-def location_category_landing(request, location_slug, category_slug):
-    """SEO landing: /<location>/<category>/"""
-    page = build_category_page(
-        request,
-        category_slug=category_slug,
-        location_slug=location_slug,
-    )
-    return render(request, page.template, page.render_dict())
-
-
 def listing_detail(request, slug):
     qs = apply_query_plan(Listing.objects.all(), LISTING_DETAIL_ORM_PLAN)
     listing = get_object_or_404(qs, slug=slug)
@@ -308,18 +324,24 @@ def listing_detail(request, slug):
         )
     )
 
+    detail_context = {
+        "detail": detail,
+        "listing_json_ld": listing_json_ld,
+        "report_form": report_form,
+        "meta_title": f"{listing.title} | {brand}",
+        "meta_description": meta_description
+        or f"Anuncio en {brand}: precio, fotos y contacto seguro con el vendedor.",
+        "canonical_href_override": canonical_href_override,
+    }
+    gallery_urls = listing_gallery_absolute_urls(request, listing, limit=1)
+    if gallery_urls:
+        detail_context["social_share_image_url"] = gallery_urls[0]
+        detail_context["social_share_image_alt"] = listing.title
+
     return render(
         request,
         "listings/listing_detail.html",
-        {
-            "detail": detail,
-            "listing_json_ld": listing_json_ld,
-            "report_form": report_form,
-            "meta_title": f"{listing.title} | {brand}",
-            "meta_description": meta_description
-            or f"Anuncio en {brand}: precio, fotos y contacto seguro con el vendedor.",
-            "canonical_href_override": canonical_href_override,
-        },
+        detail_context,
     )
 
 
@@ -395,8 +417,8 @@ def listing_contact_panel(request, slug):
         form = ListingInterestForm(request.POST)
         if form.is_valid():
             submission = InterestSubmission(
-                listing_title=listing.title,
-                seller_email=listing.seller.email,
+                listing=listing,
+                buyer_user=request.user if request.user.is_authenticated else None,
                 buyer_name=form.cleaned_data["buyer_name"],
                 buyer_email=form.cleaned_data["buyer_email"],
                 message=form.cleaned_data["message"],
@@ -441,6 +463,8 @@ def _listing_whatsapp_href(listing):
     verification = getattr(seller, "verification", None) if seller is not None else None
     if not verification:
         return ""
+    if not getattr(verification, "whatsapp_contact_enabled", False):
+        return ""
 
     raw_cc = (getattr(verification, "phone_country_code", "") or "").strip()
     raw_num = (getattr(verification, "phone_number", "") or "").strip()
@@ -469,6 +493,10 @@ def listing_whatsapp_redirect(request, slug):
             "Este vendedor aún no tiene WhatsApp disponible. Puedes enviar el formulario.",
         )
         return redirect(listing)
+    record_listing_whatsapp_lead(
+        listing,
+        buyer_user=request.user if request.user.is_authenticated else None,
+    )
     return redirect(href)
 
 
@@ -477,12 +505,10 @@ def category_legacy_redirect(request, slug):
 
 
 def category_landing(request, slug):
+    redirect_response = vehicle_legacy_filter_canonical_redirect(request)
+    if redirect_response is not None:
+        return redirect_response
     page = build_category_page(request, category_slug=slug)
-    return render(request, page.template, page.render_dict())
-
-
-def location_landing(request, location_slug):
-    page = build_category_page(request, location_slug=location_slug)
     return render(request, page.template, page.render_dict())
 
 
@@ -638,6 +664,7 @@ def create_listing_base(
             "Elegí una categoría y completá tu anuncio con fotos y precio. "
             "Algunas categorías incluyen campos extra para describir mejor tu producto."
         ),
+        "meta_robots": PRIVATE_PAGE_ROBOTS,
         "heading": heading,
         "publish_categories": root_categories(),
         "publish_mode": "chooser",
@@ -690,12 +717,13 @@ def create_listing_in_category(
     publish_mode = "simple"
     specific_section_title = None
     specific_fields_grid = False
+    base_form_kwargs = {"category_slug": category.slug}
 
     if kind == "vehicle":
         template_name = "listings/create/vehicle.html"
         publish_mode = "vehicle"
         if request.method == "POST":
-            base = BaseListingForm(request.POST, request.FILES)
+            base = BaseListingForm(request.POST, request.FILES, **base_form_kwargs)
             specific = VehicleListingForm(request.POST)
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
@@ -718,14 +746,14 @@ def create_listing_in_category(
                         admin_dashboard=admin_dashboard,
                     )
         else:
-            base = BaseListingForm(initial={"currency": "USD"})
+            base = BaseListingForm(initial={"currency": "USD"}, **base_form_kwargs)
             specific = VehicleListingForm()
 
     elif kind == "property":
         template_name = "listings/create/property.html"
         publish_mode = "property"
         if request.method == "POST":
-            base = BaseListingForm(request.POST, request.FILES)
+            base = BaseListingForm(request.POST, request.FILES, **base_form_kwargs)
             specific = PropertyListingForm(request.POST)
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
@@ -748,7 +776,7 @@ def create_listing_in_category(
                         admin_dashboard=admin_dashboard,
                     )
         else:
-            base = BaseListingForm(initial={"currency": "USD"})
+            base = BaseListingForm(initial={"currency": "USD"}, **base_form_kwargs)
             specific = PropertyListingForm()
 
     elif kind == "motorcycle":
@@ -757,7 +785,7 @@ def create_listing_in_category(
         specific_section_title = "Detalles del producto"
         specific_fields_grid = True
         if request.method == "POST":
-            base = BaseListingForm(request.POST, request.FILES)
+            base = BaseListingForm(request.POST, request.FILES, **base_form_kwargs)
             specific = MotorcycleListingForm(request.POST)
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
@@ -780,7 +808,7 @@ def create_listing_in_category(
                         admin_dashboard=admin_dashboard,
                     )
         else:
-            base = BaseListingForm(initial={"currency": "USD"})
+            base = BaseListingForm(initial={"currency": "USD"}, **base_form_kwargs)
             specific = MotorcycleListingForm()
 
     elif kind == "electronics":
@@ -789,7 +817,7 @@ def create_listing_in_category(
         specific_section_title = "Detalles del producto"
         specific_fields_grid = True
         if request.method == "POST":
-            base = BaseListingForm(request.POST, request.FILES)
+            base = BaseListingForm(request.POST, request.FILES, **base_form_kwargs)
             specific = ElectronicsListingForm(request.POST)
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
@@ -812,7 +840,7 @@ def create_listing_in_category(
                         admin_dashboard=admin_dashboard,
                     )
         else:
-            base = BaseListingForm(initial={"currency": "USD"})
+            base = BaseListingForm(initial={"currency": "USD"}, **base_form_kwargs)
             specific = ElectronicsListingForm()
 
     elif kind == "homegoods":
@@ -821,7 +849,7 @@ def create_listing_in_category(
         specific_section_title = "Detalles del producto"
         specific_fields_grid = True
         if request.method == "POST":
-            base = BaseListingForm(request.POST, request.FILES)
+            base = BaseListingForm(request.POST, request.FILES, **base_form_kwargs)
             specific = HomeGoodsListingForm(request.POST)
             if base.is_valid() and specific.is_valid():
                 if validate_listing_image_uploads(request, base):
@@ -844,12 +872,12 @@ def create_listing_in_category(
                         admin_dashboard=admin_dashboard,
                     )
         else:
-            base = BaseListingForm(initial={"currency": "USD"})
+            base = BaseListingForm(initial={"currency": "USD"}, **base_form_kwargs)
             specific = HomeGoodsListingForm()
 
     else:
         if request.method == "POST":
-            base = BaseListingForm(request.POST, request.FILES)
+            base = BaseListingForm(request.POST, request.FILES, **base_form_kwargs)
             if base.is_valid():
                 if validate_listing_image_uploads(request, base):
                     with transaction.atomic():
@@ -868,7 +896,7 @@ def create_listing_in_category(
                         admin_dashboard=admin_dashboard,
                     )
         else:
-            base = BaseListingForm(initial={"currency": "USD"})
+            base = BaseListingForm(initial={"currency": "USD"}, **base_form_kwargs)
 
     ctx = {
         "form": base,
@@ -887,7 +915,9 @@ def create_listing_in_category(
         ),
         "meta_title": f"Publicar en {category.name} | {brand}",
         "meta_description": meta_description,
+        "meta_robots": PRIVATE_PAGE_ROBOTS,
         "publish_mode": publish_mode,
+        "listing_form_layout": publish_mode,
         "specific_section_title": specific_section_title,
         "specific_fields_grid": specific_fields_grid,
         "form_action_url": reverse(
@@ -931,6 +961,7 @@ def my_listings(request):
             "meta_description": (
                 f"Gestiona tus anuncios publicados en {brand}: edita precio, fotos y visibilidad."
             ),
+            "meta_robots": PRIVATE_PAGE_ROBOTS,
         },
     )
 
@@ -1035,8 +1066,14 @@ def _listing_edit_with_specific_form(
     specific_fields_grid=False,
 ):
     ext = get_extension(listing)
+    base_form_kwargs = {"category_slug": listing.category.slug}
     if request.method == "POST":
-        base = BaseListingForm(request.POST, request.FILES, instance=listing)
+        base = BaseListingForm(
+            request.POST,
+            request.FILES,
+            instance=listing,
+            **base_form_kwargs,
+        )
         specific = specific_form_class(request.POST, instance=ext)
         if base.is_valid() and specific.is_valid():
             if validate_listing_image_uploads(
@@ -1061,7 +1098,7 @@ def _listing_edit_with_specific_form(
                     return redirect("users:account_listings")
                 return redirect(listing)
     else:
-        base = BaseListingForm(instance=listing)
+        base = BaseListingForm(instance=listing, **base_form_kwargs)
         specific = specific_form_class(instance=ext)
     ctx = {
         "form": base,
@@ -1074,6 +1111,9 @@ def _listing_edit_with_specific_form(
         "meta_description": (
             "Actualiza tu anuncio: descripción, precio, ubicación y fotos para atraer más contactos."
         ),
+        "meta_robots": PRIVATE_PAGE_ROBOTS,
+        "publish_mode": publish_flow_kind(listing.category.slug),
+        "listing_form_layout": publish_flow_kind(listing.category.slug),
         "specific_section_title": specific_section_title,
         "specific_fields_grid": specific_fields_grid,
     }
@@ -1118,6 +1158,9 @@ def _listing_edit_generic(request, listing, brand: str, account_dashboard: bool)
         "meta_description": (
             "Actualiza tu anuncio: descripción, precio, ubicación y fotos para atraer más contactos."
         ),
+        "meta_robots": PRIVATE_PAGE_ROBOTS,
+        "publish_mode": publish_flow_kind(listing.category.slug),
+        "listing_form_layout": publish_flow_kind(listing.category.slug),
     }
     return _render_listing_edit_response(request, ctx, account_dashboard=account_dashboard)
 
@@ -1144,6 +1187,7 @@ def listing_delete(request, slug):
             "listing": listing,
             "meta_title": f"Eliminar anuncio | {brand}",
             "meta_description": "Confirma si deseas eliminar este anuncio de forma permanente.",
+            "meta_robots": PRIVATE_PAGE_ROBOTS,
         },
     )
 
@@ -1152,27 +1196,112 @@ def vehicle_model_options(request):
     """
     HTMX helper: returns <option> list for VehicleListingForm.model_fk.
     GET params:
-      - brand_id: VehicleBrand.pk
+      - brand_id, brand_fk or brand: MarketBrand.pk
     """
-    brand_id = (
+    brand_id_raw = (
         request.GET.get("brand_id")
         or request.GET.get("brand_fk")
+        or request.GET.get("brand")
         or request.GET.get("marca")
         or ""
     )
-    try:
-        bid = int(brand_id)
-    except (TypeError, ValueError):
-        bid = None
+    bid = scoped_brand_id_from_request_value(brand_id_raw)
 
-    models_qs = VehicleModel.objects.none()
-    if bid:
-        models_qs = VehicleModel.objects.filter(brand_id=bid).order_by("name")
+    models_qs = market_model_queryset(VEHICLE_SLUG, bid)
 
     # Return <option> list so htmx can swap select innerHTML.
     out = ['<option value="">Selecciona el modelo</option>']
     for m in models_qs:
         out.append(f'<option value="{m.pk}">{escape(m.name)}</option>')
+    return HttpResponse("\n".join(out))
+
+
+def motorcycle_model_options(request):
+    """
+    HTMX helper: returns <option> list for MotorcycleListingForm.model_fk.
+    GET params:
+      - brand_fk: MarketBrand.pk
+    """
+    brand_id = scoped_brand_id_from_request_value(
+        request.GET.get("brand_fk") or request.GET.get("brand")
+    )
+    out = ['<option value="">Selecciona modelo</option>']
+    for model in market_model_queryset(MOTORCYCLE_SLUG, brand_id):
+        out.append(f'<option value="{model.pk}">{escape(model.name)}</option>')
+    return HttpResponse("\n".join(out))
+
+
+def electronics_model_options(request):
+    """
+    HTMX helper: returns <option> list for ElectronicsListingForm.model_fk.
+    GET params:
+      - brand_fk: MarketBrand.pk
+      - item_type: optional electronics type for scoped models
+    """
+    brand_id = scoped_brand_id_from_request_value(
+        request.GET.get("brand_fk") or request.GET.get("brand")
+    )
+    item_type = (request.GET.get("item_type") or "").strip()
+    out = ['<option value="">Selecciona modelo</option>']
+    for model in market_model_queryset(
+        ELECTRONICS_SLUG,
+        brand_id,
+        item_type=item_type,
+    ):
+        out.append(f'<option value="{model.pk}">{escape(model.name)}</option>')
+    return HttpResponse("\n".join(out))
+
+
+def electronics_brand_options(request):
+    """
+    HTMX helper: returns <option> list for ElectronicsListingForm.brand_fk.
+    GET params:
+      - item_type: optional electronics type for scoped brands
+    """
+    item_type = (request.GET.get("item_type") or "").strip()
+    out = ['<option value="">Selecciona marca</option>']
+    if not item_type:
+        out = ['<option value="">Primero selecciona tipo</option>']
+        return HttpResponse("\n".join(out))
+    for brand in market_brand_queryset(ELECTRONICS_SLUG, item_type=item_type):
+        out.append(f'<option value="{brand.pk}">{escape(brand.name)}</option>')
+    return HttpResponse("\n".join(out))
+
+
+def homegoods_model_options(request):
+    """
+    HTMX helper: returns <option> list for HomeGoodsListingForm.model_fk.
+    GET params:
+      - brand_fk: MarketBrand.pk
+      - item_type: optional home goods type for scoped models
+    """
+    brand_id = scoped_brand_id_from_request_value(
+        request.GET.get("brand_fk") or request.GET.get("brand")
+    )
+    item_type = (request.GET.get("item_type") or "").strip()
+    out = ['<option value="">Selecciona modelo</option>']
+    for model in market_model_queryset(
+        HOMEGOODS_SLUG,
+        brand_id,
+        item_type=item_type,
+    ):
+        out.append(f'<option value="{model.pk}">{escape(model.name)}</option>')
+    return HttpResponse("\n".join(out))
+
+
+def homegoods_brand_options(request):
+    """
+    HTMX helper: returns <option> list for HomeGoodsListingForm.brand_fk.
+    GET params:
+      - item_type: optional home goods type for scoped brands
+    """
+    item_type = (request.GET.get("item_type") or "").strip()
+    out = ['<option value="">Selecciona marca</option>']
+    if not item_type:
+        out = ['<option value="">Primero selecciona tipo</option>']
+        return HttpResponse("\n".join(out))
+    for brand in market_brand_queryset(HOMEGOODS_SLUG, item_type=item_type):
+        out.append(f'<option value="{brand.pk}">{escape(brand.name)}</option>')
     return HttpResponse("\n".join(out))
 
 

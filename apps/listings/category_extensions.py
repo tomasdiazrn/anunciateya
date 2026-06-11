@@ -4,14 +4,13 @@ Extensión de anuncios por categoría (OneToOne). Slugs = Category.slug en BD.
 EXTENSION_SPECS documenta el mapeo slug → modelo + formulario (nombres de clase).
 La lógica de vistas usa publish_flow_kind().
 
-Listados / filtros / búsqueda / SEO por categoría: ver category_behavior.py (CategoryBehaviorSpec).
+Listados / filtros / búsqueda / SEO por categoría: ver `category_engine.py` (`CategoryContractSpec`).
 """
 
 # Slugs raíz con formulario extendido (deben existir como Category.slug).
 VEHICLE_SLUG = "autos"
 PROPERTY_SLUG = "inmuebles"
 MOTORCYCLE_SLUG = "motos"
-MOTOS_SLUG = MOTORCYCLE_SLUG
 ELECTRONICS_SLUG = "electronica"
 HOMEGOODS_SLUG = "hogar"
 
@@ -49,7 +48,7 @@ EXTENSION_SPECS = {
     },
     HOMEGOODS_SLUG: {
         "label": "Hogar",
-        "extension_model": "HomeListing",
+        "extension_model": "HomeGoodsListing",
         "form_class": "HomeGoodsListingForm",
     },
 }

@@ -9,6 +9,7 @@ urlpatterns = [
     path("ingresar/", views.email_login_view, name="login"),
     path("salir/", views.EmailLogoutView.as_view(), name="logout"),
     path("registrarse/", views.RegisterView.as_view(), name="register"),
+    path("registrarse/verificar/", views.register_verify_view, name="register_verify"),
     path("verificar-telefono/", views.verify_phone, name="verify_phone"),
     path(
         "mi-cuenta/anuncios/<slug:slug>/editar/",
@@ -20,6 +21,12 @@ urlpatterns = [
         views.account_dashboard,
         kwargs={"section": "listings"},
         name="account_listings",
+    ),
+    path(
+        "mi-cuenta/contactos/",
+        views.account_dashboard,
+        kwargs={"section": "leads"},
+        name="account_leads",
     ),
     path(
         "mi-cuenta/publicar/otros/",

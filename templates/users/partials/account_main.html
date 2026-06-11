@@ -22,27 +22,51 @@
           {% if phone_verified %}
             <span class="account-overview__badge account-overview__badge--ok">Verificado</span>
           {% else %}
-            <span class="account-overview__badge account-overview__badge--pending">Sin verificar</span>
+            <a class="account-overview__inline-action" href="{% url 'users:verify_phone' %}?next={% url 'users:account' %}">Verificar</a>
           {% endif %}
         </dd>
       </dl>
-      <p class="account-overview__footnote">
-        <a href="{% url 'users:profile' pk=account_user.pk %}">Ver perfil público</a>
-      </p>
+      {% if user_public_profile_links_enabled %}
+        <p class="account-overview__footnote">
+          <a href="{% url 'users:profile' pk=account_user.pk %}">Ver perfil público</a>
+        </p>
+      {% endif %}
     </section>
 
     <section class="account-overview__section card" aria-labelledby="overview-security-heading">
       <h2 id="overview-security-heading" class="account-overview__section-title">Seguridad</h2>
-      <ul class="account-overview__actions">
-        {% if not phone_verified %}
-          <li>
-            <a href="{% url 'users:verify_phone' %}">
-              <i class="fa-solid fa-mobile-screen" aria-hidden="true"></i>
-              Verificar teléfono
-            </a>
-          </li>
-        {% endif %}
-      </ul>
+      <div class="account-security__section">
+        <div class="account-security__section-main">
+          <form method="post" action="{% url 'users:account' %}" class="account-contact-preference" aria-label="Preferencias de privacidad y contacto">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="contact_preferences">
+            <label class="account-contact-checkbox">
+              {{ contact_preference_form.show_name_in_listings }}
+              <span class="account-contact-checkbox__box" aria-hidden="true">
+                <i class="fa-solid fa-check account-contact-checkbox__check"></i>
+              </span>
+              <span class="account-contact-checkbox__text">
+                Mostrar mi nombre en los anuncios
+              </span>
+            </label>
+            {% if contact_preference_form.show_name_in_listings.errors %}
+              <div class="form-errors" role="alert" aria-live="assertive">{{ contact_preference_form.show_name_in_listings.errors }}</div>
+            {% endif %}
+            <label class="account-contact-checkbox">
+              {{ contact_preference_form.whatsapp_contact_enabled }}
+              <span class="account-contact-checkbox__box" aria-hidden="true">
+                <i class="fa-solid fa-check account-contact-checkbox__check"></i>
+              </span>
+              <span class="account-contact-checkbox__text">
+                Permitir que me contacten por WhatsApp
+              </span>
+            </label>
+            {% if contact_preference_form.whatsapp_contact_enabled.errors %}
+              <div class="form-errors" role="alert" aria-live="assertive">{{ contact_preference_form.whatsapp_contact_enabled.errors }}</div>
+            {% endif %}
+          </form>
+        </div>
+      </div>
     </section>
   </div>
 
@@ -197,6 +221,140 @@
     </div>
   </div>
 
+{% elif section == "leads" %}
+  <div class="account-listings account-leads">
+    <header class="account-main__header account-main__header--row account-listings__header">
+      <div>
+        <h1 class="account-main__title">Contactos recibidos</h1>
+        <p class="account-leads__subtitle muted">Consultas e intenciones de contacto generadas desde tus anuncios.</p>
+      </div>
+    </header>
+
+    <div class="account-main__body account-main__body--listings">
+      <div class="account-listings-card">
+        <form
+          class="account-listings-search"
+          method="get"
+          action="{% url 'users:account_leads' %}"
+          role="search"
+          aria-label="Buscar contactos recibidos"
+          hx-get="{% url 'users:account_leads' %}"
+          hx-target="#account-dashboard-main"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+        >
+          <label class="visually-hidden" for="account-leads-q">Buscar contactos</label>
+          <div class="account-listings-search__field">
+            <i class="fa-solid fa-magnifying-glass account-listings-search__icon" aria-hidden="true"></i>
+            <input
+              type="search"
+              id="account-leads-q"
+              name="q"
+              class="account-listings-search__input"
+              value="{{ leads_q }}"
+              placeholder="Buscar por anuncio, nombre, email o mensaje"
+              autocomplete="off"
+              enterkeyhint="search"
+            >
+          </div>
+        </form>
+
+        {% if page_obj.paginator.count == 0 and not leads_q %}
+          <div class="account-listings-empty">
+            <p class="muted">Todavía no recibiste contactos por tus anuncios.</p>
+            <a
+              class="button btn-primary"
+              href="{% url 'users:account_publish' %}"
+              hx-get="{% url 'users:account_publish' %}"
+              hx-target="#account-dashboard-main"
+              hx-swap="innerHTML"
+              hx-push-url="true"
+            >Crear anuncio</a>
+          </div>
+        {% else %}
+          <p class="account-listings-count" aria-live="polite">
+            {{ page_obj.paginator.count }} contacto{% if page_obj.paginator.count != 1 %}s{% endif %}
+            {% if leads_q %}<span class="account-listings-count__query"> · «{{ leads_q }}»</span>{% endif %}
+          </p>
+
+          {% if page_obj.object_list %}
+            <div class="account-listings-table-wrap" role="region" aria-label="Tabla de contactos recibidos">
+              <table class="account-data-table account-leads-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Recibido</th>
+                    <th scope="col">Anuncio</th>
+                    <th scope="col">Contacto</th>
+                    <th scope="col">Mensaje</th>
+                    <th scope="col">Canal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for lead in page_obj.object_list %}
+                    <tr>
+                      <td class="account-data-table__muted account-data-table__date">{{ lead.created_at|date:"d/m/Y H:i" }}</td>
+                      <td class="account-data-table__cell-anuncio">
+                        <a class="account-data-table__anuncio-link" href="{{ lead.listing.get_absolute_url }}">
+                          <span class="account-data-table__title">{{ lead.listing.title }}</span>
+                        </a>
+                      </td>
+                      <td>
+                        {% if lead.buyer_name %}
+                          <span class="account-leads__buyer-name">{{ lead.buyer_name }}</span>
+                        {% else %}
+                          <span class="account-leads__buyer-name muted">Sin nombre</span>
+                        {% endif %}
+                        {% if lead.buyer_email %}
+                          <a class="account-leads__buyer-email" href="mailto:{{ lead.buyer_email }}">{{ lead.buyer_email }}</a>
+                        {% endif %}
+                      </td>
+                      <td class="account-leads__message">{{ lead.message|linebreaksbr }}</td>
+                      <td>
+                        <span class="account-leads__source">{{ lead.get_source_display }}</span>
+                        {% if lead.email_status == "failed" %}
+                          <span class="account-overview__badge account-overview__badge--pending">Email falló</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            {% if page_obj.has_other_pages %}
+              <nav class="account-listings-pager" aria-label="Paginación">
+                {% if page_obj.has_previous %}
+                  <a
+                    class="button btn-secondary btn-compact"
+                    href="{% url 'users:account_leads' %}?page={{ page_obj.previous_page_number }}{% if leads_q %}&q={{ leads_q|urlencode }}{% endif %}"
+                    hx-get="{% url 'users:account_leads' %}?page={{ page_obj.previous_page_number }}{% if leads_q %}&q={{ leads_q|urlencode }}{% endif %}"
+                    hx-target="#account-dashboard-main"
+                    hx-swap="innerHTML"
+                    hx-push-url="true"
+                  >Anterior</a>
+                {% endif %}
+                <span class="account-listings-pager__meta muted">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                  <a
+                    class="button btn-secondary btn-compact"
+                    href="{% url 'users:account_leads' %}?page={{ page_obj.next_page_number }}{% if leads_q %}&q={{ leads_q|urlencode }}{% endif %}"
+                    hx-get="{% url 'users:account_leads' %}?page={{ page_obj.next_page_number }}{% if leads_q %}&q={{ leads_q|urlencode }}{% endif %}"
+                    hx-target="#account-dashboard-main"
+                    hx-swap="innerHTML"
+                    hx-push-url="true"
+                  >Siguiente</a>
+                {% endif %}
+              </nav>
+            {% endif %}
+          {% else %}
+            <p class="account-listings-no-results muted">No hay contactos que coincidan con tu búsqueda.</p>
+            <p class="account-listings-no-results__hint"><a href="{% url 'users:account_leads' %}" hx-get="{% url 'users:account_leads' %}" hx-target="#account-dashboard-main" hx-swap="innerHTML" hx-push-url="true">Ver todos los contactos</a></p>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
 {% elif section == "create" %}
   <div class="account-listing-create">
     <div class="account-listing-create__column">
@@ -231,33 +389,15 @@
           class="stack-form listing-form listing-editor account-listing-form"
           aria-label="Formulario de anuncio"
           novalidate
+          data-listing-kind="{{ publish_mode|default:'simple' }}"
+          data-loading-submit
         >
           {% csrf_token %}
           <div class="listing-editor__grid">
             <div class="listing-editor__main">
               {% include "listings/partials/listing_form_fields.html" with form=form specific_form=specific_form include_category=include_category show_submit_row=False cancel_url=cancel_url specific_section_title=specific_section_title specific_fields_grid=specific_fields_grid %}
             </div>
-            <aside class="listing-editor__side" aria-label="Opciones de publicación">
-              <div class="listing-editor__side-inner">
-                <section class="card listing-editor__side-card" aria-labelledby="publish-box-title-account-create">
-                  <h2 id="publish-box-title-account-create" class="h-section listing-editor__side-title">Publicación</h2>
-                  {% if form.publish_state %}
-                    {% include "components/ui/form_field.html" with field=form.publish_state %}
-                  {% endif %}
-                  <div class="listing-editor__actions">
-                    <button type="submit" class="button btn-primary listing-editor__submit">{{ submit_label }}</button>
-                    <a
-                      href="{{ cancel_url }}"
-                      class="button btn-secondary"
-                      hx-get="{{ cancel_url }}"
-                      hx-target="#account-dashboard-main"
-                      hx-swap="innerHTML"
-                      hx-push-url="true"
-                    >Cancelar</a>
-                  </div>
-                </section>
-              </div>
-            </aside>
+            {% include "listings/partials/listing_editor_sidebar.html" with form=form submit_label=submit_label cancel_url=cancel_url cancel_hx_target="#account-dashboard-main" %}
           </div>
         </form>
       {% endif %}
@@ -280,33 +420,15 @@
         class="stack-form listing-form listing-editor account-listing-form"
         aria-label="Editar anuncio"
         novalidate
+        data-listing-kind="{{ publish_mode|default:'simple' }}"
+        data-loading-submit
       >
         {% csrf_token %}
         <div class="listing-editor__grid">
           <div class="listing-editor__main">
             {% include "listings/partials/listing_form_fields.html" with form=form specific_form=specific_form include_category=include_category listing=listing show_submit_row=False cancel_url=cancel_url specific_section_title=specific_section_title specific_fields_grid=specific_fields_grid %}
           </div>
-          <aside class="listing-editor__side" aria-label="Opciones de publicación">
-            <div class="listing-editor__side-inner">
-              <section class="card listing-editor__side-card" aria-labelledby="publish-box-title-account-edit">
-                <h2 id="publish-box-title-account-edit" class="h-section listing-editor__side-title">Publicación</h2>
-                {% if form.publish_state %}
-                  {% include "components/ui/form_field.html" with field=form.publish_state %}
-                {% endif %}
-                <div class="listing-editor__actions">
-                  <button type="submit" class="button btn-primary listing-editor__submit">{{ submit_label }}</button>
-                  <a
-                    href="{{ cancel_url }}"
-                    class="button btn-secondary"
-                    hx-get="{{ cancel_url }}"
-                    hx-target="#account-dashboard-main"
-                    hx-swap="innerHTML"
-                    hx-push-url="true"
-                  >Cancelar</a>
-                </div>
-              </section>
-            </div>
-          </aside>
+          {% include "listings/partials/listing_editor_sidebar.html" with form=form listing=listing submit_label=submit_label cancel_url=cancel_url cancel_hx_target="#account-dashboard-main" %}
         </div>
       </form>
     </div>

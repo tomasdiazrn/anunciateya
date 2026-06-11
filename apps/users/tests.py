@@ -8,6 +8,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.categories.models import Category
+from apps.listings.listing_card_dto import build_card_context
+from apps.listings.models import Listing, ListingLead
 
 from .forms import RegisterStepOneForm, UserCreationForm
 from .models import User, UserLoginOTP, UserVerification
@@ -35,7 +37,7 @@ class UserPasswordlessAuthTests(TestCase):
                 {"action": "request_code", "email": email},
             )
 
-    def test_register_creates_user_without_usable_password(self):
+    def test_register_creates_inactive_user_and_sends_signup_otp(self):
         step1 = {
             "step": "1",
             "email": "new@example.com",
@@ -43,21 +45,65 @@ class UserPasswordlessAuthTests(TestCase):
             "last_name": "User",
         }
         self.client.post(reverse("users:register"), step1)
-        response = self.client.post(
+        with patch("apps.users.otp_auth.generate_user_otp_code", return_value="482731"):
+            response = self.client.post(
+                reverse("users:register"),
+                {
+                    "step": "2",
+                    "phone_country_code": "+593",
+                    "phone_number": "987654321",
+                    "accept_terms": "on",
+                },
+            )
+
+        self.assertRedirects(response, reverse("users:register_verify"))
+        user = User.objects.get(email="new@example.com")
+        self.assertFalse(user.is_active)
+        self.assertFalse(user.has_usable_password())
+        self.assertNotIn("_auth_user_id", self.client.session)
+        verification = UserVerification.objects.get(user=user)
+        self.assertEqual(verification.phone_number, "987654321")
+        otp = UserLoginOTP.objects.get(user=user)
+        self.assertTrue(check_password("482731", otp.code_hash))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("482731", mail.outbox[0].body)
+
+    def test_signup_otp_confirmation_activates_and_logs_user_in(self):
+        self.client.post(
             reverse("users:register"),
             {
-                "step": "2",
-                "phone_country_code": "+593",
-                "phone_number": "987654321",
-                "accept_terms": "on",
+                "step": "1",
+                "email": "new@example.com",
+                "first_name": "New",
+                "last_name": "User",
             },
+        )
+        with patch("apps.users.otp_auth.generate_user_otp_code", return_value="482731"):
+            self.client.post(
+                reverse("users:register"),
+                {
+                    "step": "2",
+                    "phone_country_code": "+593",
+                    "phone_number": "987654321",
+                    "accept_terms": "on",
+                },
+            )
+
+        user = User.objects.get(email="new@example.com")
+        self.assertFalse(user.is_active)
+        response = self.client.post(
+            reverse("users:register_verify"),
+            {"action": "verify_code", "code": "482731"},
         )
 
         self.assertRedirects(response, reverse("users:account"))
-        user = User.objects.get(email="new@example.com")
-        self.assertFalse(user.has_usable_password())
-        verification = UserVerification.objects.get(user=user)
-        self.assertEqual(verification.phone_number, "987654321")
+        user.refresh_from_db()
+        self.assertTrue(user.is_active)
+        self.assertEqual(int(self.client.session["_auth_user_id"]), user.pk)
+        self.assertEqual(
+            self.client.session.get_expiry_age(),
+            settings.USER_OTP_SESSION_AGE,
+        )
 
     def test_signup_form_limits_match_ui_constraints(self):
         step1_form = RegisterStepOneForm()
@@ -232,16 +278,6 @@ class UserPasswordlessAuthTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("_auth_user_id", self.client.session)
 
-    def test_legacy_password_reset_routes_redirect_to_login(self):
-        response = self.client.get("/accounts/password-reset/")
-        self.assertRedirects(
-            response,
-            "/ingresar/",
-            status_code=301,
-            target_status_code=200,
-        )
-
-
 class AdminAccountAccessTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -274,6 +310,11 @@ class AdminAccountAccessTests(TestCase):
 
         self.assertRedirects(response, reverse("adminapp:dashboard"))
 
+    def test_staff_account_leads_redirects_to_admin_panel(self):
+        response = self.client.get(reverse("users:account_leads"))
+
+        self.assertRedirects(response, reverse("adminapp:dashboard"))
+
     def test_staff_account_publish_redirects_to_admin_panel(self):
         response = self.client.get(reverse("users:account_publish"))
 
@@ -288,3 +329,198 @@ class AdminAccountAccessTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("adminapp:dashboard"))
+
+
+class AccountContactPreferenceTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.category = Category.objects.create(name="Hogar", slug="hogar")
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="seller@example.com",
+            password="ignored",
+            first_name="Seller",
+            last_name="Example",
+            is_active=True,
+        )
+        self.verification = UserVerification.objects.create(
+            user=self.user,
+            phone_country_code="+593",
+            phone_number="987654321",
+            whatsapp_contact_enabled=True,
+        )
+        self.listing = Listing.objects.create(
+            title="Silla de comedor",
+            slug="silla-de-comedor",
+            description="Silla en buen estado",
+            price_amount="35.00",
+            currency="USD",
+            location="Guayaquil",
+            seller=self.user,
+            category=self.category,
+            status=Listing.Status.PUBLISHED,
+        )
+
+    def test_account_can_disable_whatsapp_contact_preference(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("users:account"),
+            {"action": "contact_preferences"},
+        )
+
+        self.assertRedirects(response, reverse("users:account"))
+        self.verification.refresh_from_db()
+        self.assertFalse(self.verification.whatsapp_contact_enabled)
+
+    def test_account_can_disable_public_name_preference(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("users:account"),
+            {
+                "action": "contact_preferences",
+                "whatsapp_contact_enabled": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("users:account"))
+        self.verification.refresh_from_db()
+        self.assertTrue(self.verification.whatsapp_contact_enabled)
+        self.assertFalse(self.verification.show_name_in_listings)
+
+    def test_account_contains_phone_status_and_whatsapp_controls(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("users:account"))
+
+        self.assertContains(response, "Seguridad")
+        self.assertContains(response, "+593")
+        self.assertContains(response, "987654321")
+        self.assertContains(response, "Verificar")
+        self.assertContains(response, "Mostrar mi nombre en los anuncios")
+        self.assertContains(response, "Permitir que me contacten por WhatsApp")
+        self.assertNotContains(response, "Teléfono verificado")
+
+    def test_account_sidebar_links_to_received_contacts(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("users:account"))
+
+        self.assertContains(response, reverse("users:account_leads"))
+        self.assertContains(response, "Contactos")
+
+    def test_account_htmx_after_logout_redirects_to_login(self):
+        self.client.force_login(self.user)
+        self.client.get(reverse("users:account"))
+        self.client.logout()
+
+        response = self.client.get(
+            reverse("users:account_listings"),
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("/ingresar/", response["HX-Redirect"])
+        self.assertIn("next=", response["HX-Redirect"])
+
+    def test_account_leads_lists_received_contacts(self):
+        ListingLead.objects.create(
+            listing=self.listing,
+            seller=self.user,
+            source=ListingLead.Source.FORM,
+            buyer_name="Compradora Demo",
+            buyer_email="buyer@example.com",
+            message="Hola, sigue disponible?",
+            email_status=ListingLead.EmailStatus.SENT,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("users:account_leads"))
+
+        self.assertContains(response, "Contactos recibidos")
+        self.assertContains(response, "Silla de comedor")
+        self.assertContains(response, "Compradora Demo")
+        self.assertContains(response, "buyer@example.com")
+
+    def test_account_hides_public_profile_link_by_default(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("users:account"))
+
+        content = response.content.decode()
+        self.assertLess(content.index("Nombre"), content.index("Teléfono"))
+        self.assertLess(content.index("Teléfono"), content.index("Seguridad"))
+        self.assertNotContains(response, "Ver perfil público")
+        self.assertNotContains(
+            response,
+            reverse("users:profile", kwargs={"pk": self.user.pk}),
+        )
+
+    @override_settings(USER_PUBLIC_PROFILE_LINKS_ENABLED=True)
+    def test_account_can_restore_public_profile_link_with_setting(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("users:account"))
+
+        content = response.content.decode()
+        self.assertLess(content.index("Teléfono"), content.index("Ver perfil público"))
+        self.assertLess(content.index("Ver perfil público"), content.index("Seguridad"))
+        self.assertContains(response, reverse("users:profile", kwargs={"pk": self.user.pk}))
+
+    def test_whatsapp_contact_preference_defaults_disabled(self):
+        user = User.objects.create_user(
+            email="default-seller@example.com",
+            password="ignored",
+            is_active=True,
+        )
+        verification = UserVerification.objects.create(user=user)
+
+        self.assertFalse(verification.whatsapp_contact_enabled)
+        self.assertTrue(verification.show_name_in_listings)
+
+    def test_listing_detail_shows_seller_name_by_default(self):
+        response = self.client.get(self.listing.get_absolute_url())
+
+        self.assertContains(response, "Seller Example")
+        self.assertNotContains(response, reverse("users:profile", kwargs={"pk": self.user.pk}))
+
+    @override_settings(USER_PUBLIC_PROFILE_LINKS_ENABLED=True)
+    def test_listing_detail_can_restore_seller_profile_link_with_setting(self):
+        response = self.client.get(self.listing.get_absolute_url())
+
+        self.assertContains(response, "Seller Example")
+        self.assertContains(response, reverse("users:profile", kwargs={"pk": self.user.pk}))
+
+    def test_listing_detail_hides_seller_name_when_preference_is_disabled(self):
+        self.verification.show_name_in_listings = False
+        self.verification.save(update_fields=["show_name_in_listings"])
+
+        response = self.client.get(self.listing.get_absolute_url())
+
+        self.assertNotContains(response, "Seller Example")
+        self.assertNotContains(response, reverse("users:profile", kwargs={"pk": self.user.pk}))
+
+    def test_public_card_hides_whatsapp_when_preference_is_disabled(self):
+        self.verification.whatsapp_contact_enabled = False
+        self.verification.save(update_fields=["whatsapp_contact_enabled"])
+        listing = Listing.objects.select_related("seller", "seller__verification").get(
+            pk=self.listing.pk
+        )
+
+        card = build_card_context(
+            listing,
+            self.category.slug,
+            trust_map={},
+        )
+
+        self.assertIsNone(card.contact_whatsapp_url)
+
+    def test_whatsapp_redirect_respects_contact_preference(self):
+        self.verification.whatsapp_contact_enabled = False
+        self.verification.save(update_fields=["whatsapp_contact_enabled"])
+
+        response = self.client.get(
+            reverse("listings:whatsapp", kwargs={"slug": self.listing.slug})
+        )
+
+        self.assertRedirects(
+            response,
+            self.listing.get_absolute_url(),
+            fetch_redirect_response=False,
+        )

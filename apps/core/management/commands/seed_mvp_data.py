@@ -10,23 +10,25 @@ from __future__ import annotations
 
 import random
 from datetime import timedelta
-from django.core.management.base import BaseCommand
+from django.core.management import call_command
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from django.utils.text import slugify
 from django.utils import timezone
 
+from apps.categories.display import apply_root_category_display
 from apps.categories.models import Category
 from apps.listings.models import (
+    ElectronicsItemType,
     ElectronicsListing,
     HomeGoodsListing,
     HomeItemType,
     ItemCondition,
     Listing,
+    MarketBrand,
+    MarketModel,
     MotorcycleListing,
     PropertyListing,
-    VehicleBrand,
     VehicleListing,
-    VehicleModel,
 )
 from apps.trust.models import ListingReport, Review
 from apps.trust.services import bulk_seller_trust, sync_listing_flag
@@ -138,11 +140,11 @@ class Command(BaseCommand):
             return
 
         with transaction.atomic():
+            call_command("sync_market_taxonomy")
             categories = self._seed_categories()
-            vehicle_taxonomy = self._seed_vehicle_taxonomy()
             users = self._seed_users()
             self._apply_user_profiles(users)
-            listings = self._seed_listings(users, categories, n_listings, vehicle_taxonomy)
+            listings = self._seed_listings(users, categories, n_listings)
             self._seed_reviews(users, listings)
             self._seed_flagged_listings(users, listings)
 
@@ -190,6 +192,16 @@ class Command(BaseCommand):
                 slug=slug,
                 defaults={"name": name, "description": desc},
             )
+            changed = False
+            if cat.name != name:
+                cat.name = name
+                changed = True
+            if cat.description != desc:
+                cat.description = desc
+                changed = True
+            if changed:
+                cat.save(update_fields=["name", "description"])
+            apply_root_category_display(cat)
             out[slug] = cat
         return out
 
@@ -284,7 +296,6 @@ class Command(BaseCommand):
         users: list[User],
         categories: dict[str, Category],
         n_listings: int,
-        vehicle_taxonomy: dict[str, list[str]],
     ) -> list[Listing]:
         """Anuncios repartidos entre vendedores; títulos y ubicaciones realistas."""
         cat_cycle = [
@@ -346,19 +357,14 @@ class Command(BaseCommand):
             if cat.slug == "autos":
                 brand_name = seed_v_brand
                 model_name = seed_v_model
-                brand_obj, _ = VehicleBrand.objects.get_or_create(
-                    name=brand_name,
-                    defaults={"slug": slugify(brand_name)},
-                )
-                model_obj, _ = VehicleModel.objects.get_or_create(
-                    brand=brand_obj,
-                    name=model_name,
-                    defaults={"slug": slugify(model_name)},
+                brand_obj, model_obj = self._resolve_market_model(
+                    "autos",
+                    "",
+                    brand_name,
+                    model_name,
                 )
                 VehicleListing.objects.create(
                     listing=listing,
-                    brand=brand_name,
-                    model=model_name,
                     brand_fk=brand_obj,
                     model_fk=model_obj,
                     year=int(seed_v_year),
@@ -388,6 +394,11 @@ class Command(BaseCommand):
                         [
                             PropertyListing.PropertyType.CASA,
                             PropertyListing.PropertyType.DEPARTAMENTO,
+                            PropertyListing.PropertyType.SUITE,
+                            PropertyListing.PropertyType.TERRENO_LOTE,
+                            PropertyListing.PropertyType.OFICINA_COMERCIAL,
+                            PropertyListing.PropertyType.LOCAL_COMERCIAL,
+                            PropertyListing.PropertyType.BODEGA_GALPON,
                         ]
                     ),
                     operation_type=random.choice(
@@ -395,6 +406,7 @@ class Command(BaseCommand):
                             None,
                             PropertyListing.OperationType.VENTA,
                             PropertyListing.OperationType.ALQUILER,
+                            PropertyListing.OperationType.ALQUILER_TEMPORAL,
                         ]
                     ),
                     rooms=random.randint(1, 5),
@@ -411,14 +423,11 @@ class Command(BaseCommand):
                     ),
                 )
             elif cat.slug == "motos":
+                model_obj = self._pick_random_market_model("motos")
                 MotorcycleListing.objects.create(
                     listing=listing,
-                    brand=random.choice(
-                        ["Yamaha", "Honda", "Suzuki", "KTM", "Italika", "Bajaj"]
-                    ),
-                    model=random.choice(
-                        ["NMAX 155", "CB500F", "GSX-R 150", "Duke 200", "FT150", "Pulsar"]
-                    ),
+                    brand_fk=model_obj.brand,
+                    model_fk=model_obj,
                     year=random.randint(2016, 2023),
                     mileage=random.choice([None, 0, 3500, 12000, 28000]),
                     engine_cc=random.choice([None, 125, 155, 200, 390, 650]),
@@ -442,30 +451,34 @@ class Command(BaseCommand):
                     ),
                 )
             elif cat.slug == "electronica":
+                model_obj = self._pick_random_market_model("electronica", item_type=None)
                 ElectronicsListing.objects.create(
                     listing=listing,
-                    brand=random.choice(
-                        ["Samsung", "Apple", "Dell", "Sony", "Xiaomi", "LG"]
-                    ),
-                    model=random.choice(
-                        ["Galaxy A54", "iPad 9", "Inspiron 15", "WH-CH720N", "Redmi Note", "Smart TV 50"]
-                    ),
+                    item_type=model_obj.item_type or ElectronicsItemType.OTROS,
+                    brand_fk=model_obj.brand,
+                    model_fk=model_obj,
                     condition=random.choice(
                         [ItemCondition.NUEVO, ItemCondition.USADO]
                     ),
                     warranty=random.choice([True, False]),
                 )
             elif cat.slug == "hogar":
+                item_type = random.choice(
+                    [
+                        HomeItemType.FURNITURE,
+                        HomeItemType.APPLIANCES,
+                        HomeItemType.DECOR,
+                    ]
+                )
+                model_obj = self._pick_random_market_model(
+                    "hogar",
+                    item_type=str(item_type),
+                )
                 HomeGoodsListing.objects.create(
                     listing=listing,
-                    item_type=random.choice(
-                        [
-                            HomeItemType.FURNITURE,
-                            HomeItemType.APPLIANCES,
-                            HomeItemType.DECOR,
-                        ]
-                    ),
-                    brand=random.choice(["", "IKEA", "Local", "Artesanal"]),
+                    item_type=item_type,
+                    brand_fk=model_obj.brand,
+                    model_fk=model_obj,
                     condition=random.choice(
                         [
                             ItemCondition.NUEVO,
@@ -479,31 +492,56 @@ class Command(BaseCommand):
             listings.append(listing)
         return listings
 
-    def _seed_vehicle_taxonomy(self) -> dict[str, list[str]]:
-        """
-        Marcas/modelos mínimos para autos (normalizados).
-        """
-        taxonomy: dict[str, list[str]] = {
-            "Toyota": ["Corolla", "Yaris", "RAV4", "Hilux"],
-            "Chevrolet": ["Spark", "Aveo", "Tracker", "D-Max"],
-            "Kia": ["Rio", "Sportage", "Seltos", "Picanto"],
-            "Hyundai": ["Tucson", "Elantra", "Accent", "Santa Fe"],
-            "Nissan": ["Versa", "Sentra", "Kicks", "X-Trail"],
-            "Mitsubishi": ["L200", "Outlander", "Mirage"],
-        }
-
-        for brand_name, models in taxonomy.items():
-            brand, _ = VehicleBrand.objects.get_or_create(
-                name=brand_name,
-                defaults={"slug": slugify(brand_name)},
+    def _resolve_market_model(
+        self,
+        category_slug: str,
+        item_type: str,
+        brand_name: str,
+        model_name: str,
+    ) -> tuple[MarketBrand, MarketModel]:
+        brand = MarketBrand.objects.filter(
+            name__iexact=brand_name.strip(),
+            is_active=True,
+        ).first()
+        if brand is None:
+            raise CommandError(
+                f"Marca «{brand_name}» no está en taxonomía. "
+                "Ejecute sync_market_taxonomy antes del seed."
             )
-            for model_name in models:
-                VehicleModel.objects.get_or_create(
-                    brand=brand,
-                    name=model_name,
-                    defaults={"slug": slugify(model_name)},
-                )
-        return taxonomy
+        model = MarketModel.objects.filter(
+            brand=brand,
+            category_slug=category_slug,
+            item_type=item_type or "",
+            name__iexact=model_name.strip(),
+            is_active=True,
+        ).first()
+        if model is None:
+            raise CommandError(
+                f"Modelo «{model_name}» ({brand_name}) no está en taxonomía "
+                f"para {category_slug!r}."
+            )
+        return brand, model
+
+    def _pick_random_market_model(
+        self,
+        category_slug: str,
+        *,
+        item_type: str | None = "",
+    ) -> MarketModel:
+        qs = MarketModel.objects.filter(
+            category_slug=category_slug,
+            is_active=True,
+            brand__is_active=True,
+        )
+        if item_type is not None:
+            qs = qs.filter(item_type=item_type)
+        model = qs.select_related("brand").order_by("?").first()
+        if model is None:
+            suffix = f" ({item_type})" if item_type else ""
+            raise CommandError(
+                f"No hay modelos en taxonomía para {category_slug!r}{suffix}."
+            )
+        return model
 
     def _seed_reviews(self, users: list[User], listings: list[Listing]) -> None:
         """

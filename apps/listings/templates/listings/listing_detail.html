@@ -16,7 +16,22 @@
   {% if not detail.is_owner %}
     <div class="listing-detail-sticky-cta listing-cta-sticky" role="region" aria-label="Contacto rápido">
       <span class="listing-detail-sticky-cta__price">{{ detail.price_display }}</span>
-      <a class="button btn-primary" href="{{ detail.primary_cta.scroll_href }}" data-event="contact_click" data-event-detail="sticky_cta">{{ detail.primary_cta.label }}</a>
+      <button
+        type="button"
+        class="button btn-primary"
+        hx-get="{{ detail.primary_cta.htmx_url }}?surface=modal"
+        hx-target="#listing-contact-modal-body"
+        hx-swap="innerHTML"
+        hx-indicator="#listing-contact-modal-spinner"
+        aria-label="{{ detail.primary_cta.label }}"
+        aria-haspopup="dialog"
+        data-contact-modal-open
+        data-contact-whatsapp-url="{{ detail.phone_url|default:'' }}"
+        data-event="contact_click"
+        data-event-detail="sticky_contact_modal"
+      >
+        {{ detail.primary_cta.label }}
+      </button>
     </div>
   {% endif %}
 
@@ -67,10 +82,23 @@
 
           {% if not detail.is_owner %}
             <div class="listing-detail__hero-cta">
-              <a class="button btn-primary listing-detail__btn-primary" href="{{ detail.primary_cta.scroll_href }}" data-event="contact_click" data-event-detail="hero_cta">
+              <button
+                type="button"
+                class="button btn-primary listing-detail__btn-primary"
+                hx-get="{{ detail.primary_cta.htmx_url }}?surface=modal"
+                hx-target="#listing-contact-modal-body"
+                hx-swap="innerHTML"
+                hx-indicator="#listing-contact-modal-spinner"
+                aria-label="{{ detail.primary_cta.label }}"
+                aria-haspopup="dialog"
+                data-contact-modal-open
+                data-contact-whatsapp-url="{{ detail.phone_url|default:'' }}"
+                data-event="contact_click"
+                data-event-detail="hero_contact_modal"
+              >
                 {{ detail.primary_cta.label }}
                 <i class="fa-regular fa-envelope" aria-hidden="true"></i>
-              </a>
+              </button>
               {% if detail.secondary_cta %}
                 <a class="button btn-secondary listing-detail__btn-secondary" href="{{ detail.secondary_cta.scroll_href }}">
                   {{ detail.secondary_cta.label }}
@@ -147,7 +175,7 @@
       <p class="listing-detail__footer-seo seo-internal muted small">
         <a href="{{ detail.category_href }}" data-event="category_click" data-event-detail="footer_category">{{ detail.category_explore_label }}</a>
         ·
-        <a href="{% url 'listings:list' %}">Ver más anuncios</a>
+        <a href="{% url 'browse' %}">Ver más anuncios</a>
       </p>
 
       <div class="listing-detail__report-zone">
@@ -180,38 +208,48 @@
 
     <aside class="listing-detail__aside listing-sidebar card seller-card" id="listing-contact" aria-label="Información del vendedor">
       <div class="listing-detail__aside-head seller-card__head">
-        <div class="listing-detail__avatar seller-card__avatar" aria-hidden="true">{{ detail.seller_name|default:"?"|slice:":1"|upper }}</div>
-        <div>
+        <div class="seller-card__identity">
           <p class="listing-detail__aside-name seller-card__name">
-            <a href="{{ detail.seller_profile_href }}">{{ detail.seller_name }}</a>
+            {% if detail.seller_profile_href %}
+              <a href="{{ detail.seller_profile_href }}">{{ detail.seller_name }}</a>
+            {% else %}
+              <span>{{ detail.seller_name }}</span>
+            {% endif %}
           </p>
           {% if detail.is_verified %}
-            <span class="listing-detail__verified-pill listing-detail__verified-pill--yes">✔ Verificado</span>
+            <span class="listing-detail__verified-pill listing-detail__verified-pill--yes">✔ Teléfono verificado</span>
           {% else %}
             <span class="listing-detail__verified-pill listing-detail__verified-pill--no">Teléfono no verificado</span>
           {% endif %}
         </div>
       </div>
 
-      <p class="listing-detail__meta-line seller-card__activity">Última actividad: {{ detail.seller_last_seen }}</p>
+      <div class="seller-card__signals" aria-label="Señales de confianza">
+        {% if detail.seller_reviews_count %}
+          <p class="listing-detail__rating seller-card__rating" data-event="trust_label_click" data-event-detail="rating">
+            <i class="fa-solid fa-star" aria-hidden="true"></i>
+            <span>{{ detail.seller_rating }} <span class="muted">({{ detail.seller_reviews_count }} opiniones)</span></span>
+          </p>
+        {% else %}
+          <p class="listing-detail__meta-line seller-card__rating">
+            <i class="fa-regular fa-star" aria-hidden="true"></i>
+            <span>Sin opiniones aún</span>
+          </p>
+        {% endif %}
 
-      {% if detail.seller_reviews_count %}
-        <p class="listing-detail__rating seller-card__rating" data-event="trust_label_click" data-event-detail="rating">
-          ⭐ {{ detail.seller_rating }} <span class="muted">({{ detail.seller_reviews_count }} opiniones)</span>
+        <p class="listing-detail__meta-line seller-card__member-since">
+          <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+          <span>{{ detail.seller_joined }}</span>
         </p>
-      {% else %}
-        <p class="listing-detail__meta-line seller-card__rating">Sin opiniones aún</p>
-      {% endif %}
+      </div>
 
       {% if detail.seller_trust_summary %}
-        <p class="listing-detail__meta-line seller-card__trust-summary">{{ detail.seller_trust_summary }}</p>
+        <div class="seller-card__trust-panel">
+          <p class="listing-detail__meta-line seller-card__trust-summary">{{ detail.seller_trust_summary }}</p>
+        </div>
       {% endif %}
-      {% if detail.seller_trust_label %}
-        <p class="listing-detail__meta-line seller-card__trust-line">{{ detail.seller_trust_label }}</p>
-      {% endif %}
-      <p class="listing-detail__meta-line">{{ detail.seller_joined }}</p>
 
-      <p class="listing-detail__contact-nudge small muted">{{ detail.contact_trust_microcopy }}</p>
+      <p class="listing-detail__contact-nudge">{{ detail.contact_trust_microcopy }}</p>
 
       {% if detail.is_owner %}
         <div class="listing-detail__owner-actions">
@@ -224,13 +262,16 @@
           <button
             type="button"
             class="button btn-primary"
-            hx-get="{{ detail.primary_cta.htmx_url }}"
-            hx-target="#contact-panel-mount"
+            hx-get="{{ detail.primary_cta.htmx_url }}?surface=modal"
+            hx-target="#listing-contact-modal-body"
             hx-swap="innerHTML"
-            hx-indicator="#contact-htmx-spinner"
+            hx-indicator="#listing-contact-modal-spinner"
             aria-label="{{ detail.primary_cta.label }}"
+            aria-haspopup="dialog"
+            data-contact-modal-open
+            data-contact-whatsapp-url="{{ detail.phone_url|default:'' }}"
             data-event="contact_click"
-            data-event-detail="open_contact_panel"
+            data-event-detail="detail_contact_modal"
           >
             {{ detail.primary_cta.label }}
             <i class="fa-regular fa-envelope" aria-hidden="true"></i>
@@ -241,8 +282,6 @@
               <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
             </a>
           {% endif %}
-          <span id="contact-htmx-spinner" class="htmx-indicator muted small" aria-live="polite">Cargando…</span>
-          <div id="contact-panel-mount"></div>
         </div>
       {% endif %}
 

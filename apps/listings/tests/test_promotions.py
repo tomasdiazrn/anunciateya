@@ -13,7 +13,13 @@ from django.utils import timezone
 from apps.categories.models import Category
 from apps.listings.category_engine import apply_category_pipeline, build_category_page
 from apps.listings.category_extensions import VEHICLE_SLUG
-from apps.listings.models import Listing, ListingPromotion, VehicleListing
+from apps.listings.models import (
+    Listing,
+    ListingPromotion,
+    MarketBrand,
+    MarketModel,
+    VehicleListing,
+)
 from apps.listings.services_promotions import create_listing_promotion
 
 User = get_user_model()
@@ -32,16 +38,31 @@ class PromotionRankingTests(TestCase):
         )
 
     def _vehicle(self, listing: Listing) -> None:
+        brand, model = self._market_model("B", "M")
         VehicleListing.objects.create(
             listing=listing,
-            brand="B",
-            model="M",
+            brand_fk=brand,
+            model_fk=model,
             year=2020,
             doors=4,
             mileage=1,
             transmission=VehicleListing.Transmission.MANUAL,
             fuel_type=VehicleListing.FuelType.GASOLINA,
         )
+
+    def _market_model(self, brand_name: str, model_name: str):
+        brand, _ = MarketBrand.objects.get_or_create(
+            name=brand_name,
+            defaults={"slug": f"{brand_name.lower()}-autos", "is_active": True},
+        )
+        model, _ = MarketModel.objects.get_or_create(
+            brand=brand,
+            category_slug=VEHICLE_SLUG,
+            item_type="",
+            name=model_name,
+            defaults={"slug": f"{model_name.lower()}-autos", "is_active": True},
+        )
+        return brand, model
 
     def test_featured_promotion_appears_in_top_strip(self) -> None:
         plain = Listing.objects.create(

@@ -87,9 +87,9 @@ LISTING_LIST_BASE_PLAN = QueryPlan(
 LISTING_DETAIL_EXTENSION_PLAN = merge_query_plans(
     QueryPlan(select_related=("vehicle", "vehicle__brand_fk", "vehicle__model_fk")),
     QueryPlan(select_related=("property",)),
-    QueryPlan(select_related=("motorcycle",)),
-    QueryPlan(select_related=("electronics",)),
-    QueryPlan(select_related=("homegoods",)),
+    QueryPlan(select_related=("motorcycle", "motorcycle__brand_fk", "motorcycle__model_fk")),
+    QueryPlan(select_related=("electronics", "electronics__brand_fk", "electronics__model_fk")),
+    QueryPlan(select_related=("homegoods", "homegoods__brand_fk", "homegoods__model_fk")),
 )
 
 LISTING_DETAIL_ORM_PLAN = merge_query_plans(
@@ -116,22 +116,40 @@ def resolve_browse_extension_query_plan(request: HttpRequest) -> QueryPlan:
     q_raw = _q_raw(request)
     category_slug = _browse_category_slug(request)
 
-    if category_slug == VEHICLE_SLUG or bool(q_raw):
+    if bool(q_raw) and not category_slug:
+        return QueryPlan(
+            select_related=(
+                "vehicle",
+                "vehicle__brand_fk",
+                "vehicle__model_fk",
+                "property",
+                "motorcycle",
+                "motorcycle__brand_fk",
+                "motorcycle__model_fk",
+                "electronics",
+                "electronics__brand_fk",
+                "electronics__model_fk",
+                "homegoods",
+                "homegoods__brand_fk",
+                "homegoods__model_fk",
+            ),
+        )
+    if category_slug == VEHICLE_SLUG:
         return QueryPlan(
             select_related=("vehicle", "vehicle__brand_fk", "vehicle__model_fk"),
         )
     if category_slug == PROPERTY_SLUG:
         return QueryPlan(select_related=("property",))
-    if category_slug == MOTORCYCLE_SLUG or bool(q_raw):
-        return QueryPlan(select_related=("motorcycle",))
+    if category_slug == MOTORCYCLE_SLUG:
+        return QueryPlan(select_related=("motorcycle", "motorcycle__brand_fk", "motorcycle__model_fk"))
     if category_slug == ELECTRONICS_SLUG and (
         bool(q_raw) or any(request.GET.get(k) for k in ELECTRONICS_FILTER_GET_KEYS)
     ):
-        return QueryPlan(select_related=("electronics",))
+        return QueryPlan(select_related=("electronics", "electronics__brand_fk", "electronics__model_fk"))
     if category_slug == HOMEGOODS_SLUG and (
         bool(q_raw) or any(request.GET.get(k) for k in HOME_FILTER_GET_KEYS)
     ):
-        return QueryPlan(select_related=("homegoods",))
+        return QueryPlan(select_related=("homegoods", "homegoods__brand_fk", "homegoods__model_fk"))
     return QueryPlan()
 
 
@@ -181,14 +199,14 @@ def hub_property_query_plan(request: HttpRequest, ctx: dict[str, Any]) -> QueryP
 
 def hub_motorcycle_query_plan(request: HttpRequest, ctx: dict[str, Any]) -> QueryPlan:
     del request, ctx
-    return QueryPlan(select_related=("motorcycle",))
+    return QueryPlan(select_related=("motorcycle", "motorcycle__brand_fk", "motorcycle__model_fk"))
 
 
 def hub_electronics_query_plan(request: HttpRequest, ctx: dict[str, Any]) -> QueryPlan:
     del request, ctx
-    return QueryPlan(select_related=("electronics",))
+    return QueryPlan(select_related=("electronics", "electronics__brand_fk", "electronics__model_fk"))
 
 
 def hub_home_query_plan(request: HttpRequest, ctx: dict[str, Any]) -> QueryPlan:
     del request, ctx
-    return QueryPlan(select_related=("homegoods",))
+    return QueryPlan(select_related=("homegoods", "homegoods__brand_fk", "homegoods__model_fk"))

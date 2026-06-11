@@ -313,7 +313,6 @@ msgstr ""
 #: templates/components/nav.html:16 templates/users/login.html:4
 #: templates/users/login.html:8 templates/users/login.html:10
 #: templates/users/login.html:18
-#: templates/users/password_reset_complete.html:11
 msgid "Log in"
 msgstr ""
 
@@ -633,73 +632,6 @@ msgstr ""
 
 #: templates/users/login.html:9
 msgid "Use the email address for your account."
-msgstr ""
-
-#: templates/users/login.html:22
-msgid "Forgot password?"
-msgstr ""
-
-#: templates/users/password_reset_complete.html:4
-#: templates/users/password_reset_complete.html:8
-msgid "Password updated"
-msgstr ""
-
-#: templates/users/password_reset_complete.html:9
-msgid "You can sign in with your new password."
-msgstr ""
-
-#: templates/users/password_reset_confirm.html:4
-#: templates/users/password_reset_confirm.html:8
-#: templates/users/password_reset_confirm.html:10
-msgid "Set new password"
-msgstr ""
-
-#: templates/users/password_reset_confirm.html:17
-msgid "Save password"
-msgstr ""
-
-#: templates/users/password_reset_confirm.html:21
-msgid "This reset link is invalid or has expired. Request a new one."
-msgstr ""
-
-#: templates/users/password_reset_confirm.html:22
-msgid "Request new link"
-msgstr ""
-
-#: templates/users/password_reset_done.html:4
-msgid "Email sent"
-msgstr ""
-
-#: templates/users/password_reset_done.html:8
-msgid "Check your email"
-msgstr ""
-
-#: templates/users/password_reset_done.html:10
-msgid ""
-"If an account exists for that address, you will receive instructions to "
-"reset your password."
-msgstr ""
-
-#: templates/users/password_reset_done.html:13
-#: templates/users/password_reset_form.html:18
-msgid "Back to log in"
-msgstr ""
-
-#: templates/users/password_reset_form.html:4
-#: templates/users/password_reset_form.html:8
-msgid "Reset password"
-msgstr ""
-
-#: templates/users/password_reset_form.html:9
-msgid "We will email you a link to choose a new password."
-msgstr ""
-
-#: templates/users/password_reset_form.html:10
-msgid "Request password reset"
-msgstr ""
-
-#: templates/users/password_reset_form.html:17
-msgid "Send link"
 msgstr ""
 
 #: templates/users/register.html:9

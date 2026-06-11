@@ -209,7 +209,17 @@ class AdminAccessTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse("adminapp:dashboard"))
 
-        self.assertRedirects(response, reverse("root_home"))
+        self.assertRedirects(response, reverse("users:account"))
+
+    def test_non_staff_admin_htmx_redirects_to_account(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("adminapp:dashboard"),
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["HX-Redirect"], reverse("users:account"))
 
     def test_staff_receives_otp_via_unified_login(self):
         response = self._request_code(code="482731")

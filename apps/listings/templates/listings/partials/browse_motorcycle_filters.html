@@ -1,4 +1,4 @@
-{# Filtros GET para motos: action = /anuncios/ o "" (/motos/, /guayaquil/motos/, …) #}
+{# Filtros GET para motos: action = /anuncios/ o "" (/motos/). #}
 <form
   class="browse-filter-form browse-filter-form--sidebar"
   method="get"
@@ -11,39 +11,39 @@
   {% if request.GET.q %}
     <input type="hidden" name="q" value="{{ request.GET.q }}">
   {% endif %}
-  {% if request.GET.location %}
-    <input type="hidden" name="location" value="{{ request.GET.location }}">
-  {% endif %}
-
   <aside class="browse-filters-sidebar">
     <details class="browse-filters-accordion" open>
       <summary class="browse-filters-summary">Filtrar motos</summary>
       <div class="browse-filters-inner">
         <div class="form-group">
           <label for="id_browse_moto_brand">Marca</label>
-          <input
+          <select
             class="form-control"
-            type="text"
             name="brand"
             id="id_browse_moto_brand"
-            maxlength="80"
-            placeholder="Ej. Honda"
-            value="{{ request.GET.brand|default:'' }}"
-            autocomplete="off"
+            hx-get="{% url 'motorcycle_model_options' %}"
+            hx-target="#id_browse_moto_model"
+            hx-swap="innerHTML"
+            hx-trigger="change"
           >
+            <option value="">Todas las marcas</option>
+            {% for brand in motorcycle_browse_brands %}
+              <option value="{{ brand.pk }}" {% if motorcycle_filter_params.brand_id == brand.pk %}selected{% endif %}>{{ brand.name }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="form-group">
           <label for="id_browse_moto_model">Modelo</label>
-          <input
+          <select
             class="form-control"
-            type="text"
             name="model"
             id="id_browse_moto_model"
-            maxlength="80"
-            placeholder="Ej. NMAX"
-            value="{{ request.GET.model|default:'' }}"
-            autocomplete="off"
           >
+            <option value="">Todos los modelos</option>
+            {% for pk, name in motorcycle_browse_model_choices %}
+              <option value="{{ pk }}" {% if motorcycle_filter_params.model_id == pk %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
         </div>
 
         <div class="form-group browse-filter-row">
@@ -51,13 +51,15 @@
             <label for="id_browse_moto_year_from">Año desde</label>
             <input
               class="form-control browse-filter-input--compact"
-              type="number"
+              type="text"
               name="year_from"
               id="id_browse_moto_year_from"
               min="1980"
               max="2100"
               step="1"
               inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="2015"
               value="{{ request.GET.year_from|default:'' }}"
             >
@@ -66,13 +68,15 @@
             <label for="id_browse_moto_year_to">Año hasta</label>
             <input
               class="form-control browse-filter-input--compact"
-              type="number"
+              type="text"
               name="year_to"
               id="id_browse_moto_year_to"
               min="1980"
               max="2100"
               step="1"
               inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="2024"
               value="{{ request.GET.year_to|default:'' }}"
             >
@@ -84,13 +88,15 @@
             <label for="id_browse_moto_cc_from">CC desde</label>
             <input
               class="form-control browse-filter-input--compact"
-              type="number"
+              type="text"
               name="engine_cc_from"
               id="id_browse_moto_cc_from"
               min="50"
               max="9999"
               step="1"
               inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="125"
               value="{{ request.GET.engine_cc_from|default:'' }}"
             >
@@ -99,13 +105,15 @@
             <label for="id_browse_moto_cc_to">CC hasta</label>
             <input
               class="form-control browse-filter-input--compact"
-              type="number"
+              type="text"
               name="engine_cc_to"
               id="id_browse_moto_cc_to"
               min="50"
               max="9999"
               step="1"
               inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="650"
               value="{{ request.GET.engine_cc_to|default:'' }}"
             >
@@ -117,12 +125,14 @@
             <label for="id_browse_moto_km_from">Km desde</label>
             <input
               class="form-control browse-filter-input--compact"
-              type="number"
+              type="text"
               name="mileage_from"
               id="id_browse_moto_km_from"
               min="0"
               step="1"
               inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="0"
               value="{{ request.GET.mileage_from|default:'' }}"
             >
@@ -131,12 +141,14 @@
             <label for="id_browse_moto_km_to">Km hasta</label>
             <input
               class="form-control browse-filter-input--compact"
-              type="number"
+              type="text"
               name="mileage_to"
               id="id_browse_moto_km_to"
               min="0"
               step="1"
               inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="50000"
               value="{{ request.GET.mileage_to|default:'' }}"
             >
@@ -151,7 +163,9 @@
               type="text"
               name="price_from"
               id="id_browse_moto_price_from"
-              inputmode="decimal"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="1500"
               value="{{ request.GET.price_from|default:'' }}"
               autocomplete="off"
@@ -164,7 +178,9 @@
               type="text"
               name="price_to"
               id="id_browse_moto_price_to"
-              inputmode="decimal"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              data-digits-only="true"
               placeholder="8000"
               value="{{ request.GET.price_to|default:'' }}"
               autocomplete="off"

@@ -1,7 +1,7 @@
 """
 Orquestación de listados por categoría: pipeline único, SEO, cards y registro canónico.
 
-Entrypoint público para páginas de browse / hub / ciudad / ciudad+categoría: `build_category_page`.
+Entrypoint público para páginas de browse / hub de categoría: `build_category_page`.
 Las vistas deben limitarse a `render(..., page.render_dict())`; evitar duplicar filtros, SEO o armado
 de querysets fuera de este módulo.
 """
@@ -43,7 +43,6 @@ from .category_engine_seo import (
     seo_browse_generic,
     seo_electronics,
     seo_home,
-    seo_location_market,
     seo_motorcycle,
     seo_property,
     seo_simple_category,
@@ -62,19 +61,7 @@ from .listing_sort import (
     build_sort_template_extras,
     parse_sort_param,
 )
-from .models import Listing, MotorcycleListing, VehicleListing
-
-# Slug de URL → búsqueda en el campo location (icontains). Fuente única para engine y compat.
-LOCATION_LANDING_CONFIG: dict[str, dict[str, Any]] = {
-    "guayaquil": {
-        "display": "Guayaquil",
-        "needles": ["Guayaquil"],
-    },
-    "samborondon": {
-        "display": "Samborondón",
-        "needles": ["Samborondón", "Samborondon"],
-    },
-}
+from .models import ItemCondition, Listing, MotorcycleListing, PropertyListing, VehicleListing
 
 LISTING_CARD_BASE = "components/marketplace/listing_card_base.html"
 BROWSE_TEMPLATE_LIST = "listings/listing_list.html"
@@ -140,7 +127,7 @@ def _category_hero_cta_label(category: Any | None) -> str:
 
 @dataclass
 class CategoryPageContext:
-    """Contrato único del runtime de listados (browse, hub, location)."""
+    """Contrato único del runtime de listados (browse y hub de categoría)."""
 
     queryset: QuerySet
     filters: dict[str, Any]
@@ -150,7 +137,7 @@ class CategoryPageContext:
     category: Any | None
     template: str
     search_query: str
-    location_context: dict[str, Any] = field(default_factory=dict)
+    page_context: dict[str, Any] = field(default_factory=dict)
     cards_context: dict[str, Any] = field(default_factory=dict)
     template_extras: dict[str, Any] = field(default_factory=dict)
     featured_cards: list[Any] = field(default_factory=list)
@@ -183,7 +170,7 @@ class CategoryPageContext:
             "pager_has_next": p.has_next,
             "pager_has_prev": p.has_prev,
         }
-        out.update(self.location_context)
+        out.update(self.page_context)
         out.update(self.cards_context)
         out["template_extras"] = self.template_extras
         out["featured_cards"] = self.featured_cards
@@ -196,13 +183,6 @@ class CategoryPageContext:
 
 def get_category_contract(slug: str) -> CategoryContractSpec | None:
     return CATEGORY_CONTRACT_REGISTRY.get(slug)
-
-
-def get_category_behavior(slug: str) -> CategoryContractSpec | None:
-    return get_category_contract(slug)
-
-
-get_category_behavior_spec = get_category_contract
 
 
 def apply_search(
@@ -223,13 +203,12 @@ def apply_search(
             text_q
             | Q(vehicle__brand_fk__name__icontains=q_raw)
             | Q(vehicle__model_fk__name__icontains=q_raw)
-            | Q(vehicle__brand__icontains=q_raw)
-            | Q(vehicle__model__icontains=q_raw)
-            | Q(motorcycle__brand__icontains=q_raw)
-            | Q(motorcycle__model__icontains=q_raw)
-            | Q(electronics__brand__icontains=q_raw)
-            | Q(electronics__model__icontains=q_raw)
-            | Q(homegoods__brand__icontains=q_raw)
+            | Q(motorcycle__brand_fk__name__icontains=q_raw)
+            | Q(motorcycle__model_fk__name__icontains=q_raw)
+            | Q(electronics__brand_fk__name__icontains=q_raw)
+            | Q(electronics__model_fk__name__icontains=q_raw)
+            | Q(homegoods__brand_fk__name__icontains=q_raw)
+            | Q(homegoods__model_fk__name__icontains=q_raw)
             | Q(homegoods__material__icontains=q_raw)
         )
     if slug == VEHICLE_SLUG:
@@ -237,14 +216,12 @@ def apply_search(
             text_q
             | Q(vehicle__brand_fk__name__icontains=q_raw)
             | Q(vehicle__model_fk__name__icontains=q_raw)
-            | Q(vehicle__brand__icontains=q_raw)
-            | Q(vehicle__model__icontains=q_raw)
         )
     if slug == MOTORCYCLE_SLUG:
         return qs.filter(
             text_q
-            | Q(motorcycle__brand__icontains=q_raw)
-            | Q(motorcycle__model__icontains=q_raw)
+            | Q(motorcycle__brand_fk__name__icontains=q_raw)
+            | Q(motorcycle__model_fk__name__icontains=q_raw)
         )
     if slug == PROPERTY_SLUG:
         return qs.filter(
@@ -255,13 +232,14 @@ def apply_search(
     if slug == ELECTRONICS_SLUG:
         return qs.filter(
             text_q
-            | Q(electronics__brand__icontains=q_raw)
-            | Q(electronics__model__icontains=q_raw)
+            | Q(electronics__brand_fk__name__icontains=q_raw)
+            | Q(electronics__model_fk__name__icontains=q_raw)
         )
     if slug == HOMEGOODS_SLUG:
         return qs.filter(
             text_q
-            | Q(homegoods__brand__icontains=q_raw)
+            | Q(homegoods__brand_fk__name__icontains=q_raw)
+            | Q(homegoods__model_fk__name__icontains=q_raw)
             | Q(homegoods__material__icontains=q_raw)
         )
     return qs.filter(text_q)
@@ -315,33 +293,192 @@ def build_category_queryset(
     return apply_category_pipeline(request, qs, category_slug, scope="hub")
 
 
+@dataclass
+class _CategoryFilterSidebarBundle:
+    filters_active: bool
+    seo_parsed: dict[str, Any]
+    cards_context: dict[str, Any]
+
+
+def _category_vertical_flags(slug: str) -> dict[str, bool]:
+    return {
+        "show_autos": slug == VEHICLE_SLUG,
+        "show_property": slug == PROPERTY_SLUG,
+        "show_moto": slug == MOTORCYCLE_SLUG,
+        "show_electronics": slug == ELECTRONICS_SLUG,
+        "show_home": slug == HOMEGOODS_SLUG,
+    }
+
+
+def _category_filters_active(parsed: dict, flags: dict[str, bool]) -> bool:
+    return (
+        (flags["show_autos"] and listing_services.vehicle_browse_filters_active(parsed))
+        or (
+            flags["show_property"]
+            and listing_services.property_browse_filters_active(parsed)
+        )
+        or (flags["show_moto"] and listing_services.motorcycle_browse_filters_active(parsed))
+        or (
+            flags["show_electronics"]
+            and listing_services.electronics_browse_filters_active(parsed)
+        )
+        or (flags["show_home"] and listing_services.home_browse_filters_active(parsed))
+    )
+
+
+def _category_filter_panel_kind(flags: dict[str, bool]) -> str:
+    if flags["show_autos"]:
+        return "vehicle"
+    if flags["show_property"]:
+        return "property"
+    if flags["show_moto"]:
+        return "motorcycle"
+    if flags["show_electronics"]:
+        return "electronics"
+    if flags["show_home"]:
+        return "home"
+    return ""
+
+
+def _build_category_filter_sidebar_context(
+    slug: str,
+    parsed: dict,
+    *,
+    filter_clear_url: str,
+    cards_extras: dict[str, Any] | None = None,
+) -> _CategoryFilterSidebarBundle:
+    flags = _category_vertical_flags(slug)
+    show_autos = flags["show_autos"]
+    show_property = flags["show_property"]
+    show_moto = flags["show_moto"]
+    show_electronics = flags["show_electronics"]
+    show_home = flags["show_home"]
+    has_filter_contract = (
+        show_autos or show_property or show_moto or show_electronics or show_home
+    )
+    filters_active = _category_filters_active(parsed, flags) if has_filter_contract else False
+    filter_panel_kind = _category_filter_panel_kind(flags)
+    seo_parsed = parsed if has_filter_contract else {}
+
+    cards_ctx: dict[str, Any] = {
+        "browse_has_sidebar_filters": bool(filter_panel_kind),
+        "filter_panel_kind": filter_panel_kind,
+        "show_autos_filters": show_autos,
+        "show_property_filters": show_property,
+        "show_motorcycle_filters": show_moto,
+        "show_electronics_filters": show_electronics,
+        "show_home_filters": show_home,
+        "vehicle_filter_params": parsed if show_autos else {},
+        "property_filter_params": parsed if show_property else {},
+        "motorcycle_filter_params": parsed if show_moto else {},
+        "electronics_filter_params": parsed if show_electronics else {},
+        "home_filter_params": parsed if show_home else {},
+        "browse_brands": (
+            listing_services.market_brand_options_for_browse(VEHICLE_SLUG)
+            if show_autos
+            else None
+        ),
+        "browse_model_choices": (
+            listing_services.market_model_options_for_browse(
+                VEHICLE_SLUG,
+                parsed.get("brand_id"),
+            )
+            if show_autos
+            else []
+        ),
+        "motorcycle_browse_brands": (
+            listing_services.market_brand_options_for_browse(MOTORCYCLE_SLUG)
+            if show_moto
+            else None
+        ),
+        "motorcycle_browse_model_choices": (
+            listing_services.market_model_options_for_browse(
+                MOTORCYCLE_SLUG,
+                parsed.get("brand_id"),
+            )
+            if show_moto
+            else []
+        ),
+        "electronics_browse_brands": (
+            listing_services.market_brand_options_for_browse(
+                ELECTRONICS_SLUG,
+                item_type=parsed.get("item_type"),
+            )
+            if show_electronics
+            else None
+        ),
+        "electronics_browse_model_choices": (
+            listing_services.market_model_options_for_browse(
+                ELECTRONICS_SLUG,
+                parsed.get("brand_id"),
+                item_type=parsed.get("item_type"),
+            )
+            if show_electronics
+            else []
+        ),
+        "home_browse_brands": (
+            listing_services.market_brand_options_for_browse(
+                HOMEGOODS_SLUG,
+                item_type=parsed.get("item_type"),
+            )
+            if show_home
+            else None
+        ),
+        "home_browse_model_choices": (
+            listing_services.market_model_options_for_browse(
+                HOMEGOODS_SLUG,
+                parsed.get("brand_id"),
+                item_type=parsed.get("item_type"),
+            )
+            if show_home
+            else []
+        ),
+        "vehicle_transmission_choices": VehicleListing.Transmission.choices,
+        "property_type_choices": PropertyListing.PropertyType.choices,
+        "property_operation_choices": PropertyListing.OperationType.choices,
+        "motorcycle_transmission_choices": MotorcycleListing.Transmission.choices,
+        "motorcycle_fuel_choices": MotorcycleListing.FuelType.choices,
+        "motorcycle_condition_choices": ItemCondition.choices,
+        "electronics_item_type_choices": listing_services.electronics_item_type_choices_tuple(),
+        "electronics_condition_choices": ItemCondition.choices,
+        "home_item_type_choices": listing_services.home_item_type_choices_tuple(),
+        "home_condition_choices": ItemCondition.choices,
+        "filter_clear_url": filter_clear_url,
+        "selected_filters": parsed if has_filter_contract else {},
+        "vehicle_filters_form_action": "",
+        "vehicle_filters_include_category": False,
+        "property_filters_form_action": "",
+        "property_filters_include_category": False,
+        "motorcycle_filters_form_action": "",
+        "motorcycle_filters_include_category": False,
+        "electronics_filters_form_action": "",
+        "electronics_filters_include_category": False,
+        "home_filters_form_action": "",
+        "home_filters_include_category": False,
+    }
+    if cards_extras:
+        cards_ctx.update(cards_extras)
+    return _CategoryFilterSidebarBundle(
+        filters_active=filters_active,
+        seo_parsed=seo_parsed,
+        cards_context=cards_ctx,
+    )
+
+
 def _browse_preserved_query_params(request: HttpRequest) -> QueryDict:
-    """Query de /anuncios/ sin category ni page (para redirigir al hub canónico)."""
+    """Query de /anuncios/ sin parámetros de navegación legacy ni page."""
     params = request.GET.copy()
     params.pop("category", None)
+    params.pop("location", None)
     params.pop("page", None)
     return params
 
 
 def browse_category_hub_href(request: HttpRequest, category_slug: str) -> str:
     """
-    URL canónica de una categoría desde browse, preservando q/location/filtros.
-    /autos/, /guayaquil/autos/, etc.
+    URL canónica de una categoría desde browse, preservando q/filtros.
     """
     params = _browse_preserved_query_params(request)
-    location_slug = (params.get("location") or "").strip()
-    if location_slug and location_slug in LOCATION_LANDING_CONFIG:
-        contract = get_category_contract(category_slug)
-        if contract and contract.allowed_location_mode == "city+category":
-            params.pop("location", None)
-            url_name = {
-                "guayaquil": "location_guayaquil_category",
-                "samborondon": "location_samborondon_category",
-            }.get(location_slug)
-            if url_name:
-                url = reverse(url_name, kwargs={"category_slug": category_slug})
-                qs = params.urlencode()
-                return f"{url}?{qs}" if qs else url
     url = reverse("category_landing", kwargs={"slug": category_slug})
     qs = params.urlencode()
     return f"{url}?{qs}" if qs else url
@@ -351,7 +488,7 @@ def browse_category_canonical_redirect(
     request: HttpRequest,
 ) -> HttpResponseRedirect | None:
     """
-    301 /anuncios/?category=autos → /autos/ (o /guayaquil/autos/ si aplica).
+    301 /anuncios/?category=autos → /autos/.
     Evita duplicar contenido SEO frente a los hubs de categoría.
     """
     category_slug = (request.GET.get("category") or "").strip()
@@ -360,6 +497,34 @@ def browse_category_canonical_redirect(
     if not Category.objects.filter(slug=category_slug).exists():
         return None
     return redirect(browse_category_hub_href(request, category_slug), permanent=True)
+
+
+def vehicle_legacy_filter_canonical_redirect(
+    request: HttpRequest,
+) -> HttpResponseRedirect | None:
+    """
+    301 ?marca=&modelo= → ?brand=&model= (param canónico unificado con otras categorías).
+    """
+    get = request.GET
+    if not get.get("marca") and not get.get("modelo"):
+        return None
+    if get.get("brand") or get.get("model"):
+        return None
+    items: list[tuple[str, str]] = []
+    for key in get:
+        if key in ("marca", "modelo"):
+            continue
+        for val in get.getlist(key):
+            items.append((key, val))
+    if get.get("marca") and not get.get("brand"):
+        for val in get.getlist("marca"):
+            items.append(("brand", val))
+    if get.get("modelo") and not get.get("model"):
+        for val in get.getlist("modelo"):
+            items.append(("model", val))
+    qs = urlencode(items)
+    url = request.path
+    return redirect(f"{url}?{qs}" if qs else url, permanent=True)
 
 
 def build_browse_listings_queryset(request: HttpRequest) -> QuerySet:
@@ -508,9 +673,6 @@ def _seo_ctx_base(
     q_raw: str,
     filters_active: bool,
     frame: str,
-    location_display: str | None = None,
-    location_slug: str = "",
-    browse_location_slug: str = "",
 ) -> dict[str, Any]:
     return {
         "frame": frame,
@@ -521,9 +683,6 @@ def _seo_ctx_base(
         "result_count": result_count,
         "q_raw": q_raw,
         "filters_active": filters_active,
-        "location_display": location_display,
-        "location_slug": location_slug,
-        "browse_location_slug": browse_location_slug,
     }
 
 
@@ -540,9 +699,6 @@ def _build_seo_bundle(
     result_count: int,
     q_raw: str,
     filters_active: bool,
-    location_display: str | None = None,
-    location_slug: str = "",
-    browse_location_slug: str = "",
 ) -> CategorySeoBundle:
     """Ensambla meta/h1/canónica sin normalizar URL absoluta (uso interno)."""
     slug = (category_slug or "").strip()
@@ -555,9 +711,6 @@ def _build_seo_bundle(
         q_raw=q_raw,
         filters_active=filters_active,
         frame=frame,
-        location_display=location_display,
-        location_slug=location_slug,
-        browse_location_slug=browse_location_slug,
     )
     if frame == "browse":
         if (
@@ -584,7 +737,6 @@ def _build_seo_bundle(
                 "category_obj": category,
                 "category_slug": slug,
                 "result_count": result_count,
-                "location_display": location_display,
             },
         )
     if not slug:
@@ -618,12 +770,9 @@ def build_category_seo_context(
     result_count: int,
     q_raw: str,
     filters_active: bool,
-    location_display: str | None = None,
-    location_slug: str = "",
-    browse_location_slug: str = "",
 ) -> CategorySeoBundle:
     """
-    Única API pública del engine para SEO de listados (browse / hub / ciudad).
+    Única API pública del engine para SEO de listados (browse / hub).
     Garantiza canónica absoluta.
     """
     bundle = _build_seo_bundle(
@@ -638,73 +787,23 @@ def build_category_seo_context(
         result_count=result_count,
         q_raw=q_raw,
         filters_active=filters_active,
-        location_display=location_display,
-        location_slug=location_slug,
-        browse_location_slug=browse_location_slug,
     )
     _ensure_canonical_absolute(request, bundle)
     return bundle
 
 
-def build_seo(
-    request: HttpRequest,
-    category_slug: str,
-    qs: QuerySet,
-    *,
-    frame: str,
-    brand: str,
-    city: str,
-    category,
-    parsed: dict,
-    result_count: int,
-    q_raw: str,
-    filters_active: bool,
-    location_display: str | None = None,
-    location_slug: str = "",
-    browse_location_slug: str = "",
-) -> CategorySeoBundle:
-    """Alias de `build_category_seo_context` (compat)."""
-    return build_category_seo_context(
-        request,
-        category_slug,
-        qs,
-        frame=frame,
-        brand=brand,
-        city=city,
-        category=category,
-        parsed=parsed,
-        result_count=result_count,
-        q_raw=q_raw,
-        filters_active=filters_active,
-        location_display=location_display,
-        location_slug=location_slug,
-        browse_location_slug=browse_location_slug,
-    )
-
-
 def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
     qs = build_browse_listings_queryset(request)
     q_raw = (request.GET.get("q") or "").strip()
-    location_slug = (request.GET.get("location") or "").strip()
 
     qs = apply_search(qs, q_raw, None)
-
-    if location_slug:
-        cfg = LOCATION_LANDING_CONFIG.get(location_slug)
-        if cfg:
-            q_loc = Q()
-            for needle in cfg["needles"]:
-                q_loc |= Q(location__icontains=needle)
-            qs = qs.filter(q_loc)
-        else:
-            qs = qs.filter(location__icontains=location_slug)
 
     sort = parse_sort_param(request)
     qs = apply_listing_order(qs, sort)
     lb = _split_listings_page_bundle(
         request,
         qs,
-        filters_active=bool(q_raw or location_slug),
+        filters_active=bool(q_raw),
         clear_listings_href=reverse("browse"),
     )
     page = lb["page"]
@@ -713,13 +812,8 @@ def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
 
     brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
     city = getattr(settings, "SEO_MARKET_CITY", "Guayaquil")
-    location_display: str | None = None
-    if location_slug:
-        loc_cfg = LOCATION_LANDING_CONFIG.get(location_slug)
-        if loc_cfg:
-            location_display = loc_cfg["display"]
 
-    bundle = build_seo(
+    bundle = build_category_seo_context(
         request,
         "",
         qs,
@@ -730,26 +824,15 @@ def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
         parsed={},
         result_count=paginator.count,
         q_raw=q_raw,
-        filters_active=bool(q_raw or location_slug),
-        location_display=location_display,
-        browse_location_slug=location_slug,
+        filters_active=bool(q_raw),
     )
 
     clear_params: dict = {}
     if q_raw:
         clear_params["q"] = q_raw
-    if location_slug:
-        clear_params["location"] = location_slug
     category_filter_clear_url = reverse("browse")
     if clear_params:
         category_filter_clear_url = f"{category_filter_clear_url}?{urlencode(clear_params)}"
-
-    location_ctx: dict[str, Any] = {}
-    if location_slug:
-        location_ctx["browse_location_slug"] = location_slug
-        loc_cfg = LOCATION_LANDING_CONFIG.get(location_slug)
-        if loc_cfg:
-            location_ctx["location_display"] = loc_cfg["display"]
 
     cards_ctx: dict[str, Any] = {
         "browse_has_sidebar_filters": True,
@@ -777,7 +860,6 @@ def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
         template=BROWSE_TEMPLATE_LIST,
         pagination=CategoryPagination(page, paginator, pagination_query),
         search_query=q_raw,
-        location_context=location_ctx,
         cards_context=cards_ctx,
         template_extras=build_sort_template_extras(request, current_sort=sort),
         featured_cards=lb["featured_cards"],
@@ -789,8 +871,6 @@ def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
 
 
 def _page_context_hub(request: HttpRequest, category) -> CategoryPageContext:
-    from .models import ItemCondition, MotorcycleListing, VehicleBrand, VehicleListing
-
     slug = category.slug
     if get_category_contract(slug) is None:
         raise Http404()
@@ -805,39 +885,26 @@ def _page_context_hub(request: HttpRequest, category) -> CategoryPageContext:
         f"Contacta vendedores verificados y evita estafas."
     )
 
-    show_autos = slug == VEHICLE_SLUG
-    show_property = slug == PROPERTY_SLUG
-    show_moto = slug == MOTORCYCLE_SLUG
-    show_electronics = slug == ELECTRONICS_SLUG
-    show_home = slug == HOMEGOODS_SLUG
-
-    filters_active = (
-        show_autos and listing_services.vehicle_browse_filters_active(parsed)
-    ) or (
-        show_property and listing_services.property_browse_filters_active(parsed)
-    ) or (
-        show_moto and listing_services.motorcycle_browse_filters_active(parsed)
-    ) or (
-        show_electronics and listing_services.electronics_browse_filters_active(parsed)
-    ) or (show_home and listing_services.home_browse_filters_active(parsed))
-
     filter_clear_url = reverse("category_landing", kwargs={"slug": slug})
+    sidebar = _build_category_filter_sidebar_context(
+        slug,
+        parsed,
+        filter_clear_url=filter_clear_url,
+        cards_extras={
+            "show_autos_category_crosslink": slug != VEHICLE_SLUG,
+        },
+    )
     lb = _split_listings_page_bundle(
         request,
         qs,
-        filters_active=filters_active,
+        filters_active=sidebar.filters_active,
         clear_listings_href=filter_clear_url,
     )
     page = lb["page"]
     paginator = lb["paginator"]
     pagination_query = lb["pagination_query"]
 
-    seo_parsed = (
-        parsed
-        if (show_autos or show_property or show_moto or show_electronics or show_home)
-        else {}
-    )
-    bundle = build_seo(
+    bundle = build_category_seo_context(
         request,
         slug,
         qs,
@@ -845,73 +912,17 @@ def _page_context_hub(request: HttpRequest, category) -> CategoryPageContext:
         brand=brand,
         city=city,
         category=category,
-        parsed=seo_parsed,
+        parsed=sidebar.seo_parsed,
         result_count=paginator.count,
         q_raw=q_raw,
-        filters_active=filters_active,
+        filters_active=sidebar.filters_active,
     )
 
-    browse_brands = VehicleBrand.objects.order_by("name") if show_autos else None
-    browse_model_choices = (
-        listing_services.vehicle_model_options_for_browse(parsed.get("marca_id"))
-        if show_autos
-        else []
-    )
-
-    filter_panel_kind = ""
-    if show_autos:
-        filter_panel_kind = "vehicle"
-    elif show_property:
-        filter_panel_kind = "property"
-    elif show_moto:
-        filter_panel_kind = "motorcycle"
-    elif show_electronics:
-        filter_panel_kind = "electronics"
-    elif show_home:
-        filter_panel_kind = "home"
-
-    loc_ctx: dict[str, Any] = {
+    page_ctx: dict[str, Any] = {
         "browse_h1": bundle.browse_h1,
         "browse_intro": intro,
     }
-    cards_ctx: dict[str, Any] = {
-        "browse_has_sidebar_filters": bool(filter_panel_kind),
-        "filter_panel_kind": filter_panel_kind,
-        "show_autos_category_crosslink": slug != VEHICLE_SLUG,
-        "show_autos_filters": show_autos,
-        "show_property_filters": show_property,
-        "show_motorcycle_filters": show_moto,
-        "show_electronics_filters": show_electronics,
-        "show_home_filters": show_home,
-        "vehicle_filter_params": parsed if show_autos else {},
-        "property_filter_params": parsed if show_property else {},
-        "motorcycle_filter_params": parsed if show_moto else {},
-        "electronics_filter_params": parsed if show_electronics else {},
-        "home_filter_params": parsed if show_home else {},
-        "browse_brands": browse_brands,
-        "browse_model_choices": browse_model_choices,
-        "vehicle_transmission_choices": VehicleListing.Transmission.choices,
-        "motorcycle_transmission_choices": MotorcycleListing.Transmission.choices,
-        "motorcycle_fuel_choices": MotorcycleListing.FuelType.choices,
-        "motorcycle_condition_choices": ItemCondition.choices,
-        "electronics_condition_choices": ItemCondition.choices,
-        "home_item_type_choices": listing_services.home_item_type_choices_tuple(),
-        "home_condition_choices": ItemCondition.choices,
-        "filter_clear_url": filter_clear_url,
-        "selected_filters": parsed
-        if (show_autos or show_property or show_moto or show_electronics or show_home)
-        else {},
-        "vehicle_filters_form_action": "",
-        "vehicle_filters_include_category": False,
-        "property_filters_form_action": "",
-        "property_filters_include_category": False,
-        "motorcycle_filters_form_action": "",
-        "motorcycle_filters_include_category": False,
-        "electronics_filters_form_action": "",
-        "electronics_filters_include_category": False,
-        "home_filters_form_action": "",
-        "home_filters_include_category": False,
-    }
+    cards_ctx = sidebar.cards_context
     cards_ctx["listing_cards"] = lb["listing_cards_alias"]
     cards_ctx.update(lb["listings_render"])
 
@@ -924,269 +935,7 @@ def _page_context_hub(request: HttpRequest, category) -> CategoryPageContext:
         template=BROWSE_TEMPLATE_CATEGORY,
         pagination=CategoryPagination(page, paginator, pagination_query),
         search_query=q_raw,
-        location_context=loc_ctx,
-        cards_context=cards_ctx,
-        template_extras=build_sort_template_extras(request, current_sort=sort),
-        featured_cards=lb["featured_cards"],
-        normal_cards=lb["normal_cards"],
-        suggestion_cards=lb["suggestion_cards"],
-        listings_meta_robots=lb["listings_meta_robots"],
-        results_count=paginator.count,
-    )
-
-
-def _page_context_location_hub(
-    request: HttpRequest,
-    *,
-    location_slug: str,
-    category,
-) -> CategoryPageContext:
-    from .models import ItemCondition, MotorcycleListing, VehicleBrand, VehicleListing
-
-    cfg = LOCATION_LANDING_CONFIG.get(location_slug)
-    if not cfg:
-        raise ValueError("unknown location")
-    display = cfg["display"]
-    q_loc = Q()
-    for needle in cfg["needles"]:
-        q_loc |= Q(location__icontains=needle)
-
-    slug = category.slug
-    qs = Listing.objects.published().filter(q_loc, category=category)
-    qs, parsed, q_raw = build_category_queryset(request, qs, slug)
-    sort = parse_sort_param(request)
-
-    brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
-    city = getattr(settings, "SEO_MARKET_CITY", "Guayaquil")
-
-    show_autos = slug == VEHICLE_SLUG
-    show_property = slug == PROPERTY_SLUG
-    show_moto = slug == MOTORCYCLE_SLUG
-    show_electronics = slug == ELECTRONICS_SLUG
-    show_home = slug == HOMEGOODS_SLUG
-
-    filters_active = (
-        show_autos and listing_services.vehicle_browse_filters_active(parsed)
-    ) or (
-        show_property and listing_services.property_browse_filters_active(parsed)
-    ) or (
-        show_moto and listing_services.motorcycle_browse_filters_active(parsed)
-    ) or (
-        show_electronics and listing_services.electronics_browse_filters_active(parsed)
-    ) or (show_home and listing_services.home_browse_filters_active(parsed))
-
-    if location_slug == "guayaquil":
-        filter_clear_url = reverse(
-            "location_guayaquil_category",
-            kwargs={"category_slug": category.slug},
-        )
-    elif location_slug == "samborondon":
-        filter_clear_url = reverse(
-            "location_samborondon_category",
-            kwargs={"category_slug": category.slug},
-        )
-    else:
-        filter_clear_url = request.path
-
-    lb = _split_listings_page_bundle(
-        request,
-        qs,
-        filters_active=filters_active,
-        clear_listings_href=filter_clear_url,
-    )
-    page = lb["page"]
-    paginator = lb["paginator"]
-    pagination_query = lb["pagination_query"]
-
-    bundle = build_seo(
-        request,
-        slug,
-        qs,
-        frame="location_hub",
-        brand=brand,
-        city=city,
-        category=category,
-        parsed=parsed,
-        result_count=paginator.count,
-        q_raw=q_raw,
-        filters_active=filters_active,
-        location_display=display,
-        location_slug=location_slug,
-    )
-
-    browse_brands = VehicleBrand.objects.order_by("name") if show_autos else None
-    browse_model_choices = (
-        listing_services.vehicle_model_options_for_browse(parsed.get("marca_id"))
-        if show_autos
-        else []
-    )
-
-    filter_panel_kind = ""
-    if show_autos:
-        filter_panel_kind = "vehicle"
-    elif show_property:
-        filter_panel_kind = "property"
-    elif show_moto:
-        filter_panel_kind = "motorcycle"
-    elif show_electronics:
-        filter_panel_kind = "electronics"
-    elif show_home:
-        filter_panel_kind = "home"
-
-    loc_ctx: dict[str, Any] = {
-        "location_slug": location_slug,
-        "location_display": display,
-    }
-    cards_ctx: dict[str, Any] = {
-        "browse_has_sidebar_filters": bool(filter_panel_kind),
-        "filter_panel_kind": filter_panel_kind,
-        "show_autos_filters": show_autos,
-        "show_property_filters": show_property,
-        "show_motorcycle_filters": show_moto,
-        "show_electronics_filters": show_electronics,
-        "show_home_filters": show_home,
-        "vehicle_filter_params": parsed if show_autos else {},
-        "property_filter_params": parsed if show_property else {},
-        "motorcycle_filter_params": parsed if show_moto else {},
-        "electronics_filter_params": parsed if show_electronics else {},
-        "home_filter_params": parsed if show_home else {},
-        "browse_brands": browse_brands,
-        "browse_model_choices": browse_model_choices,
-        "vehicle_transmission_choices": VehicleListing.Transmission.choices,
-        "motorcycle_transmission_choices": MotorcycleListing.Transmission.choices,
-        "motorcycle_fuel_choices": MotorcycleListing.FuelType.choices,
-        "motorcycle_condition_choices": ItemCondition.choices,
-        "electronics_condition_choices": ItemCondition.choices,
-        "home_item_type_choices": listing_services.home_item_type_choices_tuple(),
-        "home_condition_choices": ItemCondition.choices,
-        "filter_clear_url": filter_clear_url,
-        "selected_filters": parsed
-        if (show_autos or show_property or show_moto or show_electronics or show_home)
-        else {},
-        "vehicle_filters_form_action": "",
-        "vehicle_filters_include_category": False,
-        "property_filters_form_action": "",
-        "property_filters_include_category": False,
-        "motorcycle_filters_form_action": "",
-        "motorcycle_filters_include_category": False,
-        "electronics_filters_form_action": "",
-        "electronics_filters_include_category": False,
-        "home_filters_form_action": "",
-        "home_filters_include_category": False,
-        "show_category_hero": True,
-        "page_header_title_tag": "h2",
-    }
-    cards_ctx["listing_cards"] = lb["listing_cards_alias"]
-    cards_ctx.update(lb["listings_render"])
-
-    return CategoryPageContext(
-        queryset=qs,
-        filters=parsed,
-        seo=bundle,
-        hero=_hero_from_seo(bundle),
-        category=category,
-        template=BROWSE_TEMPLATE_LIST,
-        pagination=CategoryPagination(page, paginator, pagination_query),
-        search_query=q_raw,
-        location_context=loc_ctx,
-        cards_context=cards_ctx,
-        template_extras=build_sort_template_extras(request, current_sort=sort),
-        featured_cards=lb["featured_cards"],
-        normal_cards=lb["normal_cards"],
-        suggestion_cards=lb["suggestion_cards"],
-        listings_meta_robots=lb["listings_meta_robots"],
-        results_count=paginator.count,
-    )
-
-
-def _page_context_location_only(
-    request: HttpRequest,
-    *,
-    location_slug: str,
-) -> CategoryPageContext:
-    from .models import ItemCondition, MotorcycleListing, VehicleListing
-
-    cfg = LOCATION_LANDING_CONFIG[location_slug]
-    display = cfg["display"]
-    q_loc = Q()
-    for needle in cfg["needles"]:
-        q_loc |= Q(location__icontains=needle)
-
-    q_raw = (request.GET.get("q") or "").strip()
-    qs = Listing.objects.published().filter(q_loc)
-    qs = apply_query_plan(qs, LISTING_LIST_BASE_PLAN)
-    qs = apply_search(qs, q_raw, None)
-    sort = parse_sort_param(request)
-    qs = apply_listing_order(qs, sort)
-    lb = _split_listings_page_bundle(
-        request,
-        qs,
-        filters_active=False,
-        clear_listings_href=reverse("browse"),
-    )
-    page = lb["page"]
-    paginator = lb["paginator"]
-    pagination_query = lb["pagination_query"]
-
-    brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
-    city = getattr(settings, "SEO_MARKET_CITY", "Guayaquil")
-    bundle = seo_location_market(display=display, city=city, brand=brand)
-    _ensure_canonical_absolute(request, bundle)
-
-    loc_ctx: dict[str, Any] = {
-        "browse_h1": bundle.browse_h1,
-        "browse_intro": bundle.meta_description,
-        "location_slug": location_slug,
-        "location_display": display,
-    }
-    cards_ctx: dict[str, Any] = {
-        "browse_has_sidebar_filters": False,
-        "filter_panel_kind": "",
-        "show_autos_filters": False,
-        "show_property_filters": False,
-        "show_motorcycle_filters": False,
-        "show_electronics_filters": False,
-        "show_home_filters": False,
-        "vehicle_filter_params": {},
-        "property_filter_params": {},
-        "motorcycle_filter_params": {},
-        "electronics_filter_params": {},
-        "home_filter_params": {},
-        "browse_brands": None,
-        "browse_model_choices": [],
-        "vehicle_transmission_choices": VehicleListing.Transmission.choices,
-        "motorcycle_transmission_choices": MotorcycleListing.Transmission.choices,
-        "motorcycle_fuel_choices": MotorcycleListing.FuelType.choices,
-        "motorcycle_condition_choices": ItemCondition.choices,
-        "electronics_condition_choices": ItemCondition.choices,
-        "home_item_type_choices": listing_services.home_item_type_choices_tuple(),
-        "home_condition_choices": ItemCondition.choices,
-        "filter_clear_url": "",
-        "selected_filters": {},
-        "vehicle_filters_form_action": "",
-        "vehicle_filters_include_category": False,
-        "property_filters_form_action": "",
-        "property_filters_include_category": False,
-        "motorcycle_filters_form_action": "",
-        "motorcycle_filters_include_category": False,
-        "electronics_filters_form_action": "",
-        "electronics_filters_include_category": False,
-        "home_filters_form_action": "",
-        "home_filters_include_category": False,
-    }
-    cards_ctx["listing_cards"] = lb["listing_cards_alias"]
-    cards_ctx.update(lb["listings_render"])
-
-    return CategoryPageContext(
-        queryset=qs,
-        filters={},
-        seo=bundle,
-        hero=_hero_from_seo(bundle),
-        category=None,
-        template=BROWSE_TEMPLATE_CATEGORY,
-        pagination=CategoryPagination(page, paginator, pagination_query),
-        search_query=q_raw,
-        location_context=loc_ctx,
+        page_context=page_ctx,
         cards_context=cards_ctx,
         template_extras=build_sort_template_extras(request, current_sort=sort),
         featured_cards=lb["featured_cards"],
@@ -1200,31 +949,13 @@ def _page_context_location_only(
 def build_category_page(
     request: HttpRequest,
     category_slug: str | None = None,
-    location_slug: str | None = None,
 ) -> CategoryPageContext:
     """
-    Único entrypoint de páginas de listado: browse, hub de categoría, landing por ciudad,
-    o ciudad + categoría. El contrato de render es siempre `CategoryPageContext.render_dict()`.
+    Único entrypoint de páginas de listado: browse o hub de categoría.
+    El contrato de render es siempre `CategoryPageContext.render_dict()`.
     """
     cat_slug = (category_slug or "").strip() or None
-    loc_slug = (location_slug or "").strip() or None
 
-    if loc_slug and cat_slug:
-        if loc_slug not in LOCATION_LANDING_CONFIG:
-            raise Http404()
-        category = get_object_or_404(Category, slug=cat_slug)
-        ctr = get_category_contract(category.slug)
-        if ctr is None or ctr.allowed_location_mode != "city+category":
-            raise Http404()
-        return _page_context_location_hub(
-            request,
-            location_slug=loc_slug,
-            category=category,
-        )
-    if loc_slug and not cat_slug:
-        if loc_slug not in LOCATION_LANDING_CONFIG:
-            raise Http404()
-        return _page_context_location_only(request, location_slug=loc_slug)
     if cat_slug:
         category = get_object_or_404(Category, slug=cat_slug)
         return _page_context_hub(request, category)
@@ -1244,7 +975,6 @@ CATEGORY_CONTRACT_REGISTRY: dict[str, CategoryContractSpec] = {
         supported_search_fields=frozenset({"title", "description", "vehicle"}),
         card_template=LISTING_CARD_DTO_UNIFIED,
         seo_builder=seo_vehicle,
-        allowed_location_mode="city+category",
         query_plan_builder=hub_vehicle_query_plan,
         filter_get_keys=_VFK,
         filter_parser=listing_services.parse_vehicle_list_filter_params,
@@ -1256,7 +986,6 @@ CATEGORY_CONTRACT_REGISTRY: dict[str, CategoryContractSpec] = {
         supported_search_fields=frozenset({"title", "description", "property"}),
         card_template=LISTING_CARD_DTO_UNIFIED,
         seo_builder=seo_property,
-        allowed_location_mode="city+category",
         query_plan_builder=hub_property_query_plan,
         filter_get_keys=_PFK,
         filter_parser=listing_services.parse_property_list_filter_params,
@@ -1268,7 +997,6 @@ CATEGORY_CONTRACT_REGISTRY: dict[str, CategoryContractSpec] = {
         supported_search_fields=frozenset({"title", "description", "motorcycle"}),
         card_template=LISTING_CARD_DTO_UNIFIED,
         seo_builder=seo_motorcycle,
-        allowed_location_mode="city+category",
         query_plan_builder=hub_motorcycle_query_plan,
         filter_get_keys=_MFK,
         filter_parser=listing_services.parse_motorcycle_list_filter_params,
@@ -1280,7 +1008,6 @@ CATEGORY_CONTRACT_REGISTRY: dict[str, CategoryContractSpec] = {
         supported_search_fields=frozenset({"title", "description", "electronics"}),
         card_template=LISTING_CARD_DTO_UNIFIED,
         seo_builder=seo_electronics,
-        allowed_location_mode="city+category",
         query_plan_builder=hub_electronics_query_plan,
         filter_get_keys=_EFK,
         filter_parser=listing_services.parse_electronics_list_filter_params,
@@ -1292,47 +1019,9 @@ CATEGORY_CONTRACT_REGISTRY: dict[str, CategoryContractSpec] = {
         supported_search_fields=frozenset({"title", "description", "homegoods"}),
         card_template=LISTING_CARD_DTO_UNIFIED,
         seo_builder=seo_home,
-        allowed_location_mode="city+category",
         query_plan_builder=hub_home_query_plan,
         filter_get_keys=_HFK,
         filter_parser=listing_services.parse_home_filters,
         filter_applier=listing_services.apply_home_filters,
     ),
 }
-
-CATEGORY_BEHAVIOR_REGISTRY = CATEGORY_CONTRACT_REGISTRY
-
-
-def enrich_category_scoped_listing_queryset(
-    category_slug: str,
-    request: HttpRequest,
-    qs: QuerySet,
-) -> tuple[QuerySet, dict, str]:
-    if category_slug == VEHICLE_SLUG:
-        return listing_services.enrich_autos_scoped_listing_queryset(request, qs)
-    if category_slug == PROPERTY_SLUG:
-        return listing_services.enrich_property_scoped_listing_queryset(request, qs)
-    if category_slug == MOTORCYCLE_SLUG:
-        return listing_services.enrich_motorcycle_scoped_listing_queryset(request, qs)
-    if category_slug == ELECTRONICS_SLUG:
-        return listing_services.enrich_electronics_scoped_listing_queryset(request, qs)
-    if category_slug == HOMEGOODS_SLUG:
-        return listing_services.enrich_home_scoped_queryset(request, qs)
-    q_raw = (request.GET.get("q") or "").strip()
-    qs = apply_query_plan(qs, LISTING_LIST_BASE_PLAN)
-    qs = apply_search(qs, q_raw, category_slug)
-    return qs, {}, q_raw
-
-
-# Compat: código que aún importaba desde category_behavior
-def build_category_seo(category_slug: str, context: dict[str, Any]) -> CategorySeoBundle:
-    spec = get_category_contract(category_slug)
-    if spec is None:
-        raise ImproperlyConfigured(f"build_category_seo: sin contrato {category_slug!r}")
-    request = context["request"]
-    qs = context.get("qs")
-    if qs is None:
-        qs = Listing.objects.none()
-    bundle = spec.seo_builder(request, qs, context)
-    _ensure_canonical_absolute(request, bundle)
-    return bundle

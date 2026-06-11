@@ -321,7 +321,6 @@ msgstr ""
 #: templates/components/nav.html:16 templates/users/login.html:4
 #: templates/users/login.html:8 templates/users/login.html:10
 #: templates/users/login.html:18
-#: templates/users/password_reset_complete.html:11
 msgid "Log in"
 msgstr "Entrar"
 
@@ -652,75 +651,6 @@ msgstr "Salir"
 #: templates/users/login.html:9
 msgid "Use the email address for your account."
 msgstr "Usa el correo de tu cuenta."
-
-#: templates/users/login.html:22
-msgid "Forgot password?"
-msgstr "¿Olvidaste tu contraseña?"
-
-#: templates/users/password_reset_complete.html:4
-#: templates/users/password_reset_complete.html:8
-msgid "Password updated"
-msgstr "Contraseña actualizada"
-
-#: templates/users/password_reset_complete.html:9
-msgid "You can sign in with your new password."
-msgstr "Ya puedes entrar con tu nueva contraseña."
-
-#: templates/users/password_reset_confirm.html:4
-#: templates/users/password_reset_confirm.html:8
-#: templates/users/password_reset_confirm.html:10
-msgid "Set new password"
-msgstr "Nueva contraseña"
-
-#: templates/users/password_reset_confirm.html:17
-msgid "Save password"
-msgstr "Guardar contraseña"
-
-#: templates/users/password_reset_confirm.html:21
-msgid "This reset link is invalid or has expired. Request a new one."
-msgstr "Este enlace no es válido o ha caducado. Solicita uno nuevo."
-
-#: templates/users/password_reset_confirm.html:22
-msgid "Request new link"
-msgstr "Solicitar nuevo enlace"
-
-#: templates/users/password_reset_done.html:4
-msgid "Email sent"
-msgstr "Correo enviado"
-
-#: templates/users/password_reset_done.html:8
-msgid "Check your email"
-msgstr "Revisa tu correo"
-
-#: templates/users/password_reset_done.html:10
-msgid ""
-"If an account exists for that address, you will receive instructions to "
-"reset your password."
-msgstr ""
-"Si existe una cuenta con esa dirección, recibirás instrucciones para "
-"restablecer la contraseña."
-
-#: templates/users/password_reset_done.html:13
-#: templates/users/password_reset_form.html:18
-msgid "Back to log in"
-msgstr "Volver a entrar"
-
-#: templates/users/password_reset_form.html:4
-#: templates/users/password_reset_form.html:8
-msgid "Reset password"
-msgstr "Restablecer contraseña"
-
-#: templates/users/password_reset_form.html:9
-msgid "We will email you a link to choose a new password."
-msgstr "Te enviaremos un enlace por correo para elegir una nueva contraseña."
-
-#: templates/users/password_reset_form.html:10
-msgid "Request password reset"
-msgstr "Solicitar restablecimiento de contraseña"
-
-#: templates/users/password_reset_form.html:17
-msgid "Send link"
-msgstr "Enviar enlace"
 
 #: templates/users/register.html:9
 msgid "By registering you agree to use AnunciateYa responsibly."

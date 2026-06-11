@@ -16,10 +16,13 @@ from apps.listings.category_engine_validation import EXPECTED_CONTRACT_SLUGS
 from apps.listings.listing_card_dto import LISTING_CARD_DTO_UNIFIED, CardContext, build_card_context
 from apps.listings.models import (
     ElectronicsListing,
+    ElectronicsItemType,
     HomeGoodsListing,
     HomeItemType,
     ItemCondition,
     Listing,
+    MarketBrand,
+    MarketModel,
     MotorcycleListing,
     PropertyListing,
     VehicleListing,
@@ -70,12 +73,32 @@ class CategoryEngineContractTests(TestCase):
             )
             return l
 
+        def market_model(
+            brand_name: str,
+            model_name: str,
+            category_slug: str,
+            item_type: str = "",
+        ) -> tuple[MarketBrand, MarketModel]:
+            brand, _ = MarketBrand.objects.get_or_create(
+                name=brand_name,
+                defaults={"slug": f"{brand_name.lower()}-{category_slug}", "is_active": True},
+            )
+            model, _ = MarketModel.objects.get_or_create(
+                brand=brand,
+                category_slug=category_slug,
+                item_type=item_type,
+                name=model_name,
+                defaults={"slug": f"{model_name.lower()}-{category_slug}", "is_active": True},
+            )
+            return brand, model
+
         # Autos
         v_listing = pub_listing("Auto test", "autos")
+        v_brand, v_model = market_model("Seed", "S1", "autos")
         VehicleListing.objects.create(
             listing=v_listing,
-            brand="Seed",
-            model="S1",
+            brand_fk=v_brand,
+            model_fk=v_model,
             year=2020,
             doors=4,
             mileage=10000,
@@ -97,10 +120,11 @@ class CategoryEngineContractTests(TestCase):
         )
         # Motos
         m_listing = pub_listing("Moto test", "motos")
+        m_brand, m_model = market_model("M", "Z", "motos")
         MotorcycleListing.objects.create(
             listing=m_listing,
-            brand="M",
-            model="Z",
+            brand_fk=m_brand,
+            model_fk=m_model,
             year=2019,
             mileage=5000,
             engine_cc=150,
@@ -110,21 +134,30 @@ class CategoryEngineContractTests(TestCase):
         )
         # Electrónica
         e_listing = pub_listing("Phone test", "electronica")
+        e_brand, e_model = market_model(
+            "Acme",
+            "Z1",
+            "electronica",
+            ElectronicsItemType.CELULARES,
+        )
         ElectronicsListing.objects.create(
             listing=e_listing,
-            brand="Acme",
-            model="Z1",
+            item_type=ElectronicsItemType.CELULARES,
+            brand_fk=e_brand,
+            model_fk=e_model,
             condition=ItemCondition.NUEVO,
             warranty=False,
             warranty_months=None,
         )
         # Hogar
         h_listing = pub_listing("Silla test", "hogar")
+        h_brand, h_model = market_model("Wood", "Silla", "hogar", HomeItemType.FURNITURE)
         HomeGoodsListing.objects.create(
             listing=h_listing,
             item_type=HomeItemType.FURNITURE,
             condition=ItemCondition.USADO,
-            brand="Wood",
+            brand_fk=h_brand,
+            model_fk=h_model,
             material="Pino",
         )
 

@@ -12,7 +12,7 @@ from django.utils import timezone
 from apps.categories.models import Category
 from apps.listings.category_engine import apply_category_pipeline
 from apps.listings.category_extensions import VEHICLE_SLUG
-from apps.listings.models import Listing, VehicleListing
+from apps.listings.models import Listing, MarketBrand, MarketModel, VehicleListing
 from apps.listings.services import compute_listing_quality_score
 
 User = get_user_model()
@@ -31,16 +31,31 @@ class ListingRankingTests(TestCase):
         )
 
     def _vehicle_ext(self, listing: Listing) -> None:
+        brand, model = self._market_model("B", "M")
         VehicleListing.objects.create(
             listing=listing,
-            brand="B",
-            model="M",
+            brand_fk=brand,
+            model_fk=model,
             year=2020,
             doors=4,
             mileage=1000,
             transmission=VehicleListing.Transmission.MANUAL,
             fuel_type=VehicleListing.FuelType.GASOLINA,
         )
+
+    def _market_model(self, brand_name: str, model_name: str):
+        brand, _ = MarketBrand.objects.get_or_create(
+            name=brand_name,
+            defaults={"slug": f"{brand_name.lower()}-autos", "is_active": True},
+        )
+        model, _ = MarketModel.objects.get_or_create(
+            brand=brand,
+            category_slug=VEHICLE_SLUG,
+            item_type="",
+            name=model_name,
+            defaults={"slug": f"{model_name.lower()}-autos", "is_active": True},
+        )
+        return brand, model
 
     def test_featured_order_priority(self) -> None:
         older = Listing.objects.create(
@@ -91,9 +106,10 @@ class ListingRankingTests(TestCase):
         )
         self.assertEqual(compute_listing_quality_score(listing), 3.0)
 
+        brand, model = self._market_model("Toy", "Corolla")
         v = VehicleListing(
-            brand="Toy",
-            model="Corolla",
+            brand_fk=brand,
+            model_fk=model,
             year=2019,
             doors=4,
             transmission=VehicleListing.Transmission.AUTOMATICO,

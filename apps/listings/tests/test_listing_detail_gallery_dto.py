@@ -91,3 +91,16 @@ class ListingDetailGalleryDtoTests(TestCase):
         listing = self._published_listing("Sin prefetch")
         urls = ordered_listing_image_urls(listing)
         self.assertEqual(urls, ())
+
+    def test_listing_detail_uses_first_gallery_image_for_social_meta(self):
+        listing = self._published_listing("Con og")
+        up = SimpleUploadedFile("a.png", _PNG_1X1, content_type="image/png")
+        ListingImage.objects.create(listing=listing, image=up, sort_order=0)
+
+        response = self.client.get(listing.get_absolute_url())
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn("/media/", html)
+        self.assertIn('property="og:image"', html)
+        self.assertNotIn("AnunciateYa_ShareImage_Home.png", html)

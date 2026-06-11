@@ -1,12 +1,12 @@
 {% extends "layouts/account_app.html" %}
 {% load static %}
 
-{% block extra_head %}
-  <meta name="robots" content="noindex, nofollow">
-{% endblock %}
-
 {% block title %}{{ account_page_title }} · {{ site_name }}{% endblock %}
 {% block meta_description %}Área privada de tu cuenta en {{ site_name }}.{% endblock %}
+{% block social_title %}{{ account_page_title }} · {{ site_name }}{% endblock %}
+{% block social_description %}Área privada de tu cuenta en {{ site_name }}.{% endblock %}
+{% block twitter_title %}{{ account_page_title }} · {{ site_name }}{% endblock %}
+{% block twitter_description %}Área privada de tu cuenta en {{ site_name }}.{% endblock %}
 
 {% block content %}
   <div class="account-dashboard" data-account-dashboard>

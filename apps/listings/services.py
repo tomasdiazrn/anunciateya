@@ -4,10 +4,14 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Callable
+import warnings
 
+from django.conf import settings
+from django.core.mail import send_mail
 from django.db.models import Q, QuerySet
 from django.http import HttpRequest, QueryDict
 from django.shortcuts import get_object_or_404
+from PIL import Image, UnidentifiedImageError
 
 from .category_extensions import (
     ELECTRONICS_SLUG,
@@ -18,22 +22,25 @@ from .category_extensions import (
 )
 from .models import (
     ElectronicsListing,
+    ElectronicsItemType,
     HomeGoodsListing,
     HomeItemType,
     ItemCondition,
     Listing,
     ListingImage,
+    ListingLead,
+    MarketBrand,
+    MarketModel,
     MotorcycleListing,
     PropertyListing,
-    VehicleBrand,
     VehicleListing,
-    VehicleModel,
 )
+from .market_taxonomy import market_brand_queryset, market_model_queryset
 
 # Parámetros GET del filtro de autos (MVP).
 VEHICLE_FILTER_GET_KEYS = (
-    "marca",
-    "modelo",
+    "brand",
+    "model",
     "year_from",
     "year_to",
     "price_from",
@@ -69,7 +76,9 @@ MOTORCYCLE_FILTER_GET_KEYS = (
 )
 
 ELECTRONICS_FILTER_GET_KEYS = (
+    "item_type",
     "brand",
+    "model",
     "condition",
     "warranty",
     "price_from",
@@ -78,6 +87,8 @@ ELECTRONICS_FILTER_GET_KEYS = (
 
 HOME_FILTER_GET_KEYS = (
     "item_type",
+    "brand",
+    "model",
     "condition",
     "price_from",
     "price_to",
@@ -90,7 +101,9 @@ MOTORCYCLE_HUB_DEFAULT_META_TITLE_CORE = (
 
 MAX_LISTING_IMAGES = 10
 MAX_LISTING_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_LISTING_IMAGE_PIXELS = 40_000_000
 ALLOWED_LISTING_IMAGE_EXTS = frozenset({"jpg", "jpeg", "png", "webp"})
+ALLOWED_LISTING_IMAGE_FORMATS = frozenset({"JPEG", "PNG", "WEBP"})
 
 
 def _listing_has_images_from_cache(listing: Listing) -> bool:
@@ -102,14 +115,12 @@ def _listing_has_images_from_cache(listing: Listing) -> bool:
 
 
 def _vehicle_extension_complete(obj: VehicleListing) -> bool:
-    brand_ok = (obj.brand_fk_id is not None) or bool((obj.brand or "").strip())
-    model_ok = (obj.model_fk_id is not None) or bool((obj.model or "").strip())
     return bool(
         obj.year
         and obj.doors
         and (obj.transmission or "").strip()
-        and brand_ok
-        and model_ok
+        and obj.brand_fk_id
+        and obj.model_fk_id
     )
 
 
@@ -124,8 +135,8 @@ def _property_extension_complete(obj: PropertyListing) -> bool:
 
 def _motorcycle_extension_complete(obj: MotorcycleListing) -> bool:
     return bool(
-        (obj.brand or "").strip()
-        and (obj.model or "").strip()
+        obj.brand_fk_id
+        and obj.model_fk_id
         and obj.year
         and (obj.transmission or "").strip()
         and (obj.fuel_type or "").strip()
@@ -135,8 +146,8 @@ def _motorcycle_extension_complete(obj: MotorcycleListing) -> bool:
 
 def _electronics_extension_complete(obj: ElectronicsListing) -> bool:
     return bool(
-        (obj.brand or "").strip()
-        and (obj.model or "").strip()
+        obj.brand_fk_id
+        and obj.model_fk_id
         and (obj.condition or "").strip()
     )
 
@@ -183,38 +194,72 @@ def compute_listing_quality_score(listing: Listing) -> float:
 
 @dataclass
 class InterestSubmission:
-    listing_title: str
-    seller_email: str
+    listing: Listing
+    buyer_user: object | None
     buyer_name: str
     buyer_email: str
     message: str
 
 
-def record_listing_interest(submission: InterestSubmission) -> None:
+def record_listing_interest(submission: InterestSubmission) -> ListingLead:
     """
-    Placeholder for notifications (email, internal task, etc.).
-    Persist or enqueue work here; keep side effects out of views.
+    Guarda el lead antes de notificar: si el email falla, el vendedor no pierde
+    el contacto en Mi cuenta.
     """
-    _ = submission
+    listing = submission.listing
+    lead = ListingLead.objects.create(
+        listing=listing,
+        seller=listing.seller,
+        buyer_user=submission.buyer_user,
+        source=ListingLead.Source.FORM,
+        buyer_name=submission.buyer_name,
+        buyer_email=submission.buyer_email,
+        message=submission.message,
+        email_status=ListingLead.EmailStatus.PENDING,
+    )
+    subject = f"Nuevo contacto por tu anuncio: {listing.title}"
+    body = (
+        f"Recibiste una consulta por tu anuncio «{listing.title}».\n\n"
+        f"Nombre: {submission.buyer_name}\n"
+        f"Email: {submission.buyer_email}\n\n"
+        f"Mensaje:\n{submission.message}\n\n"
+        "También puedes ver este contacto desde Mi cuenta."
+    )
+    try:
+        send_mail(
+            subject,
+            body,
+            settings.DEFAULT_FROM_EMAIL,
+            [listing.seller.email],
+            fail_silently=False,
+        )
+    except Exception as exc:
+        lead.email_status = ListingLead.EmailStatus.FAILED
+        lead.email_error = str(exc)[:1000]
+        lead.save(update_fields=["email_status", "email_error", "updated_at"])
+    else:
+        lead.email_status = ListingLead.EmailStatus.SENT
+        lead.save(update_fields=["email_status", "updated_at"])
+    return lead
 
 
-def enrich_autos_scoped_listing_queryset(
-    request: HttpRequest,
-    qs: QuerySet,
-) -> tuple[QuerySet, dict, str]:
-    """Delegado al pipeline único (`category_engine.build_category_queryset`)."""
-    from .category_engine import build_category_queryset
-
-    return build_category_queryset(request, qs, VEHICLE_SLUG)
-
-
-def apply_vehicle_filters_from_request(
-    request: HttpRequest,
-    qs: QuerySet,
-) -> tuple[QuerySet, dict]:
-    """parse_vehicle_list_filter_params + apply_vehicle_list_filters (listados ya en scope autos)."""
-    params = parse_vehicle_list_filter_params(request.GET)
-    return apply_vehicle_list_filters(qs, params), params
+def record_listing_whatsapp_lead(listing: Listing, buyer_user=None) -> ListingLead:
+    """Registra intención de contacto por WhatsApp antes de redirigir fuera del sitio."""
+    buyer_name = ""
+    buyer_email = ""
+    if buyer_user is not None and getattr(buyer_user, "is_authenticated", False):
+        buyer_name = buyer_user.get_full_name()
+        buyer_email = buyer_user.email
+    return ListingLead.objects.create(
+        listing=listing,
+        seller=listing.seller,
+        buyer_user=buyer_user if getattr(buyer_user, "is_authenticated", False) else None,
+        source=ListingLead.Source.WHATSAPP,
+        buyer_name=buyer_name,
+        buyer_email=buyer_email,
+        message="Contacto iniciado por WhatsApp.",
+        email_status=ListingLead.EmailStatus.NOT_APPLICABLE,
+    )
 
 
 def parse_property_list_filter_params(get_params: QueryDict) -> dict:
@@ -262,21 +307,46 @@ def apply_property_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
     return qs
 
 
-def apply_property_filters_from_request(
-    request: HttpRequest,
-    qs: QuerySet,
-) -> tuple[QuerySet, dict]:
-    params = parse_property_list_filter_params(request.GET)
-    return apply_property_list_filters(qs, params), params
+def _market_brand_name(brand_id: int | None) -> str | None:
+    if not brand_id:
+        return None
+    return (
+        MarketBrand.objects.filter(pk=brand_id, is_active=True)
+        .values_list("name", flat=True)
+        .first()
+    )
 
 
-def enrich_property_scoped_listing_queryset(
-    request: HttpRequest,
-    qs: QuerySet,
-) -> tuple[QuerySet, dict, str]:
-    from .category_engine import build_category_queryset
+def _market_model_name(model_id: int | None) -> str | None:
+    if not model_id:
+        return None
+    return (
+        MarketModel.objects.filter(pk=model_id, is_active=True)
+        .values_list("name", flat=True)
+        .first()
+    )
 
-    return build_category_queryset(request, qs, PROPERTY_SLUG)
+
+def market_brand_options_for_browse(
+    category_slug: str,
+    *,
+    item_type: str | None = None,
+) -> QuerySet[MarketBrand]:
+    return market_brand_queryset(category_slug, item_type=item_type)
+
+
+def market_model_options_for_browse(
+    category_slug: str,
+    brand_id: int | None,
+    *,
+    item_type: str | None = None,
+) -> list[tuple[int, str]]:
+    if not brand_id:
+        return []
+    return list(
+        market_model_queryset(category_slug, brand_id, item_type=item_type)
+        .values_list("id", "name")
+    )
 
 
 def parse_motorcycle_list_filter_params(get_params: QueryDict) -> dict:
@@ -284,8 +354,10 @@ def parse_motorcycle_list_filter_params(get_params: QueryDict) -> dict:
     current_year = date.today().year
     year_max = current_year + 1
 
-    brand = (get_params.get("brand") or "").strip()[:80] or None
-    model = (get_params.get("model") or "").strip()[:80] or None
+    brand_id = _safe_int(get_params.get("brand"), min_v=1)
+    model_id = _safe_int(get_params.get("model"), min_v=1)
+    brand = _market_brand_name(brand_id)
+    model = _market_model_name(model_id)
 
     year_from = _safe_int(get_params.get("year_from"), min_v=1980, max_v=year_max)
     year_to = _safe_int(get_params.get("year_to"), min_v=1980, max_v=year_max)
@@ -326,6 +398,8 @@ def parse_motorcycle_list_filter_params(get_params: QueryDict) -> dict:
     return {
         "brand": brand,
         "model": model,
+        "brand_id": brand_id,
+        "model_id": model_id,
         "year_from": year_from,
         "year_to": year_to,
         "engine_cc_from": engine_cc_from,
@@ -342,10 +416,14 @@ def parse_motorcycle_list_filter_params(get_params: QueryDict) -> dict:
 
 def apply_motorcycle_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
     """Restringe queryset según MotorcycleListing. Solo categoría motos."""
-    if parsed.get("brand"):
-        qs = qs.filter(motorcycle__brand__icontains=parsed["brand"])
-    if parsed.get("model"):
-        qs = qs.filter(motorcycle__model__icontains=parsed["model"])
+    if parsed.get("brand_id"):
+        qs = qs.filter(motorcycle__brand_fk_id=parsed["brand_id"])
+    if parsed.get("model_id"):
+        mid = parsed["model_id"]
+        bid = parsed.get("brand_id")
+        if bid and not MarketModel.objects.filter(pk=mid, brand_id=bid).exists():
+            return qs.none()
+        qs = qs.filter(motorcycle__model_fk_id=mid)
     if parsed.get("year_from") is not None:
         qs = qs.filter(motorcycle__year__gte=parsed["year_from"])
     if parsed.get("year_to") is not None:
@@ -371,25 +449,14 @@ def apply_motorcycle_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
     return qs
 
 
-def apply_motorcycle_filters_from_request(
-    request: HttpRequest,
-    qs: QuerySet,
-) -> tuple[QuerySet, dict]:
-    params = parse_motorcycle_list_filter_params(request.GET)
-    return apply_motorcycle_list_filters(qs, params), params
-
-
-def enrich_motorcycle_scoped_listing_queryset(
-    request: HttpRequest,
-    qs: QuerySet,
-) -> tuple[QuerySet, dict, str]:
-    from .category_engine import build_category_queryset
-
-    return build_category_queryset(request, qs, MOTORCYCLE_SLUG)
-
-
 def parse_electronics_list_filter_params(get_params: QueryDict) -> dict:
-    brand = (get_params.get("brand") or "").strip()[:80] or None
+    it_raw = (get_params.get("item_type") or "").strip()
+    valid_it = {c[0] for c in ElectronicsItemType.choices}
+    item_type = it_raw if it_raw in valid_it else None
+    brand_id = _safe_int(get_params.get("brand"), min_v=1)
+    model_id = _safe_int(get_params.get("model"), min_v=1)
+    brand = _market_brand_name(brand_id)
+    model = _market_model_name(model_id)
     cond_raw = (get_params.get("condition") or "").strip()
     valid_cond = {c[0] for c in ItemCondition.choices}
     condition = cond_raw if cond_raw in valid_cond else None
@@ -406,7 +473,11 @@ def parse_electronics_list_filter_params(get_params: QueryDict) -> dict:
     if price_from is not None and price_to is not None and price_from > price_to:
         price_from, price_to = price_to, price_from
     return {
+        "item_type": item_type,
         "brand": brand,
+        "model": model,
+        "brand_id": brand_id,
+        "model_id": model_id,
         "condition": condition,
         "warranty": warranty,
         "price_from": price_from,
@@ -415,8 +486,16 @@ def parse_electronics_list_filter_params(get_params: QueryDict) -> dict:
 
 
 def apply_electronics_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
-    if parsed.get("brand"):
-        qs = qs.filter(electronics__brand__icontains=parsed["brand"])
+    if parsed.get("item_type"):
+        qs = qs.filter(electronics__item_type=parsed["item_type"])
+    if parsed.get("brand_id"):
+        qs = qs.filter(electronics__brand_fk_id=parsed["brand_id"])
+    if parsed.get("model_id"):
+        mid = parsed["model_id"]
+        bid = parsed.get("brand_id")
+        if bid and not MarketModel.objects.filter(pk=mid, brand_id=bid).exists():
+            return qs.none()
+        qs = qs.filter(electronics__model_fk_id=mid)
     if parsed.get("condition"):
         qs = qs.filter(electronics__condition=parsed["condition"])
     if parsed.get("warranty") is True:
@@ -435,27 +514,14 @@ def apply_electronics_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
     return qs
 
 
-def apply_electronics_filters_from_request(
-    request: HttpRequest,
-    qs: QuerySet,
-) -> tuple[QuerySet, dict]:
-    params = parse_electronics_list_filter_params(request.GET)
-    return apply_electronics_list_filters(qs, params), params
-
-
-def enrich_electronics_scoped_listing_queryset(
-    request: HttpRequest,
-    qs: QuerySet,
-) -> tuple[QuerySet, dict, str]:
-    from .category_engine import build_category_queryset
-
-    return build_category_queryset(request, qs, ELECTRONICS_SLUG)
-
-
 def electronics_browse_filters_active(parsed: dict) -> bool:
     if not parsed:
         return False
+    if parsed.get("item_type"):
+        return True
     if parsed.get("brand"):
+        return True
+    if parsed.get("model"):
         return True
     if parsed.get("condition"):
         return True
@@ -488,25 +554,32 @@ def build_electronics_hub_default_meta_description(
 ) -> str:
     return (
         f"{result_count} anuncios de electrónica en {city}. "
-        "Celulares, laptops, audio y más. Filtrá por marca, condición, garantía y precio."
+        "Celulares, laptops, Smart TVs, consolas, audio y accesorios. "
+        "Filtrá por tipo, marca, condición, garantía y precio."
     )
+
+
+def electronics_item_type_choices_tuple():
+    return ElectronicsItemType.choices
 
 
 def build_electronics_browse_heading(
     *,
     city: str,
-    location_display: str | None,
     parsed: dict,
 ) -> str:
-    place = location_display or city
-    parts: list[str] = ["Electrónica"]
+    item_type = parsed.get("item_type")
+    item_type_label = dict(ElectronicsItemType.choices).get(item_type, "")
+    parts: list[str] = [item_type_label or "Electrónica"]
     if parsed.get("brand"):
         parts.append(parsed["brand"])
     if parsed.get("condition"):
-        label = dict(ItemCondition.choices).get(
-            parsed["condition"], parsed["condition"]
-        )
-        parts.append(label.lower())
+        condition_labels = {
+            ItemCondition.NUEVO: "nuevos",
+            ItemCondition.USADO: "usados",
+            ItemCondition.REFURBISHED: "reacondicionados",
+        }
+        parts.append(condition_labels.get(parsed["condition"], parsed["condition"]))
     if parsed.get("warranty") is True:
         parts.append("con garantía")
     elif parsed.get("warranty") is False:
@@ -521,7 +594,7 @@ def build_electronics_browse_heading(
             head = f"{head} · desde USD {pf}"
         elif pt is not None:
             head = f"{head} · hasta USD {pt}"
-    return f"{head} en {place}"
+    return f"{head} en {city}"
 
 
 def build_electronics_meta_description(
@@ -532,7 +605,7 @@ def build_electronics_meta_description(
 ) -> str:
     return (
         f"{result_count} anuncios de electrónica en {city}. "
-        f"{heading_hint}. Filtrá por marca, condición, garantía y precio."
+        f"{heading_hint}. Filtrá por tipo, marca, condición, garantía y precio."
     )
 
 
@@ -540,6 +613,10 @@ def parse_home_filters(get_params: QueryDict) -> dict:
     it_raw = (get_params.get("item_type") or "").strip()
     valid_it = {c[0] for c in HomeItemType.choices}
     item_type = it_raw if it_raw in valid_it else None
+    brand_id = _safe_int(get_params.get("brand"), min_v=1)
+    model_id = _safe_int(get_params.get("model"), min_v=1)
+    brand = _market_brand_name(brand_id)
+    model = _market_model_name(model_id)
     cond_raw = (get_params.get("condition") or "").strip()
     valid_cond = {c[0] for c in ItemCondition.choices}
     condition = cond_raw if cond_raw in valid_cond else None
@@ -549,6 +626,10 @@ def parse_home_filters(get_params: QueryDict) -> dict:
         price_from, price_to = price_to, price_from
     return {
         "item_type": item_type,
+        "brand": brand or None,
+        "model": model or None,
+        "brand_id": brand_id,
+        "model_id": model_id,
         "condition": condition,
         "price_from": price_from,
         "price_to": price_to,
@@ -558,6 +639,14 @@ def parse_home_filters(get_params: QueryDict) -> dict:
 def apply_home_filters(qs: QuerySet, parsed: dict) -> QuerySet:
     if parsed.get("item_type"):
         qs = qs.filter(homegoods__item_type=parsed["item_type"])
+    if parsed.get("brand_id"):
+        qs = qs.filter(homegoods__brand_fk_id=parsed["brand_id"])
+    if parsed.get("model_id"):
+        mid = parsed["model_id"]
+        bid = parsed.get("brand_id")
+        if bid and not MarketModel.objects.filter(pk=mid, brand_id=bid).exists():
+            return qs.none()
+        qs = qs.filter(homegoods__model_fk_id=mid)
     if parsed.get("condition"):
         qs = qs.filter(homegoods__condition=parsed["condition"])
     if parsed.get("price_from") is not None:
@@ -567,19 +656,14 @@ def apply_home_filters(qs: QuerySet, parsed: dict) -> QuerySet:
     return qs
 
 
-def enrich_home_scoped_queryset(
-    request: HttpRequest,
-    qs: QuerySet,
-) -> tuple[QuerySet, dict, str]:
-    from .category_engine import build_category_queryset
-
-    return build_category_queryset(request, qs, HOMEGOODS_SLUG)
-
-
 def home_browse_filters_active(parsed: dict) -> bool:
     if not parsed:
         return False
     if parsed.get("item_type"):
+        return True
+    if parsed.get("brand"):
+        return True
+    if parsed.get("model"):
         return True
     if parsed.get("condition"):
         return True
@@ -610,23 +694,26 @@ def build_home_hub_default_meta_description(
 ) -> str:
     return (
         f"{result_count} anuncios de hogar en {city}. "
-        "Muebles, cocina, decoración y más. Filtrá por tipo, condición y precio."
+        "Muebles, electrodomésticos, cocina, decoración y más. "
+        "Filtrá por tipo, marca, modelo, condición y precio."
     )
 
 
 def build_home_browse_heading(
     *,
     city: str,
-    location_display: str | None,
     parsed: dict,
 ) -> str:
-    place = location_display or city
     parts: list[str] = ["Hogar"]
     if parsed.get("item_type"):
         label = dict(HomeItemType.choices).get(
             parsed["item_type"], parsed["item_type"]
         )
         parts.append(label.lower())
+    if parsed.get("brand"):
+        parts.append(parsed["brand"])
+    if parsed.get("model"):
+        parts.append(parsed["model"])
     if parsed.get("condition"):
         label = dict(ItemCondition.choices).get(
             parsed["condition"], parsed["condition"]
@@ -642,7 +729,7 @@ def build_home_browse_heading(
             head = f"{head} · desde USD {pf}"
         elif pt is not None:
             head = f"{head} · hasta USD {pt}"
-    return f"{head} en {place}"
+    return f"{head} en {city}"
 
 
 def build_home_meta_description(
@@ -653,47 +740,13 @@ def build_home_meta_description(
 ) -> str:
     return (
         f"{result_count} anuncios de hogar en {city}. "
-        f"{heading_hint}. Filtrá por tipo de artículo, condición y precio."
+        f"{heading_hint}. Filtrá por tipo de artículo, marca, modelo, "
+        "condición y precio."
     )
 
 
 def home_item_type_choices_tuple():
     return HomeItemType.choices
-
-
-def vehicle_filter_marca_model_labels(parsed: dict) -> tuple[str | None, str | None]:
-    """Nombres legibles de marca/modelo para títulos SEO a partir de filtros validados."""
-    brand_name = model_name = None
-    mid = parsed.get("marca_id")
-    if mid:
-        bobj = VehicleBrand.objects.filter(pk=mid).first()
-        if bobj:
-            brand_name = bobj.name
-    moid = parsed.get("modelo_id")
-    if moid:
-        mobj = (
-            VehicleModel.objects.filter(pk=moid).select_related("brand").first()
-        )
-        if mobj:
-            model_name = mobj.name
-    return brand_name, model_name
-
-
-def apply_listing_search_q_for_category(
-    qs: QuerySet,
-    q_raw: str,
-    category_slug: str | None = None,
-) -> QuerySet:
-    """Delegado al engine (`apply_search`); conservado para imports legados."""
-    from .category_engine import apply_search
-
-    return apply_search(qs, q_raw, category_slug)
-
-
-def apply_listing_search_q(qs: QuerySet, q_raw: str) -> QuerySet:
-    from .category_engine import apply_search
-
-    return apply_search(qs, q_raw, None)
 
 
 def _safe_int(
@@ -706,6 +759,8 @@ def _safe_int(
         return None
     s = str(raw).strip()
     if not s:
+        return None
+    if not s.isdigit():
         return None
     try:
         v = int(s)
@@ -721,8 +776,10 @@ def _safe_int(
 def _safe_price(raw) -> Decimal | None:
     if raw is None:
         return None
-    s = str(raw).strip().replace(",", ".")
+    s = str(raw).strip()
     if not s:
+        return None
+    if not s.isdigit():
         return None
     try:
         d = Decimal(s)
@@ -738,12 +795,21 @@ def _safe_price(raw) -> Decimal | None:
 def parse_vehicle_list_filter_params(get_params: QueryDict) -> dict:
     """
     Lee GET para filtros de autos; valores inválidos → None (se ignoran).
+    Acepta `brand`/`model` (canónico) o `marca`/`modelo` (legacy en parser).
     """
     current_year = date.today().year
     year_max = current_year + 1
 
-    marca_id = _safe_int(get_params.get("marca"), min_v=1)
-    modelo_id = _safe_int(get_params.get("modelo"), min_v=1)
+    brand_id = _safe_int(
+        get_params.get("brand") or get_params.get("marca"),
+        min_v=1,
+    )
+    model_id = _safe_int(
+        get_params.get("model") or get_params.get("modelo"),
+        min_v=1,
+    )
+    brand = _market_brand_name(brand_id)
+    model = _market_model_name(model_id)
 
     year_from = _safe_int(get_params.get("year_from"), min_v=1980, max_v=year_max)
     year_to = _safe_int(get_params.get("year_to"), min_v=1980, max_v=year_max)
@@ -760,8 +826,10 @@ def parse_vehicle_list_filter_params(get_params: QueryDict) -> dict:
     transmission = tx_raw if tx_raw in valid_tx else None
 
     return {
-        "marca_id": marca_id,
-        "modelo_id": modelo_id,
+        "brand": brand,
+        "model": model,
+        "brand_id": brand_id,
+        "model_id": model_id,
         "year_from": year_from,
         "year_to": year_to,
         "price_from": price_from,
@@ -775,12 +843,12 @@ def apply_vehicle_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
     Restringe queryset a anuncios con VehicleListing según filtros validados.
     Llamar solo cuando la categoría ya está acotada a autos.
     """
-    if parsed.get("marca_id"):
-        qs = qs.filter(vehicle__brand_fk_id=parsed["marca_id"])
-    if parsed.get("modelo_id"):
-        mid = parsed["modelo_id"]
-        bid = parsed.get("marca_id")
-        if bid and not VehicleModel.objects.filter(pk=mid, brand_id=bid).exists():
+    if parsed.get("brand_id"):
+        qs = qs.filter(vehicle__brand_fk_id=parsed["brand_id"])
+    if parsed.get("model_id"):
+        mid = parsed["model_id"]
+        bid = parsed.get("brand_id")
+        if bid and not MarketModel.objects.filter(pk=mid, brand_id=bid).exists():
             return qs.none()
         qs = qs.filter(vehicle__model_fk_id=mid)
     if parsed.get("year_from") is not None:
@@ -796,17 +864,6 @@ def apply_vehicle_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
     return qs
 
 
-def vehicle_model_options_for_browse(marca_id: int | None) -> list[tuple[int, str]]:
-    """Opciones (id, nombre) para el select modelo en carga inicial del listado."""
-    if not marca_id:
-        return []
-    return list(
-        VehicleModel.objects.filter(brand_id=marca_id)
-        .order_by("name")
-        .values_list("id", "name")
-    )
-
-
 def vehicle_browse_filters_active(parsed: dict) -> bool:
     """True si el listado de autos aplica al menos un filtro de vehículo."""
     if not parsed:
@@ -814,8 +871,8 @@ def vehicle_browse_filters_active(parsed: dict) -> bool:
     return any(
         parsed.get(k)
         for k in (
-            "marca_id",
-            "modelo_id",
+            "brand_id",
+            "model_id",
             "year_from",
             "year_to",
             "price_from",
@@ -848,8 +905,8 @@ def motorcycle_browse_filters_active(parsed: dict) -> bool:
     return any(
         parsed.get(k)
         for k in (
-            "brand",
-            "model",
+            "brand_id",
+            "model_id",
             "year_from",
             "year_to",
             "engine_cc_from",
@@ -933,7 +990,7 @@ def build_category_hero(
         )
     elif category_slug == ELECTRONICS_SLUG:
         subtitle = (
-            "Filtrá por marca, condición, garantía y precio."
+            "Filtrá por tipo, marca, condición, garantía y precio."
             if filters_active
             else "Compra y venta de electrónicos usados y nuevos."
         )
@@ -952,7 +1009,6 @@ def build_category_hero(
 def build_autos_browse_heading(
     *,
     city: str,
-    location_display: str | None,
     parsed: dict,
     brand_name: str | None,
     model_name: str | None,
@@ -960,7 +1016,6 @@ def build_autos_browse_heading(
     """
     Título visible / SEO base para listado de autos con filtros (extensible).
     """
-    place = location_display or city
     parts: list[str] = ["Autos"]
     if brand_name and model_name:
         parts.append(f"{brand_name} {model_name}")
@@ -987,7 +1042,7 @@ def build_autos_browse_heading(
             head = f"{head} · desde USD {pf}"
         elif pt is not None:
             head = f"{head} · hasta USD {pt}"
-    return f"{head} en {place}"
+    return f"{head} en {city}"
 
 
 def build_autos_meta_description(
@@ -1005,28 +1060,32 @@ def build_autos_meta_description(
 def build_property_browse_heading(
     *,
     city: str,
-    location_display: str | None,
     parsed: dict,
 ) -> str:
-    place = location_display or city
     tipo = parsed.get("property_type")
     op = parsed.get("operation_type")
 
-    if tipo == PropertyListing.PropertyType.DEPARTAMENTO:
-        base = "Departamentos"
-    elif tipo == PropertyListing.PropertyType.CASA:
-        base = "Casas"
-    else:
-        base = "Inmuebles"
+    property_type_labels = {
+        PropertyListing.PropertyType.CASA: "Casas",
+        PropertyListing.PropertyType.DEPARTAMENTO: "Departamentos",
+        PropertyListing.PropertyType.SUITE: "Suites",
+        PropertyListing.PropertyType.TERRENO_LOTE: "Terrenos y lotes",
+        PropertyListing.PropertyType.OFICINA_COMERCIAL: "Oficinas comerciales",
+        PropertyListing.PropertyType.LOCAL_COMERCIAL: "Locales comerciales",
+        PropertyListing.PropertyType.BODEGA_GALPON: "Bodegas y galpones",
+        PropertyListing.PropertyType.HACIENDA_QUINTA: "Haciendas y quintas",
+        PropertyListing.PropertyType.HABITACION: "Habitaciones",
+    }
+    base = property_type_labels.get(tipo, "Inmuebles")
 
-    if op == PropertyListing.OperationType.VENTA:
-        suffix = " en venta"
-    elif op == PropertyListing.OperationType.ALQUILER:
-        suffix = " en alquiler"
-    else:
-        suffix = ""
+    operation_suffixes = {
+        PropertyListing.OperationType.VENTA: "en venta",
+        PropertyListing.OperationType.ALQUILER: "en alquiler",
+        PropertyListing.OperationType.ALQUILER_TEMPORAL: "en alquiler temporal",
+    }
+    suffix = operation_suffixes.get(op, "")
 
-    head = f"{base}{suffix} en {place}"
+    head = f"{base} {suffix} en {city}" if suffix else f"{base} en {city}"
 
     if parsed.get("price_from") or parsed.get("price_to"):
         pf = parsed.get("price_from")
@@ -1059,10 +1118,8 @@ def build_property_meta_description(
 def build_motorcycle_browse_heading(
     *,
     city: str,
-    location_display: str | None,
     parsed: dict,
 ) -> str:
-    place = location_display or city
     parts: list[str] = ["Motos"]
     brand, model = parsed.get("brand"), parsed.get("model")
     if brand and model:
@@ -1108,7 +1165,7 @@ def build_motorcycle_browse_heading(
             head = f"{head} · desde USD {pf}"
         elif pt is not None:
             head = f"{head} · hasta USD {pt}"
-    return f"{head} en {place}"
+    return f"{head} en {city}"
 
 
 def build_motorcycle_meta_description(
@@ -1193,7 +1250,7 @@ def validate_listing_image_uploads(
     existing_image_count: int = 0,
 ) -> bool:
     """
-    Valida cantidad y tamaño de archivos en request.FILES['images'].
+    Valida cantidad, tamaño y contenido real de archivos en request.FILES['images'].
     Devuelve True si pasa; en caso contrario agrega errores al form y devuelve False.
     """
     files = [f for f in request.FILES.getlist("images") if f]
@@ -1218,6 +1275,48 @@ def validate_listing_image_uploads(
                 "Formato no soportado. Sube JPG, PNG o WEBP.",
             )
             return False
+        current_pos = None
+        try:
+            current_pos = f.tell() if hasattr(f, "tell") else None
+            if hasattr(f, "seek"):
+                f.seek(0)
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", Image.DecompressionBombWarning)
+                im = Image.open(f)
+            with im:
+                width, height = im.size
+                if width * height > MAX_LISTING_IMAGE_PIXELS:
+                    form.add_error(
+                        None,
+                        "La imagen es demasiado grande en dimensiones. Sube una foto de menor resolución.",
+                    )
+                    return False
+                im.verify()
+                if im.format not in ALLOWED_LISTING_IMAGE_FORMATS:
+                    form.add_error(
+                        None,
+                        "Formato no soportado. Sube JPG, PNG o WEBP.",
+                    )
+                    return False
+        except (
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+            UnidentifiedImageError,
+            OSError,
+            SyntaxError,
+            ValueError,
+        ):
+            form.add_error(
+                None,
+                "No pudimos leer una de las imágenes. Sube una foto válida en JPG, PNG o WEBP.",
+            )
+            return False
+        finally:
+            if hasattr(f, "seek"):
+                try:
+                    f.seek(current_pos or 0)
+                except (OSError, ValueError):
+                    pass
     return True
 
 

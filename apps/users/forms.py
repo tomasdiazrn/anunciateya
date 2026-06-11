@@ -5,7 +5,7 @@ from django.utils.safestring import mark_safe
 from django.contrib.auth.forms import UserChangeForm as DjangoUserChangeForm
 from django.contrib.auth import get_user_model
 
-from .models import USER_EMAIL_MAX_LENGTH, USER_NAME_MAX_LENGTH, User
+from .models import USER_EMAIL_MAX_LENGTH, USER_NAME_MAX_LENGTH, User, UserVerification
 
 
 class UserCreationForm(forms.ModelForm):
@@ -227,6 +227,33 @@ class UserChangeForm(DjangoUserChangeForm):
     class Meta:
         model = User
         fields = "__all__"
+
+
+class ContactPreferenceForm(forms.ModelForm):
+    whatsapp_contact_enabled = forms.BooleanField(
+        label="Permitir que me contacten por WhatsApp en mis anuncios",
+        required=False,
+        widget=forms.CheckboxInput(
+            attrs={
+                "class": "account-contact-checkbox__input",
+                "onchange": "this.form.requestSubmit();",
+            }
+        ),
+    )
+    show_name_in_listings = forms.BooleanField(
+        label="Mostrar mi nombre en los anuncios",
+        required=False,
+        widget=forms.CheckboxInput(
+            attrs={
+                "class": "account-contact-checkbox__input",
+                "onchange": "this.form.requestSubmit();",
+            }
+        ),
+    )
+
+    class Meta:
+        model = UserVerification
+        fields = ("whatsapp_contact_enabled", "show_name_in_listings")
 
 
 class PhoneVerificationForm(forms.Form):

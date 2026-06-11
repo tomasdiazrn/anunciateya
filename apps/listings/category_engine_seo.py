@@ -1,4 +1,4 @@
-"""SEO centralizado por categoría (hub, browse, location). Usado solo vía category_engine."""
+"""SEO centralizado por categoría (hub y browse). Usado solo vía category_engine."""
 
 from __future__ import annotations
 
@@ -35,7 +35,6 @@ from .services import (
     electronics_hub_uses_default_meta_title,
     home_hub_uses_default_meta_title,
     motorcycle_hub_uses_default_meta_title,
-    vehicle_filter_marca_model_labels,
 )
 
 
@@ -61,78 +60,6 @@ class CategorySeoBundle:
     dynamic_list_heading: str | None
 
 
-def _location_canonical_autos(request: HttpRequest, location_slug: str) -> str | None:
-    if location_slug == "guayaquil":
-        return request.build_absolute_uri(
-            reverse(
-                "location_guayaquil_category",
-                kwargs={"category_slug": VEHICLE_SLUG},
-            )
-        )
-    if location_slug == "samborondon":
-        return request.build_absolute_uri(
-            reverse(
-                "location_samborondon_category",
-                kwargs={"category_slug": VEHICLE_SLUG},
-            )
-        )
-    return None
-
-
-def _location_canonical_electronics(request: HttpRequest, location_slug: str) -> str | None:
-    if location_slug == "guayaquil":
-        return request.build_absolute_uri(
-            reverse(
-                "location_guayaquil_category",
-                kwargs={"category_slug": ELECTRONICS_SLUG},
-            )
-        )
-    if location_slug == "samborondon":
-        return request.build_absolute_uri(
-            reverse(
-                "location_samborondon_category",
-                kwargs={"category_slug": ELECTRONICS_SLUG},
-            )
-        )
-    return None
-
-
-def _location_canonical_home(request: HttpRequest, location_slug: str) -> str | None:
-    if location_slug == "guayaquil":
-        return request.build_absolute_uri(
-            reverse(
-                "location_guayaquil_category",
-                kwargs={"category_slug": HOMEGOODS_SLUG},
-            )
-        )
-    if location_slug == "samborondon":
-        return request.build_absolute_uri(
-            reverse(
-                "location_samborondon_category",
-                kwargs={"category_slug": HOMEGOODS_SLUG},
-            )
-        )
-    return None
-
-
-def _location_canonical_property(request: HttpRequest, location_slug: str) -> str | None:
-    if location_slug == "guayaquil":
-        return request.build_absolute_uri(
-            reverse(
-                "location_guayaquil_category",
-                kwargs={"category_slug": PROPERTY_SLUG},
-            )
-        )
-    if location_slug == "samborondon":
-        return request.build_absolute_uri(
-            reverse(
-                "location_samborondon_category",
-                kwargs={"category_slug": PROPERTY_SLUG},
-            )
-        )
-    return None
-
-
 def seo_vehicle(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBundle:
     frame = ctx["frame"]
     brand = ctx["brand"]
@@ -140,15 +67,11 @@ def seo_vehicle(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBun
     category = ctx["category"]
     parsed = ctx["parsed"]
     result_count = ctx["result_count"]
-    q_raw = ctx.get("q_raw") or ""
-    location_display = ctx.get("location_display")
-    location_slug = ctx.get("location_slug") or ""
     filters_active = ctx["filters_active"]
 
-    brand_name, model_name = vehicle_filter_marca_model_labels(parsed)
+    brand_name, model_name = parsed.get("brand"), parsed.get("model")
     dynamic_list_heading = build_autos_browse_heading(
         city=city,
-        location_display=location_display,
         parsed=parsed,
         brand_name=brand_name,
         model_name=model_name,
@@ -157,11 +80,6 @@ def seo_vehicle(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBun
         "Filtrá por marca, modelo, año, precio y transmisión. "
         "Revisa confianza del vendedor antes de contactar."
     )
-    list_subtitle_loc = (
-        f"Filtrá autos en {location_display} por marca, año, precio y transmisión. "
-        "Revisa confianza del vendedor antes de contactar."
-    )
-
     if frame == "browse":
         meta_title = f"{dynamic_list_heading} | {brand}"
         meta_description = build_autos_meta_description(
@@ -172,11 +90,10 @@ def seo_vehicle(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBun
         canonical = request.build_absolute_uri(
             reverse("category_landing", kwargs={"slug": VEHICLE_SLUG})
         )
-        place = location_display or city
         hero_title, hero_subtitle = build_category_hero(
             category_slug=category.slug,
             category_name=category.name,
-            place=place,
+            place=city,
             filters_active=filters_active,
             filtered_heading=dynamic_list_heading if filters_active else None,
         )
@@ -225,34 +142,7 @@ def seo_vehicle(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBun
             dynamic_list_heading=dynamic_list_heading,
         )
 
-    # location_hub
-    meta_title = f"{dynamic_list_heading} | {brand}"
-    meta_description = build_autos_meta_description(
-        city=location_display or city,
-        heading_hint=dynamic_list_heading,
-        result_count=result_count,
-    )
-    canonical = _location_canonical_autos(request, location_slug)
-    hero_title, hero_subtitle = build_category_hero(
-        category_slug=category.slug,
-        category_name=category.name,
-        place=location_display or city,
-        filters_active=filters_active,
-        filtered_heading=dynamic_list_heading if filters_active else None,
-    )
-    return CategorySeoBundle(
-        meta_title=meta_title,
-        meta_description=meta_description,
-        canonical_href=canonical,
-        hero_title=hero_title,
-        hero_subtitle=hero_subtitle,
-        list_heading=dynamic_list_heading,
-        list_subtitle=list_subtitle_loc,
-        browse_h1=dynamic_list_heading,
-        page_header_title_tag="h2",
-        show_category_hero=True,
-        dynamic_list_heading=dynamic_list_heading,
-    )
+    raise ValueError(f"frame SEO de autos no soportado: {frame!r}")
 
 
 def seo_property(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBundle:
@@ -262,40 +152,30 @@ def seo_property(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBu
     category = ctx["category"]
     parsed = ctx["parsed"]
     result_count = ctx["result_count"]
-    q_raw = ctx.get("q_raw") or ""
-    location_display = ctx.get("location_display")
-    location_slug = ctx.get("location_slug") or ""
     filters_active = ctx["filters_active"]
 
     dynamic_list_heading = build_property_browse_heading(
         city=city,
-        location_display=location_display,
         parsed=parsed,
     )
     list_subtitle_browse = (
         "Filtrá por tipo, operación, habitaciones y precio. "
         "Revisa confianza del vendedor antes de contactar."
     )
-    list_subtitle_loc = (
-        f"Filtrá inmuebles en {location_display} por tipo, operación, habitaciones y precio. "
-        "Revisa confianza del vendedor antes de contactar."
-    )
-
     if frame == "browse":
         meta_title = f"{dynamic_list_heading} | {brand}"
         meta_description = build_property_meta_description(
-            city=location_display or city,
+            city=city,
             heading_hint=dynamic_list_heading,
             result_count=result_count,
         )
         canonical = request.build_absolute_uri(
             reverse("category_landing", kwargs={"slug": PROPERTY_SLUG})
         )
-        place = location_display or city
         hero_title, hero_subtitle = build_category_hero(
             category_slug=category.slug,
             category_name=category.name,
-            place=place,
+            place=city,
             filters_active=filters_active,
             filtered_heading=dynamic_list_heading if filters_active else None,
         )
@@ -344,33 +224,7 @@ def seo_property(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBu
             dynamic_list_heading=dynamic_list_heading,
         )
 
-    meta_title = f"{dynamic_list_heading} | {brand}"
-    meta_description = build_property_meta_description(
-        city=location_display or city,
-        heading_hint=dynamic_list_heading,
-        result_count=result_count,
-    )
-    canonical = _location_canonical_property(request, location_slug)
-    hero_title, hero_subtitle = build_category_hero(
-        category_slug=category.slug,
-        category_name=category.name,
-        place=location_display or city,
-        filters_active=filters_active,
-        filtered_heading=dynamic_list_heading if filters_active else None,
-    )
-    return CategorySeoBundle(
-        meta_title=meta_title,
-        meta_description=meta_description,
-        canonical_href=canonical,
-        hero_title=hero_title,
-        hero_subtitle=hero_subtitle,
-        list_heading=dynamic_list_heading,
-        list_subtitle=list_subtitle_loc,
-        browse_h1=dynamic_list_heading,
-        page_header_title_tag="h2",
-        show_category_hero=True,
-        dynamic_list_heading=dynamic_list_heading,
-    )
+    raise ValueError(f"frame SEO de inmuebles no soportado: {frame!r}")
 
 
 def seo_electronics(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBundle:
@@ -381,21 +235,14 @@ def seo_electronics(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySe
     parsed = ctx["parsed"]
     result_count = ctx["result_count"]
     q_raw = ctx.get("q_raw") or ""
-    location_display = ctx.get("location_display")
-    location_slug = ctx.get("location_slug") or ""
     filters_active = ctx["filters_active"]
 
     dynamic_list_heading = build_electronics_browse_heading(
         city=city,
-        location_display=location_display,
         parsed=parsed,
     )
     list_subtitle_browse = (
-        "Filtrá por marca, condición, garantía y precio. "
-        "Revisa confianza del vendedor antes de contactar."
-    )
-    list_subtitle_loc = (
-        f"Filtrá electrónica en {location_display} por marca, condición, garantía y precio. "
+        "Filtrá por tipo, marca, condición, garantía y precio. "
         "Revisa confianza del vendedor antes de contactar."
     )
 
@@ -404,14 +251,14 @@ def seo_electronics(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySe
             return (
                 f"{ELECTRONICS_HUB_DEFAULT_META_TITLE_CORE} | {brand}",
                 build_electronics_hub_default_meta_description(
-                    city=location_display or city,
+                    city=city,
                     result_count=result_count,
                 ),
             )
         return (
             f"{dynamic_list_heading} | {brand}",
             build_electronics_meta_description(
-                city=location_display or city,
+                city=city,
                 heading_hint=dynamic_list_heading,
                 result_count=result_count,
             ),
@@ -422,11 +269,10 @@ def seo_electronics(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySe
         canonical = request.build_absolute_uri(
             reverse("category_landing", kwargs={"slug": ELECTRONICS_SLUG})
         )
-        place = location_display or city
         hero_title, hero_subtitle = build_category_hero(
             category_slug=category.slug,
             category_name=category.name,
-            place=place,
+            place=city,
             filters_active=filters_active,
             filtered_heading=dynamic_list_heading if filters_active else None,
         )
@@ -470,28 +316,7 @@ def seo_electronics(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySe
             dynamic_list_heading=dynamic_list_heading,
         )
 
-    meta_title, meta_description = _meta_pair()
-    canonical = _location_canonical_electronics(request, location_slug)
-    hero_title, hero_subtitle = build_category_hero(
-        category_slug=category.slug,
-        category_name=category.name,
-        place=location_display or city,
-        filters_active=filters_active,
-        filtered_heading=dynamic_list_heading if filters_active else None,
-    )
-    return CategorySeoBundle(
-        meta_title=meta_title,
-        meta_description=meta_description,
-        canonical_href=canonical,
-        hero_title=hero_title,
-        hero_subtitle=hero_subtitle,
-        list_heading=dynamic_list_heading,
-        list_subtitle=list_subtitle_loc,
-        browse_h1=dynamic_list_heading,
-        page_header_title_tag="h2",
-        show_category_hero=True,
-        dynamic_list_heading=dynamic_list_heading,
-    )
+    raise ValueError(f"frame SEO de electrónica no soportado: {frame!r}")
 
 
 def seo_home(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBundle:
@@ -502,21 +327,14 @@ def seo_home(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBundle
     parsed = ctx["parsed"]
     result_count = ctx["result_count"]
     q_raw = ctx.get("q_raw") or ""
-    location_display = ctx.get("location_display")
-    location_slug = ctx.get("location_slug") or ""
     filters_active = ctx["filters_active"]
 
     dynamic_list_heading = build_home_browse_heading(
         city=city,
-        location_display=location_display,
         parsed=parsed,
     )
     list_subtitle_browse = (
         "Filtrá por tipo de artículo, condición y precio. "
-        "Revisa confianza del vendedor antes de contactar."
-    )
-    list_subtitle_loc = (
-        f"Filtrá hogar en {location_display} por tipo, condición y precio. "
         "Revisa confianza del vendedor antes de contactar."
     )
 
@@ -525,14 +343,14 @@ def seo_home(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBundle
             return (
                 f"{HOME_HUB_DEFAULT_META_TITLE_CORE} | {brand}",
                 build_home_hub_default_meta_description(
-                    city=location_display or city,
+                    city=city,
                     result_count=result_count,
                 ),
             )
         return (
             f"{dynamic_list_heading} | {brand}",
             build_home_meta_description(
-                city=location_display or city,
+                city=city,
                 heading_hint=dynamic_list_heading,
                 result_count=result_count,
             ),
@@ -543,11 +361,10 @@ def seo_home(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBundle
         canonical = request.build_absolute_uri(
             reverse("category_landing", kwargs={"slug": HOMEGOODS_SLUG})
         )
-        place = location_display or city
         hero_title, hero_subtitle = build_category_hero(
             category_slug=category.slug,
             category_name=category.name,
-            place=place,
+            place=city,
             filters_active=filters_active,
             filtered_heading=dynamic_list_heading if filters_active else None,
         )
@@ -591,28 +408,7 @@ def seo_home(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBundle
             dynamic_list_heading=dynamic_list_heading,
         )
 
-    meta_title, meta_description = _meta_pair()
-    canonical = _location_canonical_home(request, location_slug)
-    hero_title, hero_subtitle = build_category_hero(
-        category_slug=category.slug,
-        category_name=category.name,
-        place=location_display or city,
-        filters_active=filters_active,
-        filtered_heading=dynamic_list_heading if filters_active else None,
-    )
-    return CategorySeoBundle(
-        meta_title=meta_title,
-        meta_description=meta_description,
-        canonical_href=canonical,
-        hero_title=hero_title,
-        hero_subtitle=hero_subtitle,
-        list_heading=dynamic_list_heading,
-        list_subtitle=list_subtitle_loc,
-        browse_h1=dynamic_list_heading,
-        page_header_title_tag="h2",
-        show_category_hero=True,
-        dynamic_list_heading=dynamic_list_heading,
-    )
+    raise ValueError(f"frame SEO de hogar no soportado: {frame!r}")
 
 
 def seo_motorcycle(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBundle:
@@ -623,21 +419,14 @@ def seo_motorcycle(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeo
     parsed = ctx["parsed"]
     result_count = ctx["result_count"]
     q_raw = ctx.get("q_raw") or ""
-    location_display = ctx.get("location_display")
-    location_slug = ctx.get("location_slug") or ""
     filters_active = ctx["filters_active"]
 
     dynamic_list_heading = build_motorcycle_browse_heading(
         city=city,
-        location_display=location_display,
         parsed=parsed,
     )
     list_subtitle_browse = (
         "Filtrá por marca, modelo, año, cilindrada, combustible y precio. "
-        "Revisa confianza del vendedor antes de contactar."
-    )
-    list_subtitle_loc = (
-        f"Filtrá motos en {location_display} por marca, año, cilindrada, combustible y precio. "
         "Revisa confianza del vendedor antes de contactar."
     )
 
@@ -646,14 +435,14 @@ def seo_motorcycle(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeo
             return (
                 f"{MOTORCYCLE_HUB_DEFAULT_META_TITLE_CORE} | {brand}",
                 build_motorcycle_hub_default_meta_description(
-                    city=location_display or city,
+                    city=city,
                     result_count=result_count,
                 ),
             )
         return (
             f"{dynamic_list_heading} | {brand}",
             build_motorcycle_meta_description(
-                city=location_display or city,
+                city=city,
                 heading_hint=dynamic_list_heading,
                 result_count=result_count,
             ),
@@ -664,11 +453,10 @@ def seo_motorcycle(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeo
         canonical = request.build_absolute_uri(
             reverse("category_landing", kwargs={"slug": MOTORCYCLE_SLUG})
         )
-        place = location_display or city
         hero_title, hero_subtitle = build_category_hero(
             category_slug=category.slug,
             category_name=category.name,
-            place=place,
+            place=city,
             filters_active=filters_active,
             filtered_heading=dynamic_list_heading if filters_active else None,
         )
@@ -712,49 +500,25 @@ def seo_motorcycle(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeo
             dynamic_list_heading=dynamic_list_heading,
         )
 
-    meta_title, meta_description = _meta_pair()
-    canonical = request.build_absolute_uri(
-        reverse("category_landing", kwargs={"slug": MOTORCYCLE_SLUG})
-    )
-    hero_title, hero_subtitle = build_category_hero(
-        category_slug=category.slug,
-        category_name=category.name,
-        place=location_display or city,
-        filters_active=filters_active,
-        filtered_heading=dynamic_list_heading if filters_active else None,
-    )
-    return CategorySeoBundle(
-        meta_title=meta_title,
-        meta_description=meta_description,
-        canonical_href=canonical,
-        hero_title=hero_title,
-        hero_subtitle=hero_subtitle,
-        list_heading=dynamic_list_heading,
-        list_subtitle=list_subtitle_loc,
-        browse_h1=dynamic_list_heading,
-        page_header_title_tag="h2",
-        show_category_hero=True,
-        dynamic_list_heading=dynamic_list_heading,
-    )
+    raise ValueError(f"frame SEO de motos no soportado: {frame!r}")
 
 
 def seo_simple_category(request: HttpRequest, qs, ctx: dict[str, Any]) -> CategorySeoBundle:
-    """Hub / ciudad sin filtros extendidos (electrónica, hogar, …)."""
+    """Hub sin filtros extendidos."""
     city = ctx["city"]
     brand = ctx["brand"]
     category = ctx["category"]
-    place = ctx.get("location_display") or city
-    intro = _category_intro_text(category.name, place)
-    browse_h1 = f"{category.name} en {place}"
+    intro = _category_intro_text(category.name, city)
+    browse_h1 = f"{category.name} en {city}"
     hero_title, hero_subtitle = build_category_hero(
         category_slug=category.slug,
         category_name=category.name,
-        place=place,
+        place=city,
         filters_active=False,
         filtered_heading=None,
     )
     return CategorySeoBundle(
-        meta_title=f"{category.name} en {place} | {brand}",
+        meta_title=f"{category.name} en {city} | {brand}",
         meta_description=intro,
         canonical_href=None,
         hero_title=hero_title,
@@ -764,33 +528,6 @@ def seo_simple_category(request: HttpRequest, qs, ctx: dict[str, Any]) -> Catego
         browse_h1=browse_h1,
         page_header_title_tag="h2",
         show_category_hero=True,
-        dynamic_list_heading=None,
-    )
-
-
-def seo_location_market(
-    *,
-    display: str,
-    city: str,
-    brand: str,
-) -> CategorySeoBundle:
-    """Landing solo por ciudad (/guayaquil/, etc.): títulos y meta city-aware."""
-    intro = (
-        f"Explora anuncios clasificados en {display} y alrededores. "
-        "Revisa la confianza del vendedor y no envíes dinero por adelantado sin respaldo."
-    )
-    browse_h1 = f"Anuncios en {display}"
-    return CategorySeoBundle(
-        meta_title=f"Anuncios en {display} y {city} | {brand}",
-        meta_description=intro,
-        canonical_href=None,
-        hero_title="",
-        hero_subtitle="",
-        list_heading=browse_h1,
-        list_subtitle=intro,
-        browse_h1=browse_h1,
-        page_header_title_tag="h1",
-        show_category_hero=False,
         dynamic_list_heading=None,
     )
 
@@ -806,7 +543,6 @@ def seo_browse_generic(
     category_obj = ctx.get("category_obj")
     category_slug = (ctx.get("category_slug") or "").strip()
     result_count = ctx["result_count"]
-    location_display = ctx.get("location_display")
 
     if category_obj and category_slug and category_slug not in (
         VEHICLE_SLUG,
@@ -815,18 +551,17 @@ def seo_browse_generic(
         ELECTRONICS_SLUG,
         HOMEGOODS_SLUG,
     ):
-        place = location_display or city
         hero_title, hero_subtitle = build_category_hero(
             category_slug=category_obj.slug,
             category_name=category_obj.name,
-            place=place,
+            place=city,
             filters_active=False,
             filtered_heading=None,
         )
         return CategorySeoBundle(
             meta_title=f"{hero_title} | {brand}",
             meta_description=(
-                f"{hero_title}. Explora anuncios en {location_display or city} "
+                f"{hero_title}. Explora anuncios en {city} "
                 "con señales de confianza."
             ),
             canonical_href=None,

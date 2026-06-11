@@ -1,5 +1,7 @@
 """Smoke HTTP: listados vía `build_category_page` (sin romper verticales)."""
 
+from urllib.parse import parse_qs, urlparse
+
 from django.test import TestCase
 
 from apps.categories.models import Category
@@ -31,7 +33,18 @@ class CategoryEngineURLTests(TestCase):
             self._assert_200(f"/{slug}/")
 
     def test_browse_with_vehicle_filter_param(self) -> None:
-        self._assert_200("/autos/?marca=1")
+        self._assert_200("/autos/?brand=1")
+
+    def test_vehicle_legacy_filter_param_redirects(self) -> None:
+        response = self.client.get("/autos/?marca=1&year_from=2015", follow=False)
+
+        self.assertEqual(response.status_code, 301)
+        parsed = urlparse(response["Location"])
+        self.assertEqual(parsed.path, "/autos/")
+        self.assertEqual(
+            parse_qs(parsed.query),
+            {"brand": ["1"], "year_from": ["2015"]},
+        )
 
     def test_browse_shows_category_sidebar_filter(self) -> None:
         response = self.client.get("/anuncios/")
@@ -51,16 +64,16 @@ class CategoryEngineURLTests(TestCase):
         self.assertEqual(response.status_code, 301)
         self.assertEqual(response["Location"], "/autos/?q=toyota")
 
-    def test_browse_category_query_with_location_redirects(self) -> None:
+    def test_browse_category_query_drops_legacy_location(self) -> None:
         response = self.client.get(
             "/anuncios/?category=autos&location=guayaquil",
             follow=False,
         )
 
         self.assertEqual(response.status_code, 301)
-        self.assertEqual(response["Location"], "/guayaquil/autos/")
+        self.assertEqual(response["Location"], "/autos/")
 
-    def test_location_category_landings(self) -> None:
-        self._assert_200("/guayaquil/autos/")
-        self._assert_200("/guayaquil/motos/")
-        self._assert_200("/samborondon/inmuebles/")
+    def test_city_routes_are_not_registered(self) -> None:
+        self.assertEqual(self.client.get("/guayaquil/").status_code, 404)
+        self.assertEqual(self.client.get("/guayaquil/autos/").status_code, 404)
+        self.assertEqual(self.client.get("/samborondon/inmuebles/").status_code, 404)

@@ -90,6 +90,8 @@ class UserVerification(models.Model):
     phone_country_code = models.CharField(max_length=8, blank=True, default="+593")
     phone_number = models.CharField(max_length=32, blank=True)
     phone_verified = models.BooleanField(default=False, db_index=True)
+    whatsapp_contact_enabled = models.BooleanField(default=False)
+    show_name_in_listings = models.BooleanField(default=True)
     verification_date = models.DateTimeField(null=True, blank=True)
 
     class Meta:

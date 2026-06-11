@@ -18,7 +18,7 @@ from apps.listings.listing_sort import (
     parse_sort_param,
     split_featured_block,
 )
-from apps.listings.models import Listing, VehicleListing
+from apps.listings.models import Listing, MarketBrand, MarketModel, VehicleListing
 
 User = get_user_model()
 
@@ -50,16 +50,31 @@ class ListingSortOrderTests(TestCase):
         )
 
     def _vehicle(self, listing: Listing) -> None:
+        brand, model = self._market_model("B", "M")
         VehicleListing.objects.create(
             listing=listing,
-            brand="B",
-            model="M",
+            brand_fk=brand,
+            model_fk=model,
             year=2020,
             doors=4,
             mileage=1,
             transmission=VehicleListing.Transmission.MANUAL,
             fuel_type=VehicleListing.FuelType.GASOLINA,
         )
+
+    def _market_model(self, brand_name: str, model_name: str):
+        brand, _ = MarketBrand.objects.get_or_create(
+            name=brand_name,
+            defaults={"slug": f"{brand_name.lower()}-autos", "is_active": True},
+        )
+        model, _ = MarketModel.objects.get_or_create(
+            brand=brand,
+            category_slug=VEHICLE_SLUG,
+            item_type="",
+            name=model_name,
+            defaults={"slug": f"{model_name.lower()}-autos", "is_active": True},
+        )
+        return brand, model
 
     def test_sort_relevance_orders_by_boost_not_featured_pin(self) -> None:
         plain = Listing.objects.create(
@@ -245,16 +260,31 @@ class FeaturedTopCardContextTests(TestCase):
         )
 
     def _vehicle(self, listing: Listing) -> None:
+        brand, model = self._market_model("B", "M")
         VehicleListing.objects.create(
             listing=listing,
-            brand="B",
-            model="M",
+            brand_fk=brand,
+            model_fk=model,
             year=2020,
             doors=4,
             mileage=1,
             transmission=VehicleListing.Transmission.MANUAL,
             fuel_type=VehicleListing.FuelType.GASOLINA,
         )
+
+    def _market_model(self, brand_name: str, model_name: str):
+        brand, _ = MarketBrand.objects.get_or_create(
+            name=f"{brand_name} featured",
+            defaults={"slug": f"{brand_name.lower()}-featured-autos", "is_active": True},
+        )
+        model, _ = MarketModel.objects.get_or_create(
+            brand=brand,
+            category_slug=VEHICLE_SLUG,
+            item_type="",
+            name=model_name,
+            defaults={"slug": f"{model_name.lower()}-featured-autos", "is_active": True},
+        )
+        return brand, model
 
     def test_featured_top_cards_marked_first_page(self) -> None:
         for i in range(3):

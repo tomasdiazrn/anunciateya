@@ -1,0 +1,79 @@
+{% extends "layouts/auth_base.html" %}
+{% load static %}
+
+{% block title %}Confirma tu cuenta · {{ site_name }}{% endblock %}
+{% block meta_description %}Confirma tu cuenta en {{ site_name }} con el código enviado a tu correo electrónico.{% endblock %}
+{% block social_title %}Confirma tu cuenta · {{ site_name }}{% endblock %}
+{% block social_description %}Confirma tu cuenta en {{ site_name }} con el código enviado a tu correo electrónico.{% endblock %}
+{% block twitter_title %}Confirma tu cuenta · {{ site_name }}{% endblock %}
+{% block twitter_description %}Confirma tu cuenta en {{ site_name }} con el código enviado a tu correo electrónico.{% endblock %}
+
+{% block content %}
+  <div class="auth-page auth-page--image">
+    <div class="auth-shell">
+    <div class="auth-card">
+      <a class="auth-brand" href="{% url 'root_home' %}" aria-label="Ir al inicio">
+        <img class="auth-logo" src="{% static brand_logo %}" alt="{{ site_name }}">
+      </a>
+      <h1 class="auth-title">Confirma tu cuenta</h1>
+      <p class="auth-subtitle">
+        Ingresa el código para activar tu cuenta y entrar a {{ site_name }}.
+      </p>
+
+      {% if messages %}
+        <div class="auth-messages" role="status" aria-live="polite">
+          {% for message in messages %}
+            <p
+              class="auth-message auth-message--{{ message.tags|default:'info' }}"
+              {% if message.tags == 'error' %}role="alert" aria-live="assertive"{% endif %}
+            >{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if otp_email %}
+        <p class="auth-otp-message">
+          Enviamos un código de confirmación a <strong>{{ otp_email }}</strong>.
+        </p>
+      {% endif %}
+
+      <form method="post" action="{% url 'users:register_verify' %}" class="stack-form" aria-label="Confirmar cuenta" data-loading-submit>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="verify_code">
+        <div class="field">
+          <label id="signup-otp-code-label" for="signup-otp-code-1">
+            Código de confirmación <span class="req" aria-hidden="true">*</span>
+          </label>
+          <input id="signup-otp-code" type="hidden" name="code" data-otp-hidden>
+          <div
+            class="auth-otp-code-inputs"
+            data-otp-code-inputs
+            data-otp-hidden-input="signup-otp-code"
+            role="group"
+            aria-labelledby="signup-otp-code-label"
+          >
+            <input id="signup-otp-code-1" class="auth-otp-digit" type="text" name="code_digits" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="one-time-code" aria-label="Dígito 1 del código de confirmación" autofocus required>
+            <input id="signup-otp-code-2" class="auth-otp-digit" type="text" name="code_digits" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="Dígito 2 del código de confirmación" required>
+            <input id="signup-otp-code-3" class="auth-otp-digit" type="text" name="code_digits" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="Dígito 3 del código de confirmación" required>
+            <input id="signup-otp-code-4" class="auth-otp-digit" type="text" name="code_digits" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="Dígito 4 del código de confirmación" required>
+            <input id="signup-otp-code-5" class="auth-otp-digit" type="text" name="code_digits" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="Dígito 5 del código de confirmación" required>
+            <input id="signup-otp-code-6" class="auth-otp-digit" type="text" name="code_digits" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="Dígito 6 del código de confirmación" required>
+          </div>
+        </div>
+        <div class="form-actions-row">
+          <button type="submit" class="button btn-primary auth-submit" data-loading-text="Confirmando...">Confirmar cuenta</button>
+        </div>
+      </form>
+
+      <div class="auth-otp-actions">
+        <form method="post" action="{% url 'users:register_verify' %}" aria-label="Enviar nuevo código" data-loading-submit>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="request_code">
+          <button type="submit" class="auth-forgot" data-loading-text="Enviando...">Enviar un nuevo código</button>
+        </form>
+      </div>
+    </div>
+    {% include "components/ui/auth_back_home.html" %}
+    </div>
+  </div>
+{% endblock %}

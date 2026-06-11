@@ -501,6 +501,83 @@
   font-variant-numeric: tabular-nums;
 }
 
+.account-overview__inline-action {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.account-overview__inline-action:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.account-contact-preference {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 0;
+}
+
+.account-contact-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.account-contact-checkbox__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.account-contact-checkbox__box {
+  display: inline-grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-success-text);
+}
+
+.account-contact-checkbox__check {
+  font-size: 0.7rem;
+  line-height: 1;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.account-contact-checkbox__input:checked + .account-contact-checkbox__box {
+  border-color: var(--color-success-text);
+  background: var(--color-success-bg);
+}
+
+.account-contact-checkbox__input:checked + .account-contact-checkbox__box .account-contact-checkbox__check {
+  opacity: 1;
+  visibility: visible;
+}
+
+.account-contact-checkbox__input:focus-visible + .account-contact-checkbox__box {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.account-contact-checkbox__text {
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
 .account-overview__badge {
   display: inline-block;
   margin-left: 0.5rem;
@@ -527,39 +604,28 @@
   font-size: 0.875rem;
 }
 
-.account-overview__actions {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.account-overview__actions a {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0;
-  font-weight: 600;
-  text-decoration: none;
-  color: var(--color-primary);
-}
-
-.account-overview__actions a:hover {
-  text-decoration: underline;
-  text-underline-offset: 0.15em;
-}
-
-.account-overview__actions i {
-  width: 1.1rem;
-  text-align: center;
-  color: var(--color-muted);
-}
-
 .account-security-card {
   padding: var(--space-4);
   margin-top: var(--space-2);
+}
+
+.account-security__section {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.account-security__section-main {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .account-security__section {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .account-main__email {
@@ -626,6 +692,11 @@
 
 .account-listings__header {
   width: 100%;
+}
+
+.account-leads__subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.9375rem;
 }
 
 .account-main__body--listings {
@@ -839,6 +910,40 @@
 .account-data-table__date {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.account-leads__buyer-name,
+.account-leads__buyer-email,
+.account-leads__source {
+  display: block;
+}
+
+.account-leads__buyer-name {
+  font-weight: 600;
+}
+
+.account-leads__buyer-email {
+  margin-top: 0.15rem;
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.account-leads__buyer-email:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.account-leads__message {
+  max-width: 28rem;
+  color: #475569;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.account-leads__source {
+  margin-bottom: 0.3rem;
+  font-weight: 600;
 }
 
 .account-data-table__actions {

@@ -1,9 +1,9 @@
 Hola,
 
-Tu código para ingresar a {{ seo_brand_name }} es:
+Tu código de acceso para {{ seo_brand_name }} es:
 
 {{ code }}
 
-Este código vence en {{ expires_in_minutes }} minutos. Si no solicitaste este acceso, ignora este mensaje.
+Este código vence en {{ expires_in_minutes }} minutos. Si no solicitaste este acceso o confirmación de cuenta, ignora este mensaje.
 
 {{ site_name }}

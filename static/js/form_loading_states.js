@@ -72,7 +72,14 @@
           event.preventDefault();
           return;
         }
-        setLoading(form, event.submitter);
+        var submitter = event.submitter;
+        var defer = window.requestAnimationFrame || function (callback) {
+          return window.setTimeout(callback, 0);
+        };
+        defer(function () {
+          if (event.defaultPrevented) return;
+          setLoading(form, submitter);
+        });
       });
     });
   }

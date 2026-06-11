@@ -1,11 +1,86 @@
 from django.core import mail
+from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.analytics.models import Event
+from apps.categories.models import Category
+from apps.listings.models import Listing
 
 from .emails import send_user_otp_email
 from .models import NewsletterSubscriber
+
+
+@override_settings(
+    PUBLIC_SITE_URL="https://anunciateya.test",
+    PUBLIC_SITE_DOMAIN="anunciateya.test",
+    SITE_NAME="anunciateya.test",
+    SEO_BRAND_NAME="AnunciateYa",
+    SEO_MARKET_CITY="Guayaquil",
+    SOCIAL_SHARE_IMAGE_PATH="img/AnunciateYa_ShareImage_Home.png",
+)
+class SocialShareMetaTests(TestCase):
+    share_image_url = (
+        "https://anunciateya.test/static/img/AnunciateYa_ShareImage_Home.png"
+    )
+
+    def assert_social_share_meta(self, response, path):
+        self.assertContains(
+            response,
+            f'<meta property="og:image" content="{self.share_image_url}">',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            f'<meta property="og:image:secure_url" content="{self.share_image_url}">',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<meta name="twitter:card" content="summary_large_image">',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            f'<meta name="twitter:image" content="{self.share_image_url}">',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<meta property="og:image:width" content="1200">',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<meta property="og:image:height" content="630">',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            f'<link rel="canonical" href="https://anunciateya.test{path}">',
+            html=True,
+        )
+
+    def test_public_base_pages_render_social_share_image(self):
+        response = self.client.get(reverse("root_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assert_social_share_meta(response, "/")
+
+    def test_auth_base_pages_render_social_share_image(self):
+        response = self.client.get(reverse("users:login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assert_social_share_meta(response, "/ingresar/")
+
+    def test_account_base_pages_render_social_share_image(self):
+        user = get_user_model().objects.create_user(email="persona@example.com")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("users:account"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assert_social_share_meta(response, "/mi-cuenta/")
 
 
 class NewsletterSignupTests(TestCase):
@@ -93,7 +168,7 @@ class EmailTemplateTests(TestCase):
 
         html_body, mime_type = message.alternatives[0]
         self.assertEqual(mime_type, "text/html")
-        self.assertIn("Código de ingreso", html_body)
+        self.assertIn("Código de acceso", html_body)
         self.assertIn("https://anunciateya.test/static/img/AnunciateYa_Logo.png", html_body)
         self.assertIn("482731", html_body)
 
@@ -122,3 +197,81 @@ class LegalPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Política de Privacidad")
         self.assertContains(response, "AnunciateYa no vende información personal")
+
+
+@override_settings(
+    ALLOWED_HOSTS=["anunciateya.test", "testserver"],
+    PUBLIC_SITE_URL="https://anunciateya.test",
+    PUBLIC_SITE_DOMAIN="anunciateya.test",
+    SITE_NAME="anunciateya.test",
+)
+class PublicDiscoveryTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.seller = get_user_model().objects.create_user(email="seo@example.com")
+        cls.category = Category.objects.create(
+            name="Autos",
+            slug="autos",
+            order=1,
+        )
+        cls.published_listing = Listing.objects.create(
+            title="Toyota Publico",
+            description="Auto publicado para sitemap.",
+            price_amount="12000.00",
+            currency="USD",
+            location="Guayaquil",
+            seller=cls.seller,
+            category=cls.category,
+            status=Listing.Status.PUBLISHED,
+        )
+        cls.draft_listing = Listing.objects.create(
+            title="Toyota Borrador",
+            description="Auto no publico.",
+            price_amount="9000.00",
+            currency="USD",
+            location="Guayaquil",
+            seller=cls.seller,
+            category=cls.category,
+            status=Listing.Status.DRAFT,
+        )
+
+    def test_robots_txt_points_to_sitemap_and_blocks_private_surfaces(self):
+        response = self.client.get("/robots.txt")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/plain")
+        body = response.content.decode()
+        self.assertIn("User-agent: *", body)
+        self.assertIn("Allow: /", body)
+        self.assertIn("Disallow: /admin/", body)
+        self.assertIn("Disallow: /mi-cuenta/", body)
+        self.assertIn("Disallow: /publicar/", body)
+        self.assertIn("Disallow: /listings/", body)
+        self.assertIn("Sitemap: https://anunciateya.test/sitemap.xml", body)
+
+    def test_llms_txt_summarizes_public_site_for_ai_crawlers(self):
+        response = self.client.get("/llms.txt")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/plain")
+        body = response.content.decode()
+        self.assertIn("# AnunciateYa", body)
+        self.assertIn("marketplace de anuncios clasificados", body)
+        self.assertIn("Sitemap XML: https://anunciateya.test/sitemap.xml", body)
+        self.assertIn("Autos: https://anunciateya.test/autos/", body)
+        self.assertIn("No uses rutas de cuenta", body)
+
+    def test_sitemap_xml_exposes_only_public_indexable_urls(self):
+        response = self.client.get("/sitemap.xml", HTTP_HOST="anunciateya.test")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        self.assertIn("<loc>https://anunciateya.test/</loc>", body)
+        self.assertIn("<loc>https://anunciateya.test/anuncios/</loc>", body)
+        self.assertIn("<loc>https://anunciateya.test/publicar/</loc>", body)
+        self.assertIn("<loc>https://anunciateya.test/autos/</loc>", body)
+        self.assertIn(
+            f"<loc>https://anunciateya.test{self.published_listing.get_absolute_url()}</loc>",
+            body,
+        )
+        self.assertNotIn(self.draft_listing.get_absolute_url(), body)

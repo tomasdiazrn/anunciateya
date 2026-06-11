@@ -13,6 +13,8 @@
       action="{{ form_action_url }}"
       aria-label="Formulario de anuncio de electrónica"
       novalidate
+      data-listing-kind="{{ publish_mode|default:'electronics' }}"
+      data-loading-submit
     >
       {% csrf_token %}
       <div class="listing-editor__grid">

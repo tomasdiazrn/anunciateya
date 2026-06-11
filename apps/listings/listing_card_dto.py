@@ -163,7 +163,17 @@ def _contact_links(listing: Listing) -> tuple[str | None, str]:
     - contact: HTMX endpoint for the secure contact panel
     """
     contact_url = reverse("listings:contact", kwargs={"slug": listing.slug})
-    whatsapp_url = reverse("listings:whatsapp", kwargs={"slug": listing.slug})
+    whatsapp_url = None
+    try:
+        verification = listing.seller.verification
+    except ObjectDoesNotExist:
+        verification = None
+    if (
+        verification
+        and verification.whatsapp_contact_enabled
+        and verification.phone_number
+    ):
+        whatsapp_url = reverse("listings:whatsapp", kwargs={"slug": listing.slug})
     return whatsapp_url, contact_url
 
 
@@ -387,8 +397,8 @@ def _vehicle_attribute_strings(listing: Listing) -> tuple[str, ...]:
         v = listing.vehicle  # type: ignore[attr-defined]
     except ObjectDoesNotExist:
         return ()
-    brand = (v.brand_fk.name if getattr(v, "brand_fk_id", None) else (v.brand or "")).strip()
-    model = (v.model_fk.name if getattr(v, "model_fk_id", None) else (v.model or "")).strip()
+    brand = v.brand_fk.name.strip()
+    model = v.model_fk.name.strip()
     out: list[str] = []
     head = f"{brand} {model}".strip()
     if head:
@@ -466,10 +476,8 @@ def _card_property(
     headline = f"{ptype} en {op_label}" if op else ptype
 
     badge_labels: list[str] = []
-    if op == "venta":
-        badge_labels.append("En venta")
-    elif op == "alquiler":
-        badge_labels.append("En alquiler")
+    if op_label:
+        badge_labels.append(f"En {op_label}")
     if p.property_condition == "nuevo":
         badge_labels.append("Nuevo")
     if p.furnished:
@@ -536,7 +544,9 @@ def _card_motorcycle(
             decimals=0,
         )
 
-    headline = f"{m.brand} {m.model} · {m.year}"
+    brand = m.brand_fk.name.strip()
+    model = m.model_fk.name.strip()
+    headline = f"{brand} {model} · {m.year}"
     tx = m.get_transmission_display()
     fuel = m.get_fuel_type_display()
     cond = m.get_condition_display()
@@ -605,9 +615,14 @@ def _card_electronics(
             decimals=0,
         )
 
-    headline = f"{e.brand} {e.model}"
+    type_label = e.get_item_type_display() if e.item_type else ""
+    brand = e.brand_fk.name.strip()
+    model = e.model_fk.name.strip()
+    headline = f"{brand} {model}".strip()
     cond_label = e.get_condition_display()
     badge_labels: list[str] = []
+    if type_label:
+        badge_labels.append(type_label)
     if e.condition == "nuevo":
         badge_labels.append("Nuevo")
     elif e.condition == "refurbished":
@@ -622,12 +637,18 @@ def _card_electronics(
         badge_labels.append("Garantía")
         warranty_line = "Con garantía"
 
-    attr_candidates = [headline, cond_label]
+    attr_candidates = []
+    if type_label:
+        attr_candidates.append(type_label)
+    attr_candidates.extend([headline, cond_label])
     if warranty_line:
         attr_candidates.append(warranty_line)
     attributes = tuple(attr_candidates)[:_MAX_ATTRIBUTES]
 
-    seo_plain = f"{title}. Precio: {b['price_display']}. {headline}. {cond_label}."
+    seo_plain = f"{title}. Precio: {b['price_display']}."
+    if type_label:
+        seo_plain += f" {type_label}."
+    seo_plain += f" {headline}. {cond_label}."
     if warranty_line:
         seo_plain += f" {warranty_line}."
     if b["loc"]:
@@ -687,10 +708,13 @@ def _card_home(
     else:
         badge_labels.append("Usado")
 
-    brand_line = (h.brand or "").strip()
+    brand_line = h.brand_fk.name.strip() if h.brand_fk_id else ""
+    model_line = h.model_fk.name.strip() if h.model_fk_id else ""
     headline_parts: list[str] = []
     if brand_line:
         headline_parts.append(brand_line)
+    if model_line:
+        headline_parts.append(model_line)
     if h.item_type:
         headline_parts.append(h.get_item_type_display())
     headline = " · ".join(headline_parts)

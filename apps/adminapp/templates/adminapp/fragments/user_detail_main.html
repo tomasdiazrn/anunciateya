@@ -44,7 +44,9 @@
       <dt>Anuncios</dt><dd>{{ listings_count }}</dd>
     {% endif %}
   </dl>
-  <div class="admin-card__actions">
-    {% include "adminapp/components/button.html" with label="Ver perfil público" variant="secondary" url=user_obj.get_absolute_url only %}
-  </div>
+  {% if user_public_profile_links_enabled %}
+    <div class="admin-card__actions">
+      {% include "adminapp/components/button.html" with label="Ver perfil público" variant="secondary" url=user_obj.get_absolute_url only %}
+    </div>
+  {% endif %}
 </div>

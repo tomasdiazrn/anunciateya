@@ -10,8 +10,27 @@
   {% include "components/analytics/facebook_domain_verification_meta.html" %}
   <title>{% block title %}{{ meta_title|default:default_page_title }}{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}{{ meta_description|default:seo_default_description }}{% endblock %}">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="{% block canonical_href %}{% if canonical_href_override %}{{ canonical_href_override }}{% else %}{{ site_url }}{{ request.path }}{% endif %}{% endblock %}">
+  <meta property="og:site_name" content="{{ seo_brand_name }}">
+  <meta property="og:locale" content="es_EC">
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:title" content="{% block social_title %}{{ meta_title|default:default_page_title }}{% endblock %}">
+  <meta property="og:description" content="{% block social_description %}{{ meta_description|default:seo_default_description }}{% endblock %}">
+  <meta property="og:url" content="{% if canonical_href_override %}{{ canonical_href_override }}{% else %}{{ site_url }}{{ request.path }}{% endif %}">
+  <meta property="og:image" content="{% block social_image %}{{ social_share_image_url }}{% endblock %}">
+  <meta property="og:image:secure_url" content="{{ social_share_image_url }}">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="{{ social_share_image_width }}">
+  <meta property="og:image:height" content="{{ social_share_image_height }}">
+  <meta property="og:image:alt" content="{{ social_share_image_alt }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{% block twitter_title %}{{ meta_title|default:default_page_title }}{% endblock %}">
+  <meta name="twitter:description" content="{% block twitter_description %}{{ meta_description|default:seo_default_description }}{% endblock %}">
+  <meta name="twitter:image" content="{{ social_share_image_url }}">
+  <meta name="twitter:image:alt" content="{{ social_share_image_alt }}">
   {% include "components/head/fonts.html" %}
-  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=5">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" referrerpolicy="no-referrer">
   {% block extra_head %}{% endblock %}
 </head>

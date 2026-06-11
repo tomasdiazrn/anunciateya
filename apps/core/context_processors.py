@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.templatetags.static import static
 
 from apps.categories.services import root_categories
 
@@ -129,6 +130,14 @@ def site_metadata(request):
     site_url = getattr(settings, "PUBLIC_SITE_URL", "https://anunciateya.com").rstrip("/")
     brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
     city = getattr(settings, "SEO_MARKET_CITY", "Guayaquil")
+    share_image_path = getattr(
+        settings,
+        "SOCIAL_SHARE_IMAGE_PATH",
+        "img/AnunciateYa_ShareImage_Home.png",
+    )
+    share_image_url = static(share_image_path)
+    if share_image_url.startswith("/"):
+        share_image_url = f"{site_url}{share_image_url}"
     context = {
         "site_name": site_domain,
         "site_public_domain": site_domain,
@@ -152,6 +161,13 @@ def site_metadata(request):
             "BRAND_HERO_BG_PATH",
             "img/AnunciateYa_HeroBackground.webp",
         ),
+        "social_share_image": share_image_path,
+        "social_share_image_url": share_image_url,
+        "social_share_image_width": 1200,
+        "social_share_image_height": 630,
+        "social_share_image_alt": (
+            f"{brand}: compra y vende en {city} con anuncios locales."
+        ),
         "brand_fonts_url": _brand_font_stylesheet_url(),
         "brand_theme_color": getattr(settings, "BRAND_THEME_COLOR", "#3CBB6B"),
         "google_tag_manager_id": _google_tag_manager_id_for_request(request),
@@ -160,6 +176,11 @@ def site_metadata(request):
         "facebook_domain_verification": (
             getattr(settings, "FACEBOOK_DOMAIN_VERIFICATION", "") or ""
         ).strip(),
+        "user_public_profile_links_enabled": getattr(
+            settings,
+            "USER_PUBLIC_PROFILE_LINKS_ENABLED",
+            False,
+        ),
         "footer_social_links": _footer_social_links(),
     }
     context.update(_hosting_alert_context(request))
