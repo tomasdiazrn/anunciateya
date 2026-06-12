@@ -633,11 +633,22 @@
     images.dataset.previewInit = "1";
     var maxFiles = parseInt(images.dataset.maxFiles || "10", 10);
     var maxBytes = parseInt(images.dataset.maxBytes || "5242880", 10);
-    var existingCount = parseInt(images.dataset.existingCount || "0", 10);
     var allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    var removeFields = form.querySelector("#image-remove-fields");
+    var existingJson = form.querySelector("#listing-existing-images-json");
     var objectUrls = [];
     var selectedFiles = Array.prototype.slice.call(images.files || []);
+    var existingImages = [];
+    var removedExistingIds = {};
     var additiveSelectionSupported = typeof DataTransfer !== "undefined";
+
+    if (existingJson) {
+      try {
+        existingImages = JSON.parse(existingJson.textContent || "[]");
+      } catch (error) {
+        existingImages = [];
+      }
+    }
 
     function setStatus(message, isError) {
       if (!status) return;
@@ -683,8 +694,32 @@
       }
     }
 
+    function activeExistingImages() {
+      return existingImages.filter(function (img) {
+        return !removedExistingIds[img.id];
+      });
+    }
+
+    function activePhotoCount(files) {
+      return activeExistingImages().length + files.length;
+    }
+
+    function syncRemoveHiddenInputs() {
+      if (!removeFields) return;
+      removeFields.innerHTML = "";
+      Object.keys(removedExistingIds).forEach(function (id) {
+        if (!removedExistingIds[id]) return;
+        var input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "remove_images";
+        input.value = id;
+        removeFields.appendChild(input);
+      });
+      removeFields.hidden = removeFields.children.length === 0;
+    }
+
     function validateFiles(files) {
-      if (existingCount + files.length > maxFiles) {
+      if (activePhotoCount(files) > maxFiles) {
         return "Puedes tener como máximo " + maxFiles + " fotos en el anuncio.";
       }
       for (var i = 0; i < files.length; i += 1) {
@@ -699,14 +734,44 @@
       return "";
     }
 
+    function appendPreviewTile(parent, options) {
+      var wrap = document.createElement("div");
+      var img = document.createElement("img");
+      var remove = document.createElement("button");
+      wrap.className = "image-preview" + (options.isExisting ? " image-preview--existing" : "");
+      img.alt = options.alt;
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.src = options.url;
+      remove.type = "button";
+      remove.className = "image-preview__remove";
+      remove.setAttribute("aria-label", options.removeLabel);
+      remove.textContent = "×";
+      remove.addEventListener("click", options.onRemove);
+      if (options.isExisting) {
+        var badge = document.createElement("span");
+        badge.className = "image-preview__badge";
+        badge.textContent = "Actual";
+        wrap.appendChild(badge);
+      }
+      wrap.appendChild(img);
+      wrap.appendChild(remove);
+      parent.appendChild(wrap);
+    }
+
     function renderPreviews() {
       clearObjectUrls();
       var canSyncInput = syncSelectedFilesToInput();
       if (!canSyncInput) {
         selectedFiles = Array.prototype.slice.call(images.files || []);
       }
+      var keptExisting = activeExistingImages();
       var error = validateFiles(selectedFiles);
-      if (!selectedFiles.length) {
+      var total = activePhotoCount(selectedFiles);
+
+      syncRemoveHiddenInputs();
+
+      if (!total) {
         count.textContent = "Sin fotos seleccionadas";
         grid.hidden = true;
         grid.innerHTML = "";
@@ -714,36 +779,48 @@
         if (dropzone) dropzone.classList.remove("has-images", "has-error");
         return;
       }
-      count.textContent = selectedFiles.length === 1 ? "1 foto seleccionada" : selectedFiles.length + " fotos seleccionadas";
-      setStatus(error || "Fotos listas. Puedes seguir agregando de a una o guardar el anuncio.", Boolean(error));
+
+      count.textContent = total === 1 ? "1 foto en el anuncio" : total + " fotos en el anuncio";
+      setStatus(
+        error || "Puedes quitar fotos actuales, agregar nuevas y guardar para aplicar los cambios.",
+        Boolean(error)
+      );
       if (dropzone) {
         dropzone.classList.add("has-images");
         dropzone.classList.toggle("has-error", Boolean(error));
       }
       grid.hidden = false;
       grid.innerHTML = "";
-      selectedFiles.slice(0, maxFiles).forEach(function (file, index) {
-        var url = URL.createObjectURL(file);
-        objectUrls.push(url);
-        var wrap = document.createElement("div");
-        var img = document.createElement("img");
-        var remove = document.createElement("button");
-        wrap.className = "image-preview";
-        img.alt = "Vista previa " + (index + 1);
-        img.loading = "lazy";
-        img.decoding = "async";
-        img.src = url;
-        remove.type = "button";
-        remove.className = "image-preview__remove";
-        remove.setAttribute("aria-label", "Quitar foto " + (index + 1));
-        remove.textContent = "×";
-        remove.addEventListener("click", function () {
-          selectedFiles.splice(index, 1);
-          renderPreviews();
+
+      keptExisting.forEach(function (item, index) {
+        appendPreviewTile(grid, {
+          isExisting: true,
+          url: item.url,
+          alt: "Foto actual " + (index + 1),
+          removeLabel: "Quitar foto actual " + (index + 1),
+          onRemove: function () {
+            removedExistingIds[item.id] = true;
+            renderPreviews();
+          },
         });
-        wrap.appendChild(img);
-        wrap.appendChild(remove);
-        grid.appendChild(wrap);
+      });
+
+      selectedFiles.slice(0, Math.max(0, maxFiles - keptExisting.length)).forEach(function (file, index) {
+        var url = URL.createObjectURL(file);
+        var removeKey = fileKey(file);
+        objectUrls.push(url);
+        appendPreviewTile(grid, {
+          isExisting: false,
+          url: url,
+          alt: "Nueva foto " + (index + 1),
+          removeLabel: "Quitar nueva foto " + (index + 1),
+          onRemove: function () {
+            selectedFiles = selectedFiles.filter(function (candidate) {
+              return fileKey(candidate) !== removeKey;
+            });
+            renderPreviews();
+          },
+        });
       });
     }
 
@@ -763,6 +840,7 @@
     });
     form.addEventListener("submit", function (event) {
       syncSelectedFilesToInput();
+      syncRemoveHiddenInputs();
       var error = validateFiles(selectedFiles);
       if (!error) return;
       event.preventDefault();

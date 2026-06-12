@@ -601,5 +601,20 @@ class ListingImage(models.Model):
     class Meta:
         ordering = ["sort_order", "id"]
 
+    def delete(self, *args, **kwargs):
+        for field_name in (
+            "image",
+            "image_thumb",
+            "image_thumb_webp",
+            "image_medium",
+            "image_medium_webp",
+            "image_large",
+            "image_large_webp",
+        ):
+            field_file = getattr(self, field_name, None)
+            if field_file:
+                field_file.delete(save=False)
+        super().delete(*args, **kwargs)
+
     def __str__(self):
         return f"Image for {self.listing_id}"

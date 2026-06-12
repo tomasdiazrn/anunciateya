@@ -12,7 +12,16 @@ from apps.users.models import UserVerification
 User = get_user_model()
 
 
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    PUBLIC_SITE_URL="https://anunciateya.test",
+    PUBLIC_SITE_DOMAIN="anunciateya.test",
+    SITE_NAME="anunciateya.test",
+    SEO_BRAND_NAME="AnunciateYa",
+    DEFAULT_FROM_EMAIL="hola@anunciateya.test",
+    EMAIL_FROM_NAME="AnunciateYa",
+    BRAND_LOGO_PATH="img/AnunciateYa_Logo.png",
+)
 class ListingLeadCaptureTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -75,11 +84,26 @@ class ListingLeadCaptureTests(TestCase):
         self.assertEqual(lead.buyer_email, "buyer@example.com")
         self.assertEqual(lead.email_status, ListingLead.EmailStatus.SENT)
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("Mesa de madera", mail.outbox[0].subject)
-        self.assertEqual(mail.outbox[0].to, ["seller@example.com"])
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, "Te escribieron por tu anuncio: Mesa de madera")
+        self.assertEqual(message.from_email, "AnunciateYa <hola@anunciateya.test>")
+        self.assertEqual(message.to, ["seller@example.com"])
+        self.assertIn("Hola, sigue disponible esta mesa?", message.body)
+        self.assertEqual(len(message.alternatives), 1)
+        html_body, mime_type = message.alternatives[0]
+        self.assertEqual(mime_type, "text/html")
+        self.assertIn("Nuevo contacto por tu anuncio", html_body)
+        self.assertIn(
+            "https://anunciateya.test/static/img/AnunciateYa_Logo.png",
+            html_body,
+        )
+        self.assertIn("Ver contacto en Mi cuenta", html_body)
 
     def test_contact_form_keeps_lead_when_email_fails(self):
-        with patch("apps.listings.services.send_mail", side_effect=RuntimeError("SMTP down")):
+        with patch(
+            "apps.listings.services.send_listing_interest_email",
+            side_effect=RuntimeError("SMTP down"),
+        ):
             response = self._post_contact()
 
         self.assertRedirects(

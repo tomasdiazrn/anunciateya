@@ -1,0 +1,51 @@
+{% extends "emails/base.html" %}
+
+{% block email_title %}Nuevo contacto por tu anuncio | {{ seo_brand_name }}{% endblock %}
+{% block preheader %}{{ buyer_name }} te escribió por tu anuncio "{{ listing_title }}".{% endblock %}
+
+{% block heading %}Nuevo contacto por tu anuncio{% endblock %}
+
+{% block content %}
+  <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#36414e;">
+    Recibiste una consulta por tu anuncio en {{ seo_brand_name }}.
+  </p>
+
+  <div style="margin:0 0 18px;padding:16px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;">
+    <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:{{ brand_theme_color }};">
+      Anuncio
+    </p>
+    <p style="margin:0;font-size:17px;line-height:1.35;font-weight:700;color:#04211f;">
+      {{ listing_title }}
+    </p>
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;margin:0 0 18px;border-collapse:collapse;">
+    <tr>
+      <td style="padding:10px 0;border-bottom:1px solid #e1e3e5;font-size:13px;font-weight:700;color:#04211f;width:92px;">Nombre</td>
+      <td style="padding:10px 0;border-bottom:1px solid #e1e3e5;font-size:14px;color:#36414e;">{{ buyer_name }}</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 0;border-bottom:1px solid #e1e3e5;font-size:13px;font-weight:700;color:#04211f;width:92px;">Email</td>
+      <td style="padding:10px 0;border-bottom:1px solid #e1e3e5;font-size:14px;color:#36414e;">
+        <a href="mailto:{{ buyer_email }}" style="color:#04211f;text-decoration:none;">{{ buyer_email }}</a>
+      </td>
+    </tr>
+  </table>
+
+  <div style="margin:0 0 18px;padding:16px;background:#f9f8f6;border:1px solid #e1e3e5;border-radius:10px;">
+    <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#04211f;">Mensaje</p>
+    <p style="margin:0;font-size:15px;line-height:1.6;color:#36414e;">{{ message|linebreaksbr }}</p>
+  </div>
+
+  {% if account_leads_url %}
+    <p style="margin:0;">
+      <a href="{{ account_leads_url }}" style="display:inline-block;padding:12px 18px;background:{{ brand_theme_color }};border-radius:999px;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;">
+        Ver contacto en Mi cuenta
+      </a>
+    </p>
+  {% endif %}
+{% endblock %}
+
+{% block footer_note %}
+  Recibiste este correo porque alguien contactó uno de tus anuncios en {{ seo_brand_name }}.
+{% endblock %}

@@ -133,7 +133,7 @@
   <div class="image-dropzone" id="image-dropzone">
     <p class="image-dropzone__title">Fotos del anuncio</p>
     <p class="small muted image-dropzone__hint" id="id_images_help">
-      Hasta 10 fotos · 5 MB c/u · JPG, PNG o WEBP
+      Hasta 10 fotos · 5 MB c/u · JPG, PNG o WEBP{% if listing %} · Quita con × y guarda para liberar espacio{% endif %}
     </p>
     <div class="image-dropzone__actions">
       <button class="image-dropzone__button" type="button" data-image-picker-trigger>
@@ -157,30 +157,22 @@
       aria-describedby="id_images_help image-dropzone-status"
     >
     <p class="small image-dropzone__status" id="image-dropzone-status" role="status" aria-live="polite" hidden></p>
+    <div id="image-remove-fields" hidden aria-hidden="true"></div>
+    {% if listing and listing.images.exists %}
+      <script type="application/json" id="listing-existing-images-json">
+        [
+          {% for img in listing.images.all %}
+          {
+            "id": {{ img.id }},
+            "url": "{% if img.image_thumb %}{{ img.image_thumb.url|escapejs }}{% else %}{{ img.image.url|escapejs }}{% endif %}"
+          }{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        ]
+      </script>
+    {% endif %}
     <div class="image-preview-grid" id="image-preview-grid" hidden></div>
   </div>
 </div>
-{% if listing and listing.images.exists %}
-  <div class="thumb-strip">
-    <p class="small muted">Fotos actuales:</p>
-    <ul class="thumb-list">
-      {% for img in listing.images.all %}
-        <li>
-          <img
-            src="{{ img.image.url }}"
-            alt="Foto actual del anuncio"
-            class="thumb-sm"
-            loading="lazy"
-            decoding="async"
-            width="80"
-            height="80"
-          >
-        </li>
-      {% endfor %}
-    </ul>
-    <p class="small muted">Puedes subir más abajo (sin pasar el límite).</p>
-  </div>
-{% endif %}
 {% if show_submit_row %}
   <p class="form-actions-row">
     <button type="submit" class="button btn-primary listing-submit">{{ submit_label }}</button>

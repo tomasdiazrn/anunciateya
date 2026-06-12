@@ -163,6 +163,7 @@ def site_metadata(request):
         ),
         "social_share_image": share_image_path,
         "social_share_image_url": share_image_url,
+        "social_share_image_type": "image/png",
         "social_share_image_width": 1200,
         "social_share_image_height": 630,
         "social_share_image_alt": (

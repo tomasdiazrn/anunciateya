@@ -109,6 +109,7 @@ SEO_BRAND_NAME = "AnunciateYa"
 SEO_MARKET_CITY = "Guayaquil"
 SOCIAL_SHARE_IMAGE_PATH = "img/AnunciateYa_ShareImage_Home.png"
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@anunciateya.com")
+EMAIL_FROM_NAME = config("EMAIL_FROM_NAME", default=SEO_BRAND_NAME)
 CONTACT_EMAIL = config("CONTACT_EMAIL", default="hola@anunciateya.com")
 
 # Hosting membership (custom admin panel only; configured per client/project).

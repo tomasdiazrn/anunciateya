@@ -6,12 +6,12 @@ from decimal import Decimal, InvalidOperation
 from typing import Callable
 import warnings
 
-from django.conf import settings
-from django.core.mail import send_mail
-from django.db.models import Q, QuerySet
+from django.db.models import Max, Q, QuerySet
 from django.http import HttpRequest, QueryDict
 from django.shortcuts import get_object_or_404
 from PIL import Image, UnidentifiedImageError
+
+from apps.core.emails import send_listing_interest_email
 
 from .category_extensions import (
     ELECTRONICS_SLUG,
@@ -217,21 +217,12 @@ def record_listing_interest(submission: InterestSubmission) -> ListingLead:
         message=submission.message,
         email_status=ListingLead.EmailStatus.PENDING,
     )
-    subject = f"Nuevo contacto por tu anuncio: {listing.title}"
-    body = (
-        f"Recibiste una consulta por tu anuncio «{listing.title}».\n\n"
-        f"Nombre: {submission.buyer_name}\n"
-        f"Email: {submission.buyer_email}\n\n"
-        f"Mensaje:\n{submission.message}\n\n"
-        "También puedes ver este contacto desde Mi cuenta."
-    )
     try:
-        send_mail(
-            subject,
-            body,
-            settings.DEFAULT_FROM_EMAIL,
-            [listing.seller.email],
-            fail_silently=False,
+        send_listing_interest_email(
+            listing,
+            submission.buyer_name,
+            submission.buyer_email,
+            submission.message,
         )
     except Exception as exc:
         lead.email_status = ListingLead.EmailStatus.FAILED
@@ -1318,6 +1309,77 @@ def validate_listing_image_uploads(
                 except (OSError, ValueError):
                     pass
     return True
+
+
+def parse_remove_image_ids(post_data) -> list[int]:
+    """IDs de ListingImage marcados para borrar en edición (POST remove_images)."""
+    ids: list[int] = []
+    seen: set[int] = set()
+    for raw in post_data.getlist("remove_images"):
+        value = str(raw).strip()
+        if not value.isdigit():
+            continue
+        image_id = int(value)
+        if image_id in seen:
+            continue
+        seen.add(image_id)
+        ids.append(image_id)
+    return ids
+
+
+def resolve_listing_image_removals(listing: Listing, remove_ids: list[int]) -> list[int]:
+    """Solo IDs que pertenecen al anuncio (ignora IDs ajenos o inválidos)."""
+    if not remove_ids:
+        return []
+    return list(
+        ListingImage.objects.filter(
+            listing_id=listing.pk,
+            id__in=remove_ids,
+        ).values_list("id", flat=True)
+    )
+
+
+def remove_listing_images(listing: Listing, image_ids: list[int]) -> int:
+    """Borra filas ListingImage y sus archivos en disco. Devuelve cantidad eliminada."""
+    if not image_ids:
+        return 0
+    removed = 0
+    for img in ListingImage.objects.filter(listing_id=listing.pk, id__in=image_ids):
+        img.delete()
+        removed += 1
+    return removed
+
+
+def validate_listing_image_changes(
+    request: HttpRequest,
+    listing: Listing,
+    form,
+) -> bool:
+    """Valida altas/bajas de fotos en edición sin modificar archivos."""
+    remove_ids = resolve_listing_image_removals(
+        listing, parse_remove_image_ids(request.POST)
+    )
+    remaining = listing.images.count() - len(remove_ids)
+    return validate_listing_image_uploads(
+        request,
+        form,
+        existing_image_count=remaining,
+    )
+
+
+def commit_listing_image_changes(request: HttpRequest, listing: Listing) -> None:
+    """Aplica bajas y altas de fotos tras guardar el anuncio."""
+    remove_ids = resolve_listing_image_removals(
+        listing, parse_remove_image_ids(request.POST)
+    )
+    remove_listing_images(listing, remove_ids)
+    agg = listing.images.aggregate(mx=Max("sort_order"))
+    start_order = (agg["mx"] if agg["mx"] is not None else -1) + 1
+    attach_listing_images(
+        listing,
+        request.FILES.getlist("images"),
+        start_order=start_order,
+    )
 
 
 def attach_listing_images(listing, files, start_order: int = 0) -> int:

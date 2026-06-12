@@ -103,4 +103,5 @@ class ListingDetailGalleryDtoTests(TestCase):
         html = response.content.decode()
         self.assertIn("/media/", html)
         self.assertIn('property="og:image"', html)
+        self.assertIn('property="og:image:type" content="image/png"', html)
         self.assertNotIn("AnunciateYa_ShareImage_Home.png", html)

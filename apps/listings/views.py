@@ -1,6 +1,7 @@
 import json
+import mimetypes
 import re
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from django.conf import settings
 from django.contrib import messages
@@ -10,7 +11,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Max
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.utils.html import escape, strip_tags
 from django.shortcuts import get_object_or_404, redirect, render
@@ -70,6 +70,8 @@ from .listing_detail_dto import build_listing_detail_context, listing_gallery_ab
 from .services import (
     InterestSubmission,
     attach_listing_images,
+    commit_listing_image_changes,
+    validate_listing_image_changes,
     get_electronics_extension,
     get_homegoods_extension,
     get_motorcycle_extension,
@@ -89,6 +91,13 @@ from .services_promotions import create_listing_promotion
 MAX_IMAGES = MAX_LISTING_IMAGES
 MAX_IMAGE_BYTES = MAX_LISTING_IMAGE_BYTES
 PRIVATE_PAGE_ROBOTS = "noindex, nofollow"
+
+
+def _image_content_type_from_url(url: str) -> str:
+    content_type, _encoding = mimetypes.guess_type(urlsplit(url).path)
+    if content_type and content_type.startswith("image/"):
+        return content_type
+    return "image/jpeg"
 
 
 def _is_listing_owner(request, listing):
@@ -333,9 +342,14 @@ def listing_detail(request, slug):
         or f"Anuncio en {brand}: precio, fotos y contacto seguro con el vendedor.",
         "canonical_href_override": canonical_href_override,
     }
+    if not is_public:
+        detail_context["meta_robots"] = PRIVATE_PAGE_ROBOTS
     gallery_urls = listing_gallery_absolute_urls(request, listing, limit=1)
     if gallery_urls:
         detail_context["social_share_image_url"] = gallery_urls[0]
+        detail_context["social_share_image_type"] = _image_content_type_from_url(
+            gallery_urls[0]
+        )
         detail_context["social_share_image_alt"] = listing.title
 
     return render(
@@ -1076,23 +1090,13 @@ def _listing_edit_with_specific_form(
         )
         specific = specific_form_class(request.POST, instance=ext)
         if base.is_valid() and specific.is_valid():
-            if validate_listing_image_uploads(
-                request,
-                base,
-                existing_image_count=listing.images.count(),
-            ):
+            if validate_listing_image_changes(request, listing, base):
                 listing.status = base.cleaned_data.get("publish_state") or listing.status
                 base.save()
                 obj = specific.save(commit=False)
                 obj.listing = listing
                 obj.save()
-                agg = listing.images.aggregate(mx=Max("sort_order"))
-                start_order = (agg["mx"] if agg["mx"] is not None else -1) + 1
-                attach_listing_images(
-                    listing,
-                    request.FILES.getlist("images"),
-                    start_order=start_order,
-                )
+                commit_listing_image_changes(request, listing)
                 messages.success(request, "Anuncio actualizado.")
                 if account_dashboard:
                     return redirect("users:account_listings")
@@ -1126,21 +1130,11 @@ def _listing_edit_generic(request, listing, brand: str, account_dashboard: bool)
         form = ListingForm(request.POST, request.FILES, instance=listing)
         if form.is_valid():
             new_slug = form.cleaned_data["category"].slug
-            if validate_listing_image_uploads(
-                request,
-                form,
-                existing_image_count=listing.images.count(),
-            ):
+            if validate_listing_image_changes(request, listing, form):
                 _cleanup_extensions_if_category_changed(listing, old_slug, new_slug)
                 listing.status = form.cleaned_data.get("publish_state") or listing.status
                 form.save()
-                agg = listing.images.aggregate(mx=Max("sort_order"))
-                start_order = (agg["mx"] if agg["mx"] is not None else -1) + 1
-                attach_listing_images(
-                    listing,
-                    request.FILES.getlist("images"),
-                    start_order=start_order,
-                )
+                commit_listing_image_changes(request, listing)
                 messages.success(request, "Anuncio actualizado.")
                 if account_dashboard:
                     return redirect("users:account_listings")

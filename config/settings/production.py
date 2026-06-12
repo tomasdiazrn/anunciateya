@@ -60,6 +60,20 @@ EMAIL_HOST_PASSWORD = config("EMAIL_PASSWORD", default="")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@anunciateya.com")
 
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="").strip()
+AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="us-east-1").strip()
+AWS_S3_MEDIA_LOCATION = config("AWS_S3_MEDIA_LOCATION", default="media").strip().strip("/")
+AWS_S3_CUSTOM_DOMAIN = config("AWS_S3_CUSTOM_DOMAIN", default="").strip().rstrip("/")
+AWS_S3_OBJECT_PARAMETERS = {
+    "CacheControl": config(
+        "AWS_S3_MEDIA_CACHE_CONTROL",
+        default="public, max-age=31536000, immutable",
+    )
+}
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = config("AWS_QUERYSTRING_AUTH", default=False, cast=bool)
+AWS_S3_FILE_OVERWRITE = False
+
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
 SECURE_SSL_REDIRECT = True
@@ -90,3 +104,25 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
+
+if AWS_STORAGE_BUCKET_NAME:
+    s3_options = {
+        "bucket_name": AWS_STORAGE_BUCKET_NAME,
+        "region_name": AWS_S3_REGION_NAME,
+        "location": AWS_S3_MEDIA_LOCATION,
+        "object_parameters": AWS_S3_OBJECT_PARAMETERS,
+        "default_acl": AWS_DEFAULT_ACL,
+        "querystring_auth": AWS_QUERYSTRING_AUTH,
+        "file_overwrite": AWS_S3_FILE_OVERWRITE,
+    }
+    if AWS_S3_CUSTOM_DOMAIN:
+        s3_options["custom_domain"] = AWS_S3_CUSTOM_DOMAIN
+
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": s3_options,
+    }
+
+    if AWS_S3_CUSTOM_DOMAIN:
+        media_prefix = f"{AWS_S3_MEDIA_LOCATION}/" if AWS_S3_MEDIA_LOCATION else ""
+        MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{media_prefix}"

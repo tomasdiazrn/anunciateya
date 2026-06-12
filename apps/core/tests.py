@@ -37,6 +37,11 @@ class SocialShareMetaTests(TestCase):
         )
         self.assertContains(
             response,
+            '<meta property="og:image:type" content="image/png">',
+            html=True,
+        )
+        self.assertContains(
+            response,
             '<meta name="twitter:card" content="summary_large_image">',
             html=True,
         )
@@ -152,6 +157,8 @@ class NewsletterSignupTests(TestCase):
     PUBLIC_SITE_DOMAIN="anunciateya.test",
     SITE_NAME="anunciateya.test",
     SEO_BRAND_NAME="AnunciateYa",
+    DEFAULT_FROM_EMAIL="hola@anunciateya.test",
+    EMAIL_FROM_NAME="AnunciateYa",
     BRAND_LOGO_PATH="img/AnunciateYa_Logo.png",
 )
 class EmailTemplateTests(TestCase):
@@ -163,13 +170,18 @@ class EmailTemplateTests(TestCase):
 
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
+        self.assertEqual(message.subject, "Tu código de AnunciateYa vence en 10 min")
+        self.assertEqual(message.from_email, "AnunciateYa <hola@anunciateya.test>")
         self.assertIn("482731", message.body)
         self.assertEqual(len(message.alternatives), 1)
 
         html_body, mime_type = message.alternatives[0]
         self.assertEqual(mime_type, "text/html")
         self.assertIn("Código de acceso", html_body)
-        self.assertIn("https://anunciateya.test/static/img/AnunciateYa_Logo.png", html_body)
+        self.assertIn(
+            "https://anunciateya.test/static/img/AnunciateYa_Logo.png",
+            html_body,
+        )
         self.assertIn("482731", html_body)
 
 

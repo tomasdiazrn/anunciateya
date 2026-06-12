@@ -1,0 +1,14 @@
+Hola,
+
+Recibiste una consulta por tu anuncio "{{ listing_title }}" en {{ seo_brand_name }}.
+
+Nombre: {{ buyer_name }}
+Email: {{ buyer_email }}
+
+Mensaje:
+{{ message }}
+
+También puedes ver este contacto desde Mi cuenta:
+{{ account_leads_url }}
+
+{{ site_name }}
