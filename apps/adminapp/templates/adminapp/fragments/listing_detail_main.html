@@ -40,8 +40,8 @@
     </dd>
     <dt>Ubicación</dt>
     <dd>
-      {% if listing.location %}
-        {{ listing.location }}
+      {% if listing.location_with_reference %}
+        {{ listing.location_with_reference }}
       {% else %}
         <span class="admin-text-muted">Sin ubicación</span>
       {% endif %}

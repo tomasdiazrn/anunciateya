@@ -196,7 +196,11 @@ def apply_search(
     q_raw = (q_raw or "").strip()
     if not q_raw:
         return qs
-    text_q = Q(title__icontains=q_raw) | Q(description__icontains=q_raw)
+    text_q = (
+        Q(title__icontains=q_raw)
+        | Q(description__icontains=q_raw)
+        | Q(zone__name__icontains=q_raw)
+    )
     slug = (category_slug or "").strip() or None
     if not slug:
         return qs.filter(
@@ -312,7 +316,8 @@ def _category_vertical_flags(slug: str) -> dict[str, bool]:
 
 def _category_filters_active(parsed: dict, flags: dict[str, bool]) -> bool:
     return (
-        (flags["show_autos"] and listing_services.vehicle_browse_filters_active(parsed))
+        listing_services.location_browse_filters_active(parsed)
+        or (flags["show_autos"] and listing_services.vehicle_browse_filters_active(parsed))
         or (
             flags["show_property"]
             and listing_services.property_browse_filters_active(parsed)
@@ -444,6 +449,8 @@ def _build_category_filter_sidebar_context(
         "home_item_type_choices": listing_services.home_item_type_choices_tuple(),
         "home_condition_choices": ItemCondition.choices,
         "filter_clear_url": filter_clear_url,
+        "market_zone_options": listing_services.market_zone_queryset(),
+        "selected_area": parsed.get("area") if has_filter_contract else "",
         "selected_filters": parsed if has_filter_contract else {},
         "vehicle_filters_form_action": "",
         "vehicle_filters_include_category": False,
@@ -466,7 +473,7 @@ def _build_category_filter_sidebar_context(
 
 
 def _browse_preserved_query_params(request: HttpRequest) -> QueryDict:
-    """Query de /anuncios/ sin parámetros de navegación legacy ni page."""
+    """Query de /anuncios/ sin parámetros no canónicos ni paginación."""
     params = request.GET.copy()
     params.pop("category", None)
     params.pop("location", None)
@@ -636,7 +643,7 @@ def _split_listings_page_bundle(
         if filters_active:
             fb_rows = list(
                 Listing.objects.published()
-                .select_related("seller", "category")
+                .select_related("seller", "category", "zone")
                 .prefetch_related("images")
                 .order_by("-created_at")[:12],
             )
@@ -795,15 +802,18 @@ def build_category_seo_context(
 def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
     qs = build_browse_listings_queryset(request)
     q_raw = (request.GET.get("q") or "").strip()
+    parsed = listing_services.parse_location_filter_params(request.GET)
 
     qs = apply_search(qs, q_raw, None)
+    qs = listing_services.apply_location_filter(qs, parsed)
 
     sort = parse_sort_param(request)
     qs = apply_listing_order(qs, sort)
+    filters_active = bool(q_raw) or listing_services.location_browse_filters_active(parsed)
     lb = _split_listings_page_bundle(
         request,
         qs,
-        filters_active=bool(q_raw),
+        filters_active=filters_active,
         clear_listings_href=reverse("browse"),
     )
     page = lb["page"]
@@ -824,15 +834,8 @@ def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
         parsed={},
         result_count=paginator.count,
         q_raw=q_raw,
-        filters_active=bool(q_raw),
+        filters_active=filters_active,
     )
-
-    clear_params: dict = {}
-    if q_raw:
-        clear_params["q"] = q_raw
-    category_filter_clear_url = reverse("browse")
-    if clear_params:
-        category_filter_clear_url = f"{category_filter_clear_url}?{urlencode(clear_params)}"
 
     cards_ctx: dict[str, Any] = {
         "browse_has_sidebar_filters": True,
@@ -841,19 +844,19 @@ def _page_context_browse(request: HttpRequest) -> CategoryPageContext:
             {
                 "slug": cat.slug,
                 "name": cat.name,
-                "href": browse_category_hub_href(request, cat.slug),
             }
             for cat in root_categories()
         ],
         "category_filter_selected": "",
-        "category_filter_clear_url": category_filter_clear_url,
+        "market_zone_options": listing_services.market_zone_queryset(),
+        "selected_area": parsed.get("area") or "",
     }
     cards_ctx["listing_cards"] = lb["listing_cards_alias"]
     cards_ctx.update(lb["listings_render"])
 
     return CategoryPageContext(
         queryset=qs,
-        filters={},
+        filters=parsed,
         seo=bundle,
         hero=_hero_from_seo(bundle),
         category=None,

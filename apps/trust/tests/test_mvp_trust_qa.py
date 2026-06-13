@@ -11,7 +11,7 @@ from django.test import Client, TestCase
 from django.utils import timezone
 
 from apps.categories.models import Category
-from apps.listings.models import Listing
+from apps.listings.models import Listing, MarketZone
 from apps.trust.models import ListingReport, Review
 from apps.trust.qa_mvp import (
     ejecutar_informe_semilla,
@@ -40,11 +40,13 @@ class TrustModelConstraintsTests(TestCase):
             email="buyer_qa@example.com",
             password="x",
         )
+        self.zone = MarketZone.objects.get(slug="otro-guayaquil")
         self.listing = Listing.objects.create(
             title="Artículo QA",
             description="Desc",
             price_amount=10,
             currency="USD",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -96,11 +98,13 @@ class SyncListingFlagTests(TestCase):
             User.objects.create_user(email=f"flag_rep{i}@example.com", password="x")
             for i in range(3)
         ]
+        self.zone = MarketZone.objects.get(slug="otro-guayaquil")
         self.listing = Listing.objects.create(
             title="Listado flag QA",
             description="D",
             price_amount=1,
             currency="USD",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -152,11 +156,13 @@ class TrustCacheInvalidationTests(TestCase):
             email="cache_buyer@example.com",
             password="x",
         )
+        self.zone = MarketZone.objects.get(slug="otro-guayaquil")
         self.listing = Listing.objects.create(
             title="Cache QA",
             description="D",
             price_amount=5,
             currency="USD",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,

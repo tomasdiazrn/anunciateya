@@ -41,7 +41,7 @@ from .listing_card_dto import (
     _quality_badges_for_listing,
     build_card_context,
 )
-from .models import Listing
+from .models import Listing, PropertyListing
 
 if TYPE_CHECKING:
     from .listing_card_dto import CardContext
@@ -65,6 +65,13 @@ class ListingDetailContext:
     price_display: str
     currency: str
     location: str
+    location_reference: str
+    property_location_title: str
+    property_location_address: str
+    property_location_note: str
+    property_map_latitude: str
+    property_map_longitude: str
+    property_show_map: bool
     category_label: str
     category_href: str
     category_explore_label: str
@@ -324,6 +331,56 @@ def _extended_attributes(card_attrs: tuple[str, ...], chips: tuple[str, ...]) ->
     return tuple(out[:8])
 
 
+def _empty_property_location_context() -> dict[str, Any]:
+    return {
+        "property_location_title": "",
+        "property_location_address": "",
+        "property_location_note": "",
+        "property_map_latitude": "",
+        "property_map_longitude": "",
+        "property_show_map": False,
+    }
+
+
+def _property_location_context(listing: Listing, slug: str) -> dict[str, Any]:
+    if slug != PROPERTY_SLUG:
+        return _empty_property_location_context()
+    try:
+        prop = listing.property  # type: ignore[attr-defined]
+    except ObjectDoesNotExist:
+        return _empty_property_location_context()
+
+    precision = prop.location_precision or PropertyListing.LocationPrecision.SECTOR
+    address = (prop.address_line or "").strip()
+    place = (prop.address_place_label or "").strip()
+    label = place or address
+    has_coords = prop.latitude is not None and prop.longitude is not None
+    can_show_exact = (
+        precision == PropertyListing.LocationPrecision.EXACT
+        and address
+    )
+
+    if can_show_exact:
+        title = "Dirección del inmueble"
+        display = f"{place} · {address}" if place else address
+        note = "Ubicación exacta compartida por el vendedor."
+    elif precision == PropertyListing.LocationPrecision.APPROXIMATE and label:
+        title = "Ubicación aproximada"
+        display = label
+        note = "La ubicación se muestra de forma aproximada; confirma detalles con el vendedor."
+    else:
+        return _empty_property_location_context()
+
+    return {
+        "property_location_title": escape(title),
+        "property_location_address": escape(display),
+        "property_location_note": escape(note),
+        "property_map_latitude": str(prop.latitude) if can_show_exact and has_coords else "",
+        "property_map_longitude": str(prop.longitude) if can_show_exact and has_coords else "",
+        "property_show_map": can_show_exact and has_coords,
+    }
+
+
 def _detail_badges(listing: Listing, trust: dict[str, Any] | None) -> tuple[str, ...]:
     promo_f, promo_b = _promo_flags(listing)
     featured = bool(_card_is_featured(listing)) or promo_f
@@ -428,7 +485,9 @@ def build_listing_detail_context(
     promo_f, promo_b = _promo_flags(listing)
     is_featured = bool(_card_is_featured(listing)) or promo_f
 
-    loc = (listing.location or "").strip()
+    loc = (listing.zone.name if getattr(listing, "zone_id", None) else "").strip()
+    loc_ref = (listing.location_reference or "").strip()
+    property_location = _property_location_context(listing, slug)
 
     similar_cards = tuple(
         build_card_context(
@@ -481,6 +540,13 @@ def build_listing_detail_context(
         price_display=str(card.price_display or ""),
         currency=str(listing.currency or "USD"),
         location=escape(loc),
+        location_reference=escape(loc_ref),
+        property_location_title=property_location["property_location_title"],
+        property_location_address=property_location["property_location_address"],
+        property_location_note=property_location["property_location_note"],
+        property_map_latitude=property_location["property_map_latitude"],
+        property_map_longitude=property_location["property_map_longitude"],
+        property_show_map=property_location["property_show_map"],
         category_label=str(card.category_label or ""),
         category_href=str(card.category_href or ""),
         category_explore_label=escape(_category_explore_label(cat.slug, str(cat.name or ""))),

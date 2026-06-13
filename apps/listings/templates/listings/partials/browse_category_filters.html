@@ -1,22 +1,25 @@
-<div class="browse-filter-form browse-filter-form--sidebar">
+<form class="browse-filter-form browse-filter-form--sidebar" method="get" action="{% url 'browse' %}">
+  {% if request.GET.q %}
+    <input type="hidden" name="q" value="{{ request.GET.q }}">
+  {% endif %}
   <aside class="browse-filters-sidebar" aria-label="Filtrar anuncios por categoría">
     <details class="browse-filters-accordion" open>
       <summary class="browse-filters-summary">Filtrar anuncios</summary>
       <div class="browse-filters-inner">
+        {% include "listings/partials/browse_location_filter.html" with location_filter_id="id_browse_area_category" %}
         <div class="form-group">
           <label for="id_browse_category">Categoría</label>
           <select
             class="form-control"
+            name="category"
             id="id_browse_category"
-            onchange="window.location.href = this.options[this.selectedIndex].dataset.href;"
           >
-            <option value="" data-href="{{ category_filter_clear_url }}"{% if not category_filter_selected %} selected{% endif %}>
+            <option value=""{% if not category_filter_selected %} selected{% endif %}>
               Todas las categorías
             </option>
             {% for option in category_filter_options %}
               <option
                 value="{{ option.slug }}"
-                data-href="{{ option.href }}"
                 {% if category_filter_selected == option.slug %}selected{% endif %}
               >
                 {{ option.name }}
@@ -24,7 +27,11 @@
             {% endfor %}
           </select>
         </div>
+        <div class="browse-filter-actions">
+          <button type="submit" class="button btn-primary">Aplicar filtros</button>
+          <a class="button btn-secondary" href="{% url 'browse' %}">Limpiar</a>
+        </div>
       </div>
     </details>
   </aside>
-</div>
+</form>

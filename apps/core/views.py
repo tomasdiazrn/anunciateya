@@ -1,8 +1,9 @@
 from django.conf import settings
 from django.contrib import messages
 from django.db import IntegrityError, transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.templatetags.static import static
 from django.views.decorators.http import require_POST
 
 from apps.analytics.models import Event
@@ -89,6 +90,96 @@ def privacy_policy(request):
 
 def healthcheck(_request):
     return HttpResponse("ok", content_type="text/plain")
+
+
+def _static_url(path):
+    url = static(path)
+    if url.startswith(("http://", "https://")):
+        return url
+    return url if url.startswith("/") else f"/{url}"
+
+
+def _manifest_icon(path, sizes, purpose="any"):
+    return {
+        "src": _static_url(path),
+        "sizes": sizes,
+        "type": "image/png",
+        "purpose": purpose,
+    }
+
+
+def webmanifest(_request):
+    """PWA manifest generated from the same branding settings used by templates."""
+    brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
+    city = getattr(settings, "SEO_MARKET_CITY", "Guayaquil")
+    icon_path = getattr(settings, "BRAND_FAVICON_PATH", "img/AnunciateYa_Favicon.png")
+    payload = {
+        "name": brand,
+        "short_name": brand,
+        "description": f"Clasificados locales en {city} con vendedores verificados.",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#FFFFFF",
+        "theme_color": getattr(settings, "BRAND_THEME_COLOR", "#3CBB6B"),
+        "lang": "es",
+        "dir": "ltr",
+        "categories": ["shopping", "business", "lifestyle"],
+        "icons": [
+            _manifest_icon(icon_path, "192x192"),
+            _manifest_icon(icon_path, "512x512"),
+            _manifest_icon(icon_path, "512x512", purpose="maskable"),
+        ],
+        "shortcuts": [
+            {
+                "name": "Publicar anuncio",
+                "short_name": "Publicar",
+                "description": "Crea un nuevo anuncio en AnunciateYa.",
+                "url": "/publicar/",
+                "icons": [_manifest_icon(icon_path, "192x192")],
+            },
+            {
+                "name": "Ver anuncios",
+                "short_name": "Anuncios",
+                "description": "Explora clasificados publicados en tu ciudad.",
+                "url": "/anuncios/",
+                "icons": [_manifest_icon(icon_path, "192x192")],
+            },
+        ],
+    }
+    response = JsonResponse(
+        payload,
+        json_dumps_params={"ensure_ascii": False},
+        content_type="application/manifest+json",
+    )
+    response["Cache-Control"] = "public, max-age=3600"
+    return response
+
+
+def offline(request):
+    brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
+    return render(
+        request,
+        "core/offline.html",
+        {
+            "meta_title": f"Sin conexión | {brand}",
+            "meta_description": (
+                "No pudimos conectar con el sitio. Revisa tu conexión e intenta de nuevo."
+            ),
+            "meta_robots": "noindex, nofollow",
+        },
+    )
+
+
+def service_worker(request):
+    response = render(
+        request,
+        "core/service_worker.js",
+        content_type="application/javascript; charset=utf-8",
+    )
+    response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response["Service-Worker-Allowed"] = "/"
+    return response
 
 
 def robots_txt(_request):

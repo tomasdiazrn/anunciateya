@@ -45,6 +45,40 @@ class MarketModel(models.Model):
     @property
     def is_other_model(self) -> bool:
         return self.name == "Otro"
+
+
+class MarketZone(models.Model):
+    """Zona comercial normalizada del mercado local."""
+
+    class ZoneType(models.TextChoices):
+        URBAN = "urban", "Urbana"
+        SUBURBAN = "suburban", "Periferia"
+        NEARBY_CITY = "nearby_city", "Ciudad cercana"
+        OTHER = "other", "Otro"
+
+    name = models.CharField(max_length=100, unique=True, db_index=True)
+    slug = models.SlugField(unique=True)
+    city = models.CharField(max_length=100, default="Guayaquil", db_index=True)
+    zone_type = models.CharField(
+        max_length=20,
+        choices=ZoneType.choices,
+        default=ZoneType.URBAN,
+        db_index=True,
+    )
+    is_active = models.BooleanField(default=True, db_index=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+        indexes = [
+            models.Index(fields=["city", "is_active", "sort_order"]),
+            models.Index(fields=["zone_type", "is_active"]),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class ListingQuerySet(models.QuerySet):
     def published(self):
         """Listados públicos: el estado publicado es la única condición de visibilidad."""
@@ -64,7 +98,14 @@ class Listing(models.Model):
     description = models.TextField()
     price_amount = models.DecimalField(max_digits=12, decimal_places=2)
     currency = models.CharField(max_length=3, default="USD")
-    location = models.CharField(max_length=200, blank=True)
+    zone = models.ForeignKey(
+        MarketZone,
+        on_delete=models.PROTECT,
+        related_name="listings",
+        blank=True,
+        null=True,
+    )
+    location_reference = models.CharField(max_length=120, blank=True)
     seller = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -109,6 +150,7 @@ class Listing(models.Model):
             ),
             models.Index(fields=["seller", "-created_at"]),
             models.Index(fields=["category", "-created_at"]),
+            models.Index(fields=["zone", "-created_at"]),
         ]
 
     def __str__(self):
@@ -141,6 +183,25 @@ class Listing(models.Model):
                 "listing_slug": self.slug,
             },
         )
+
+    @property
+    def public_location(self) -> str:
+        """Sector público para cards, SEO y filtros (sin referencia auxiliar)."""
+        return self.zone.name if self.zone_id else ""
+
+    @property
+    def location(self) -> str:
+        """Alias legacy: solo sector, nunca referencia de punto de encuentro."""
+        return self.public_location
+
+    @property
+    def location_with_reference(self) -> str:
+        """Texto auxiliar para admin: sector + referencia si existe."""
+        zone_name = self.public_location
+        ref = (self.location_reference or "").strip()
+        if zone_name and ref:
+            return f"{zone_name} · {ref}"
+        return zone_name or ref
 
     @property
     def is_platform_listing(self) -> bool:
@@ -295,6 +356,11 @@ class PropertyListing(models.Model):
         NUEVO = "nuevo", "Nuevo"
         USADO = "usado", "Usado"
 
+    class LocationPrecision(models.TextChoices):
+        SECTOR = "sector", "Solo sector"
+        APPROXIMATE = "approximate", "Aproximada"
+        EXACT = "exact", "Exacta"
+
     listing = models.OneToOneField(
         Listing,
         on_delete=models.CASCADE,
@@ -328,6 +394,35 @@ class PropertyListing(models.Model):
         blank=True,
         null=True,
     )
+    address_line = models.CharField("Dirección", max_length=180, blank=True)
+    address_place_label = models.CharField(
+        "Nombre del lugar o edificio",
+        max_length=180,
+        blank=True,
+    )
+    latitude = models.DecimalField(
+        "Latitud",
+        max_digits=9,
+        decimal_places=6,
+        blank=True,
+        null=True,
+    )
+    longitude = models.DecimalField(
+        "Longitud",
+        max_digits=9,
+        decimal_places=6,
+        blank=True,
+        null=True,
+    )
+    location_precision = models.CharField(
+        "Visibilidad de ubicación",
+        max_length=20,
+        choices=LocationPrecision.choices,
+        default=LocationPrecision.SECTOR,
+    )
+    geocoding_provider = models.CharField(max_length=30, blank=True)
+    geocoding_place_id = models.CharField(max_length=160, blank=True)
+    geocoded_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         indexes = [
@@ -335,10 +430,15 @@ class PropertyListing(models.Model):
             models.Index(fields=["property_type"]),
             models.Index(fields=["operation_type"]),
             models.Index(fields=["area_m2"]),
+            models.Index(fields=["location_precision"]),
         ]
 
     def __str__(self):
         return f"{self.get_property_type_display()} · {self.area_m2} m²"
+
+    @property
+    def has_coordinates(self) -> bool:
+        return self.latitude is not None and self.longitude is not None
 
 
 class ItemCondition(models.TextChoices):

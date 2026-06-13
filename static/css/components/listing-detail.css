@@ -888,6 +888,43 @@
   border: 1px solid var(--color-border, #e2e8f0);
 }
 
+.listing-detail__property-location {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-primary) 6%, transparent),
+      transparent 42%
+    ),
+    var(--color-surface);
+}
+
+.listing-detail__property-address {
+  margin: 0 0 0.35rem;
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.listing-detail__map-preview,
+.listing-detail__map {
+  position: relative;
+  display: block;
+  min-height: 14rem;
+  margin-top: var(--space-3);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.listing-detail__map .mapboxgl-ctrl-bottom-left,
+.listing-detail__map .mapboxgl-ctrl-bottom-right {
+  font-size: 0.7rem;
+}
+
 .listing-detail__badge--featured {
   background: #fef3c7;
   border-color: #fcd34d;

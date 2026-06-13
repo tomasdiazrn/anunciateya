@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}{{ meta_title }}{% endblock %}
+{% block meta_description %}{{ meta_description }}{% endblock %}
+
+{% block content %}
+  <section class="container error-page" aria-labelledby="offline-title">
+    <p class="error-page__eyebrow">Sin conexión</p>
+    <h1 class="error-page__title" id="offline-title">No pudimos cargar AnunciateYa</h1>
+    <p class="error-page__copy">Revisa tu conexión e intenta nuevamente. Tus páginas públicas se cargarán desde la red para mantener la información actualizada.</p>
+    <a class="button btn-primary error-page__cta" href="{% url 'root_home' %}">Volver a intentar</a>
+  </section>
+{% endblock %}

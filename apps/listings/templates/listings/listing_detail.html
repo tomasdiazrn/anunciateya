@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ meta_title }}{% endblock %}
 {% block meta_description %}{{ meta_description }}{% endblock %}
@@ -69,6 +70,11 @@
           {% if detail.location %}
             <p class="listing-detail__location listing-hero__location">{{ detail.location }}</p>
           {% endif %}
+          {% if detail.location_reference %}
+            <p class="listing-detail__location-reference muted small">
+              Referencia: {{ detail.location_reference }}
+            </p>
+          {% endif %}
           {% if detail.badges %}
             <div class="listing-detail__badges badge-row">
               {% for b in detail.badges %}
@@ -122,6 +128,26 @@
             </details>
           {% else %}
             <div class="listing-detail__desc-body">{{ detail.description|linebreaksbr }}</div>
+          {% endif %}
+        </section>
+      {% endif %}
+
+      {% if detail.property_location_title %}
+        <section class="listing-detail__property-location" aria-labelledby="property-location-heading">
+          <p class="listing-detail__section-eyebrow">Ubicación</p>
+          <h2 class="h-section" id="property-location-heading">{{ detail.property_location_title }}</h2>
+          <p class="listing-detail__property-address">{{ detail.property_location_address }}</p>
+          <p class="small muted">{{ detail.property_location_note }}</p>
+          {% if detail.property_show_map %}
+            <div
+              id="property-listing-map"
+              class="listing-detail__map"
+              data-property-listing-map
+              data-map-lat="{{ detail.property_map_latitude }}"
+              data-map-lng="{{ detail.property_map_longitude }}"
+              aria-label="Mapa de ubicación del inmueble"
+              role="img"
+            ></div>
           {% endif %}
         </section>
       {% endif %}
@@ -724,4 +750,12 @@
       if (imgUrls.length) preloadAdjacent(0);
     })();
   </script>
+{% endblock %}
+
+{% block extra_js %}
+  {% if detail.property_show_map and mapbox_enabled and mapbox_public_token %}
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
+    <script src="{% static 'js/property_listing_map.js' %}?v=1" defer></script>
+  {% endif %}
 {% endblock %}

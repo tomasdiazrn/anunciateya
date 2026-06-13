@@ -143,7 +143,7 @@ def dashboard_view(request):
     low_quality_threshold = 5.0
 
     attention_listings = (
-        Listing.objects.select_related("seller", "category")
+        Listing.objects.select_related("seller", "category", "zone")
         .annotate(
             has_images=Exists(listing_images),
             reports_count=Count("reports", distinct=True),
@@ -223,7 +223,7 @@ def dashboard_view(request):
         "attention_listings": attention_listings,
         "low_quality_threshold": low_quality_threshold,
         "recent_users": User.objects.order_by("-date_joined")[:5],
-        "recent_listings": Listing.objects.select_related("seller", "category").order_by(
+        "recent_listings": Listing.objects.select_related("seller", "category", "zone").order_by(
             "-created_at"
         )[:5],
         "recent_reports": ListingReport.objects.select_related(
@@ -283,7 +283,7 @@ def admin_listings_view(request):
     if visibility not in {"active", "inactive"}:
         visibility = ""
 
-    qs = Listing.objects.select_related("seller", "category").order_by("-updated_at")
+    qs = Listing.objects.select_related("seller", "category", "zone").order_by("-updated_at")
     if q:
         qs = qs.filter(listing_search_q(q))
     if category_slug:
@@ -336,7 +336,7 @@ def admin_listings_view(request):
 @require_http_methods(["GET"])
 def admin_listing_detail_view(request, pk):
     listing = get_object_or_404(
-        Listing.objects.select_related("seller", "category"),
+        Listing.objects.select_related("seller", "category", "zone"),
         pk=pk,
     )
     context = {
@@ -356,7 +356,7 @@ def admin_listing_detail_view(request, pk):
 @require_POST
 def admin_listing_set_status(request, pk):
     try:
-        listing = Listing.objects.select_related("seller", "category").get(pk=pk)
+        listing = Listing.objects.select_related("seller", "category", "zone").get(pk=pk)
     except Listing.DoesNotExist:
         return HttpResponse("Anuncio no encontrado.", status=404)
     raw = (request.POST.get("status") or "").strip()
@@ -379,7 +379,7 @@ def admin_listing_set_status(request, pk):
 @require_POST
 def admin_listing_archive(request, pk):
     try:
-        listing = Listing.objects.select_related("seller", "category").get(pk=pk)
+        listing = Listing.objects.select_related("seller", "category", "zone").get(pk=pk)
     except Listing.DoesNotExist:
         return HttpResponse("Anuncio no encontrado.", status=404)
     try:
@@ -394,7 +394,7 @@ def admin_listing_archive(request, pk):
 @require_POST
 def admin_listing_unarchive(request, pk):
     try:
-        listing = Listing.objects.select_related("seller", "category").get(pk=pk)
+        listing = Listing.objects.select_related("seller", "category", "zone").get(pk=pk)
     except Listing.DoesNotExist:
         return HttpResponse("Anuncio no encontrado.", status=404)
     try:
@@ -409,7 +409,7 @@ def admin_listing_unarchive(request, pk):
 @require_POST
 def admin_listing_delete(request, pk):
     try:
-        listing = Listing.objects.select_related("seller", "category").get(pk=pk)
+        listing = Listing.objects.select_related("seller", "category", "zone").get(pk=pk)
     except Listing.DoesNotExist:
         return HttpResponse("Anuncio no encontrado.", status=404)
 

@@ -1,11 +1,12 @@
 (function () {
-  var SELECT_SELECTOR = ".listing-editor select.form-control, .browse-filter-form select.form-control";
+  var SELECT_SELECTOR = ".listing-editor select.form-control, .browse-filter-form select.form-control, .browse-sort-select";
   var DIGITS_SELECTOR = "[data-digits-only='true']";
   var OPEN_CLASS = "is-open";
   var SELECT_INIT = "customSelectInit";
   var SELECT_INIT_VERSION = "2";
   var SEARCH_MAX_LENGTH = 48;
   var SEARCH_MIN_OPTIONS = 5;
+  var REQUIRED_ERROR = "Este campo es obligatorio.";
 
   function closestField(el) {
     return el && el.closest ? el.closest(".field") : null;
@@ -73,6 +74,8 @@
   }
 
   function getSelectLabel(select) {
+    var aria = select ? (select.getAttribute("aria-label") || "").trim() : "";
+    if (aria) return aria;
     var label = select.id ? document.querySelector("label[for='" + select.id + "']") : null;
     return label ? (label.textContent || "").trim() : "Seleccionar";
   }
@@ -191,6 +194,25 @@
   function dispatchNativeChange(select) {
     select.dispatchEvent(new Event("input", { bubbles: true }));
     select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function addDescribedBy(input, id) {
+    if (!input || !id) return;
+    var tokens = (input.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean);
+    if (tokens.indexOf(id) === -1) tokens.push(id);
+    input.setAttribute("aria-describedby", tokens.join(" "));
+  }
+
+  function removeDescribedBy(input, id) {
+    if (!input || !id) return;
+    var tokens = (input.getAttribute("aria-describedby") || "").split(/\s+/).filter(function (token) {
+      return token && token !== id;
+    });
+    if (tokens.length) {
+      input.setAttribute("aria-describedby", tokens.join(" "));
+    } else {
+      input.removeAttribute("aria-describedby");
+    }
   }
 
   function setSelectValue(select, value) {
@@ -480,6 +502,26 @@
     }
   }
 
+  function syncLocationFields(form) {
+    if (!form) return;
+    var toggle = form.querySelector("#id_add_location");
+    var fields = form.querySelector("[data-listing-location-fields]");
+    if (!toggle || !fields) return;
+    var show = toggle.checked;
+    fields.hidden = !show;
+    fields.setAttribute("aria-hidden", show ? "false" : "true");
+  }
+
+  function bindLocationToggle(form) {
+    if (!form) return;
+    var toggle = form.querySelector("#id_add_location");
+    if (!toggle || toggle.dataset.locationToggleInit === "1") return;
+    toggle.dataset.locationToggleInit = "1";
+    toggle.addEventListener("change", function () {
+      syncLocationFields(form);
+    });
+  }
+
   function handleBrandChange(target) {
     if (!target || target.id !== "id_brand_fk") return;
     var form = editorFor(target);
@@ -543,12 +585,11 @@
     var title = form.querySelector("#id_title");
     var type = form.querySelector("#id_property_type");
     var rooms = form.querySelector("#id_rooms");
-    var location = form.querySelector("#id_location");
+    var zone = form.querySelector("#id_zone");
     if (!title || !type || title.dataset.userEdited === "1") return;
     var typeLabel = getSelectText(type);
     var roomCount = rooms && rooms.value ? String(rooms.value).trim() : "";
-    var rawLocation = location && location.value ? String(location.value).trim() : "";
-    var shortLocation = rawLocation ? (rawLocation.split(",")[0] || rawLocation).trim() : "";
+    var shortLocation = zone && zone.value ? getSelectText(zone) : "";
     var parts = [];
     if (typeLabel) parts.push(typeLabel);
     if (roomCount) parts.push(roomCount + " hab");
@@ -571,19 +612,107 @@
     if (!el) {
       el = document.createElement("div");
       el.id = input.id + "__inline_error";
-      el.className = "form-errors";
+      el.className = "form-errors form-errors--client";
       el.setAttribute("role", "alert");
       el.setAttribute("aria-live", "polite");
       input.insertAdjacentElement("afterend", el);
     }
     el.textContent = message;
+    input.setAttribute("aria-invalid", "true");
+    addDescribedBy(input, el.id);
+    if (input.tagName === "SELECT") syncCustomSelect(input);
   }
 
   function clearInlineError(input) {
     if (!input) return;
+    var errorId = input.id + "__inline_error";
     input.classList.remove("is-invalid");
-    var el = document.getElementById(input.id + "__inline_error");
+    removeDescribedBy(input, errorId);
+    var field = closestField(input);
+    var hasServerError = field && field.querySelector(".form-errors:not(.form-errors--client)");
+    if (!hasServerError) input.removeAttribute("aria-invalid");
+    var el = document.getElementById(errorId);
     if (el) el.remove();
+    if (input.tagName === "SELECT") syncCustomSelect(input);
+  }
+
+  function isFieldValueMissing(input) {
+    if (!input || input.disabled) return false;
+    if (input.type === "checkbox" || input.type === "radio") return input.required && !input.checked;
+    if (input.tagName === "SELECT") return input.required && !input.value;
+    return input.required && !String(input.value || "").trim();
+  }
+
+  function validateRequiredField(input, message) {
+    if (!input || input.disabled || input.type === "hidden" || input.type === "file") return true;
+    if (!isFieldValueMissing(input)) {
+      clearInlineError(input);
+      return true;
+    }
+    showInlineError(input, message || REQUIRED_ERROR);
+    return false;
+  }
+
+  function validateExtraRequiredField(form, selector, message, options) {
+    var input = form.querySelector(selector);
+    var validateDisabled = options && options.validateDisabled;
+    if (!input || (!validateDisabled && input.disabled) || String(input.value || "").trim()) {
+      if (input) clearInlineError(input);
+      return true;
+    }
+    showInlineError(input, message);
+    return false;
+  }
+
+  function validateListingRequiredFields(form) {
+    if (!form) return true;
+    var ok = true;
+    form.querySelectorAll("input[required], textarea[required], select[required]").forEach(function (input) {
+      if (!validateRequiredField(input)) ok = false;
+    });
+
+    var kind = editorKind(form);
+    if (kind === "vehicle" || kind === "motorcycle") {
+      if (!validateExtraRequiredField(form, "#id_brand_fk", "Selecciona una marca.")) {
+        ok = false;
+      } else if (!validateExtraRequiredField(form, "#id_model_fk", "Selecciona un modelo.", { validateDisabled: true })) {
+        ok = false;
+      }
+    }
+    if (kind === "electronics") {
+      if (!validateExtraRequiredField(form, "#id_brand_fk", "Selecciona una marca.")) {
+        ok = false;
+      } else if (!validateExtraRequiredField(form, "#id_model_fk", "Selecciona un modelo.", { validateDisabled: true })) {
+        ok = false;
+      }
+    }
+    if (kind === "homegoods") {
+      var brand = form.querySelector("#id_brand_fk");
+      var model = form.querySelector("#id_model_fk");
+      if (model && model.value && brand && !brand.value) {
+        showInlineError(brand, "Selecciona una marca.");
+        ok = false;
+      }
+    }
+    return ok;
+  }
+
+  function validatePriceAmountField(form) {
+    if (!form) return true;
+    var price = form.querySelector("#id_price_amount");
+    if (!price || !String(price.value || "").trim()) return true;
+    var raw = String(price.value).trim();
+    if (!/^\d+$/.test(raw)) {
+      showInlineError(price, "Introduce un precio usando solo números.");
+      return false;
+    }
+    var amount = parseInt(raw, 10);
+    if (Number.isNaN(amount) || amount <= 0) {
+      showInlineError(price, "Ingresa un precio mayor que cero.");
+      return false;
+    }
+    clearInlineError(price);
+    return true;
   }
 
   function validateVehicleNumberFields(form) {
@@ -617,6 +746,11 @@
     var scope = root && root.querySelectorAll ? root : document;
     scope.querySelectorAll("form.listing-editor").forEach(function (form) {
       syncDependentModelState(form);
+      bindLocationToggle(form);
+      syncLocationFields(form);
+      if (window.initPropertyMapboxGeocoder) {
+        window.initPropertyMapboxGeocoder(form);
+      }
       initImagePreview(form);
     });
     markExistingTitles(scope);
@@ -635,11 +769,16 @@
     var maxBytes = parseInt(images.dataset.maxBytes || "5242880", 10);
     var allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     var removeFields = form.querySelector("#image-remove-fields");
+    var imageOrderInput = form.querySelector("#image-order-input");
     var existingJson = form.querySelector("#listing-existing-images-json");
     var objectUrls = [];
     var selectedFiles = Array.prototype.slice.call(images.files || []);
     var existingImages = [];
     var removedExistingIds = {};
+    var itemOrder = [];
+    var newFileTokens = {};
+    var newFileTokenSeq = 0;
+    var draggingToken = "";
     var additiveSelectionSupported = typeof DataTransfer !== "undefined";
 
     if (existingJson) {
@@ -649,6 +788,9 @@
         existingImages = [];
       }
     }
+    itemOrder = existingImages.map(function (img) {
+      return "existing:" + img.id;
+    });
 
     function setStatus(message, isError) {
       if (!status) return;
@@ -666,6 +808,88 @@
       return [file.name, file.size, file.lastModified].join("::");
     }
 
+    function tokenForFile(file) {
+      var key = fileKey(file);
+      if (!newFileTokens[key]) {
+        newFileTokenSeq += 1;
+        newFileTokens[key] = "new:" + newFileTokenSeq;
+      }
+      return newFileTokens[key];
+    }
+
+    function existingToken(id) {
+      return "existing:" + id;
+    }
+
+    function existingImageForToken(token) {
+      if (!token || token.indexOf("existing:") !== 0) return null;
+      var id = parseInt(token.replace("existing:", ""), 10);
+      if (removedExistingIds[id]) return null;
+      for (var i = 0; i < existingImages.length; i += 1) {
+        if (parseInt(existingImages[i].id, 10) === id) return existingImages[i];
+      }
+      return null;
+    }
+
+    function selectedFileForToken(token) {
+      if (!token || token.indexOf("new:") !== 0) return null;
+      for (var i = 0; i < selectedFiles.length; i += 1) {
+        if (tokenForFile(selectedFiles[i]) === token) return selectedFiles[i];
+      }
+      return null;
+    }
+
+    function tokenIsActive(token) {
+      return Boolean(existingImageForToken(token) || selectedFileForToken(token));
+    }
+
+    function ensureOrderIncludesActiveItems() {
+      var seen = {};
+      itemOrder = itemOrder.filter(function (token) {
+        if (seen[token] || !tokenIsActive(token)) return false;
+        seen[token] = true;
+        return true;
+      });
+      activeExistingImages().forEach(function (img) {
+        var token = existingToken(img.id);
+        if (seen[token]) return;
+        itemOrder.push(token);
+        seen[token] = true;
+      });
+      selectedFiles.forEach(function (file) {
+        var token = tokenForFile(file);
+        if (seen[token]) return;
+        itemOrder.push(token);
+        seen[token] = true;
+      });
+    }
+
+    function orderSelectedFilesFromItems() {
+      var ordered = [];
+      var seen = {};
+      itemOrder.forEach(function (token) {
+        var file = selectedFileForToken(token);
+        if (!file) return;
+        ordered.push(file);
+        seen[token] = true;
+      });
+      selectedFiles.forEach(function (file) {
+        var token = tokenForFile(file);
+        if (seen[token]) return;
+        ordered.push(file);
+      });
+      selectedFiles = ordered;
+    }
+
+    function updateImageOrderInput() {
+      if (!imageOrderInput) return;
+      ensureOrderIncludesActiveItems();
+      imageOrderInput.value = itemOrder.map(function (token) {
+        if (token.indexOf("existing:") === 0) return token.replace("existing:", "");
+        return "__new__";
+      }).join(",");
+    }
+
     function mergeFiles(newFiles) {
       var seen = {};
       selectedFiles.forEach(function (file) {
@@ -675,11 +899,14 @@
         var key = fileKey(file);
         if (seen[key]) return;
         selectedFiles.push(file);
+        itemOrder.push(tokenForFile(file));
         seen[key] = true;
       });
     }
 
     function syncSelectedFilesToInput() {
+      ensureOrderIncludesActiveItems();
+      orderSelectedFilesFromItems();
       if (!additiveSelectionSupported) return false;
       try {
         var dt = new DataTransfer();
@@ -738,7 +965,12 @@
       var wrap = document.createElement("div");
       var img = document.createElement("img");
       var remove = document.createElement("button");
+      var controls = document.createElement("div");
+      var moveBefore = document.createElement("button");
+      var moveAfter = document.createElement("button");
       wrap.className = "image-preview" + (options.isExisting ? " image-preview--existing" : "");
+      wrap.draggable = true;
+      wrap.dataset.imageToken = options.token;
       img.alt = options.alt;
       img.loading = "lazy";
       img.decoding = "async";
@@ -748,28 +980,95 @@
       remove.setAttribute("aria-label", options.removeLabel);
       remove.textContent = "×";
       remove.addEventListener("click", options.onRemove);
-      if (options.isExisting) {
+      controls.className = "image-preview__order-actions";
+      moveBefore.type = "button";
+      moveBefore.className = "image-preview__order-btn";
+      moveBefore.textContent = "←";
+      moveBefore.disabled = !options.canMoveBefore;
+      moveBefore.setAttribute("aria-label", options.moveBeforeLabel);
+      moveBefore.addEventListener("click", function () {
+        moveImageToken(options.token, -1);
+      });
+      moveAfter.type = "button";
+      moveAfter.className = "image-preview__order-btn";
+      moveAfter.textContent = "→";
+      moveAfter.disabled = !options.canMoveAfter;
+      moveAfter.setAttribute("aria-label", options.moveAfterLabel);
+      moveAfter.addEventListener("click", function () {
+        moveImageToken(options.token, 1);
+      });
+      controls.appendChild(moveBefore);
+      controls.appendChild(moveAfter);
+      wrap.addEventListener("dragstart", function (event) {
+        draggingToken = options.token;
+        wrap.classList.add("is-dragging");
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", options.token);
+        }
+      });
+      wrap.addEventListener("dragend", function () {
+        draggingToken = "";
+        wrap.classList.remove("is-dragging");
+        syncOrderFromGrid();
+        renderPreviews();
+      });
+      if (options.isCover) {
+        var coverBadge = document.createElement("span");
+        coverBadge.className = "image-preview__badge image-preview__badge--cover";
+        coverBadge.textContent = "Portada";
+        wrap.appendChild(coverBadge);
+      } else if (options.isExisting) {
         var badge = document.createElement("span");
         badge.className = "image-preview__badge";
         badge.textContent = "Actual";
         wrap.appendChild(badge);
       }
       wrap.appendChild(img);
+      wrap.appendChild(controls);
       wrap.appendChild(remove);
       parent.appendChild(wrap);
     }
 
+    function syncOrderFromGrid() {
+      if (!grid) return;
+      var tokens = Array.prototype.slice.call(grid.querySelectorAll(".image-preview")).map(function (tile) {
+        return tile.dataset.imageToken || "";
+      }).filter(Boolean);
+      itemOrder = tokens;
+      ensureOrderIncludesActiveItems();
+      orderSelectedFilesFromItems();
+      syncSelectedFilesToInput();
+      updateImageOrderInput();
+    }
+
+    function moveImageToken(token, delta) {
+      ensureOrderIncludesActiveItems();
+      var index = itemOrder.indexOf(token);
+      var target = index + delta;
+      if (index < 0 || target < 0 || target >= itemOrder.length) return;
+      var swap = itemOrder[target];
+      itemOrder[target] = token;
+      itemOrder[index] = swap;
+      orderSelectedFilesFromItems();
+      updateImageOrderInput();
+      renderPreviews();
+    }
+
     function renderPreviews() {
       clearObjectUrls();
+      ensureOrderIncludesActiveItems();
+      orderSelectedFilesFromItems();
       var canSyncInput = syncSelectedFilesToInput();
       if (!canSyncInput) {
         selectedFiles = Array.prototype.slice.call(images.files || []);
       }
-      var keptExisting = activeExistingImages();
+      ensureOrderIncludesActiveItems();
       var error = validateFiles(selectedFiles);
       var total = activePhotoCount(selectedFiles);
 
       syncRemoveHiddenInputs();
+      updateImageOrderInput();
 
       if (!total) {
         count.textContent = "Sin fotos seleccionadas";
@@ -782,7 +1081,7 @@
 
       count.textContent = total === 1 ? "1 foto en el anuncio" : total + " fotos en el anuncio";
       setStatus(
-        error || "Puedes quitar fotos actuales, agregar nuevas y guardar para aplicar los cambios.",
+        error || "Arrastra las fotos para ordenar. La primera será la portada del anuncio.",
         Boolean(error)
       );
       if (dropzone) {
@@ -792,37 +1091,81 @@
       grid.hidden = false;
       grid.innerHTML = "";
 
-      keptExisting.forEach(function (item, index) {
-        appendPreviewTile(grid, {
-          isExisting: true,
-          url: item.url,
-          alt: "Foto actual " + (index + 1),
-          removeLabel: "Quitar foto actual " + (index + 1),
-          onRemove: function () {
-            removedExistingIds[item.id] = true;
-            renderPreviews();
-          },
-        });
-      });
-
-      selectedFiles.slice(0, Math.max(0, maxFiles - keptExisting.length)).forEach(function (file, index) {
+      itemOrder.forEach(function (token, index) {
+        var existing = existingImageForToken(token);
+        var file = selectedFileForToken(token);
+        if (existing) {
+          appendPreviewTile(grid, {
+            token: token,
+            isExisting: true,
+            isCover: index === 0,
+            canMoveBefore: index > 0,
+            canMoveAfter: index < itemOrder.length - 1,
+            url: existing.url,
+            alt: "Foto actual " + (index + 1),
+            removeLabel: "Quitar foto actual " + (index + 1),
+            moveBeforeLabel: "Mover foto actual " + (index + 1) + " hacia la izquierda",
+            moveAfterLabel: "Mover foto actual " + (index + 1) + " hacia la derecha",
+            onRemove: function () {
+              removedExistingIds[existing.id] = true;
+              itemOrder = itemOrder.filter(function (candidate) {
+                return candidate !== token;
+              });
+              renderPreviews();
+            },
+          });
+          return;
+        }
+        if (!file) return;
         var url = URL.createObjectURL(file);
-        var removeKey = fileKey(file);
         objectUrls.push(url);
         appendPreviewTile(grid, {
+          token: token,
           isExisting: false,
+          isCover: index === 0,
+          canMoveBefore: index > 0,
+          canMoveAfter: index < itemOrder.length - 1,
           url: url,
           alt: "Nueva foto " + (index + 1),
           removeLabel: "Quitar nueva foto " + (index + 1),
+          moveBeforeLabel: "Mover nueva foto " + (index + 1) + " hacia la izquierda",
+          moveAfterLabel: "Mover nueva foto " + (index + 1) + " hacia la derecha",
           onRemove: function () {
             selectedFiles = selectedFiles.filter(function (candidate) {
-              return fileKey(candidate) !== removeKey;
+              return tokenForFile(candidate) !== token;
+            });
+            itemOrder = itemOrder.filter(function (candidate) {
+              return candidate !== token;
             });
             renderPreviews();
           },
         });
       });
     }
+
+    grid.addEventListener("dragover", function (event) {
+      if (!draggingToken) return;
+      var target = event.target.closest ? event.target.closest(".image-preview") : null;
+      if (!target || target.parentNode !== grid || target.dataset.imageToken === draggingToken) return;
+      event.preventDefault();
+      var dragged = null;
+      Array.prototype.slice.call(grid.querySelectorAll(".image-preview")).some(function (tile) {
+        if (tile.dataset.imageToken !== draggingToken) return false;
+        dragged = tile;
+        return true;
+      });
+      if (!dragged) return;
+      var rect = target.getBoundingClientRect();
+      var after = event.clientX > rect.left + rect.width / 2;
+      grid.insertBefore(dragged, after ? target.nextSibling : target);
+    });
+
+    grid.addEventListener("drop", function (event) {
+      if (!draggingToken) return;
+      event.preventDefault();
+      syncOrderFromGrid();
+      renderPreviews();
+    });
 
     if (trigger) {
       trigger.addEventListener("click", function () {
@@ -835,12 +1178,17 @@
         mergeFiles(incomingFiles);
       } else {
         selectedFiles = incomingFiles;
+        itemOrder = activeExistingImages().map(function (img) {
+          return existingToken(img.id);
+        }).concat(selectedFiles.map(tokenForFile));
       }
       renderPreviews();
     });
     form.addEventListener("submit", function (event) {
+      syncOrderFromGrid();
       syncSelectedFilesToInput();
       syncRemoveHiddenInputs();
+      updateImageOrderInput();
       var error = validateFiles(selectedFiles);
       if (!error) return;
       event.preventDefault();
@@ -898,26 +1246,41 @@
         event.target.dataset.userEdited = "1";
       }
       var form = editorFor(event.target);
-      if (event.target && event.target.id === "id_location") syncPropertyTitle(form);
+      if (form && event.target.matches && event.target.matches("input, textarea, select") && !isFieldValueMissing(event.target)) {
+        clearInlineError(event.target);
+      }
+      if (event.target && event.target.id === "id_zone") syncPropertyTitle(form);
     }, true);
 
     document.addEventListener("change", function (event) {
       var target = event.target;
       var form = editorFor(target);
+      if (form && target.matches && target.matches("input, textarea, select") && !isFieldValueMissing(target)) {
+        clearInlineError(target);
+      }
       handleItemTypeChange(target);
       handleBrandChange(target);
+      if (target && target.id === "id_add_location") {
+        syncLocationFields(form);
+      }
       if (target && (target.id === "id_brand_fk" || target.id === "id_model_fk" || target.id === "id_year")) {
         syncVehicleTitle(form);
       }
-      if (target && (target.id === "id_property_type" || target.id === "id_rooms" || target.id === "id_location")) {
+      if (target && (target.id === "id_property_type" || target.id === "id_rooms" || target.id === "id_zone")) {
         syncPropertyTitle(form);
       }
     }, true);
 
     document.addEventListener("blur", function (event) {
       var target = event.target;
-      if (!target || (target.id !== "id_year" && target.id !== "id_mileage")) return;
-      validateVehicleNumberFields(editorFor(target));
+      if (!target) return;
+      var form = editorFor(target);
+      if (target.id === "id_price_amount") {
+        validatePriceAmountField(form);
+        return;
+      }
+      if (target.id !== "id_year" && target.id !== "id_mileage") return;
+      validateVehicleNumberFields(form);
     }, true);
 
     document.addEventListener("submit", function (event) {
@@ -930,8 +1293,13 @@
       if (!form.matches("form.listing-editor")) return;
       form.querySelectorAll(DIGITS_SELECTOR).forEach(sanitizeDigitsOnlyInput);
       var model = form.querySelector("#id_model_fk");
-      if (model) model.disabled = false;
-      if (validateVehicleNumberFields(form)) return;
+      var requiredOk = validateListingRequiredFields(form);
+      var priceOk = validatePriceAmountField(form);
+      var numbersOk = validateVehicleNumberFields(form);
+      if (requiredOk && priceOk && numbersOk) {
+        if (model) model.disabled = false;
+        return;
+      }
       event.preventDefault();
       var first = form.querySelector(".is-invalid");
       if (first && first.focus) first.focus({ preventScroll: false });

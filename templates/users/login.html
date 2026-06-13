@@ -20,16 +20,7 @@
         o crea tu <a href="{% url 'users:register' %}">cuenta gratis</a>
       </p>
 
-      {% if messages %}
-        <div class="auth-messages" role="status" aria-live="polite">
-          {% for message in messages %}
-            <p
-              class="auth-message auth-message--{{ message.tags|default:'info' }}"
-              {% if message.tags == 'error' %}role="alert" aria-live="assertive"{% endif %}
-            >{{ message }}</p>
-          {% endfor %}
-        </div>
-      {% endif %}
+      {% include "components/messages.html" %}
 
       {% if login_step == "code" %}
       {% if otp_email %}

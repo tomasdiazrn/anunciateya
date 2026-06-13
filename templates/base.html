@@ -7,6 +7,13 @@
   {% include "components/analytics/meta_pixel_head.html" %}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="{{ brand_theme_color }}">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="{{ seo_brand_name }}">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="{% url 'webmanifest' %}">
+  <link rel="apple-touch-icon" href="{% static pwa_icon_192 %}">
   {% include "components/analytics/facebook_domain_verification_meta.html" %}
   <title>{% block title %}{{ meta_title|default:default_page_title }}{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}{{ meta_description|default:seo_default_description }}{% endblock %}">
@@ -30,7 +37,12 @@
   <meta name="twitter:image" content="{{ social_share_image_url }}">
   <meta name="twitter:image:alt" content="{{ social_share_image_alt }}">
   {% include "components/head/fonts.html" %}
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=5">
+  {% if mapbox_enabled and mapbox_public_token %}
+    <meta name="mapbox-token" content="{{ mapbox_public_token }}">
+    <meta name="mapbox-bbox" content="{{ mapbox_ecuador_bbox }}">
+    <meta name="mapbox-style" content="{{ mapbox_style_url }}">
+  {% endif %}
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=10">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" referrerpolicy="no-referrer">
   {% block extra_head %}{% endblock %}
 </head>
@@ -57,7 +69,10 @@
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
   <script src="{% static 'js/char_counters.js' %}" defer></script>
   <script src="{% static 'js/form_loading_states.js' %}" defer></script>
-  <script src="{% static 'js/listing_form_controls.js' %}?v=6" defer></script>
+  <script src="{% static 'js/listing_form_controls.js' %}?v=8" defer></script>
+  {% if mapbox_enabled and mapbox_public_token %}
+    <script src="{% static 'js/property_mapbox_geocoder.js' %}?v=1" defer></script>
+  {% endif %}
   <script src="{% static 'js/contact_modal.js' %}" defer></script>
   <script src="{% static 'js/site_nav.js' %}" defer></script>
   <script src="{% static 'js/listing_carousel.js' %}" defer></script>
@@ -119,10 +134,26 @@
         window.addEventListener("scroll", update, { passive: true });
       }
 
+      function registerServiceWorker() {
+        if (!("serviceWorker" in navigator)) return;
+        function register() {
+          navigator.serviceWorker.register("{% url 'service_worker' %}", { scope: "/" }).catch(function () {});
+        }
+        if (document.readyState === "complete") {
+          register();
+        } else {
+          window.addEventListener("load", register);
+        }
+      }
+
       if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initOverlayHeader);
+        document.addEventListener("DOMContentLoaded", function () {
+          initOverlayHeader();
+          registerServiceWorker();
+        });
       } else {
         initOverlayHeader();
+        registerServiceWorker();
       }
 
     })();

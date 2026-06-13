@@ -108,9 +108,10 @@ body.admin-body {
   color: var(--admin-text);
 }
 
-.admin-flash {
+.admin-layout__main > .auth-messages {
   flex: 0 0 auto;
   padding: var(--admin-space-3) var(--admin-content-padding-x) 0;
+  margin-bottom: 0;
   width: 100%;
 }
 
@@ -182,50 +183,6 @@ body.admin-body {
   margin: 0 0 var(--admin-space-3);
   font-size: var(--admin-font-size-base);
   font-weight: var(--admin-font-weight-semibold);
-  color: var(--admin-text);
-}
-
-/* Messages (django.contrib.messages) */
-.admin-messages {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.admin-message {
-  padding: var(--admin-space-3) var(--admin-space-4);
-  border-radius: var(--admin-radius-sm);
-  font-size: var(--admin-font-size-sm);
-  margin: 0 0 var(--admin-space-2);
-  border: 1px solid var(--admin-border);
-}
-
-.admin-messages .admin-message:last-child {
-  margin-bottom: 0;
-}
-
-.admin-message--success {
-  background: var(--admin-success-muted);
-  border-color: var(--admin-success);
-  color: var(--admin-text);
-}
-
-.admin-message--warning {
-  background: var(--admin-warning-muted);
-  border-color: var(--admin-warning);
-  color: var(--admin-text);
-}
-
-.admin-message--error {
-  background: var(--admin-danger-muted);
-  border-color: var(--admin-danger);
-  color: var(--admin-text);
-}
-
-.admin-message--debug,
-.admin-message--info {
-  background: var(--admin-accent-muted);
-  border-color: var(--admin-accent);
   color: var(--admin-text);
 }
 

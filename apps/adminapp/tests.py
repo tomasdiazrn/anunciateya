@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from apps.categories.models import Category
 from apps.core.models import NewsletterSubscriber
-from apps.listings.models import Listing
+from apps.listings.models import Listing, MarketZone
 from apps.users.models import User, UserLoginOTP, UserVerification
 
 from .hosting import (
@@ -161,6 +161,7 @@ class AdminAccessTests(TestCase):
             password="ignored",
             is_active=True,
         )
+        self.zone = MarketZone.objects.get(slug="otro-guayaquil")
 
     def _request_code(self, email="admin@example.com", code="123456"):
         with patch("apps.users.otp_auth.generate_user_otp_code", return_value=code):
@@ -357,7 +358,7 @@ class AdminAccessTests(TestCase):
             title="Visible admin listing",
             description="Listing shown in the custom admin table.",
             price_amount="10.00",
-            location="Montevideo Centro",
+            zone=MarketZone.objects.get(slug="centro"),
             seller=self.user,
             category=category,
             status=Listing.Status.PUBLISHED,
@@ -431,6 +432,7 @@ class AdminAccessTests(TestCase):
             title="Auto filtrado",
             description="Listing matching the selected category.",
             price_amount="10.00",
+            zone=self.zone,
             seller=self.user,
             category=vehicles,
             status=Listing.Status.PUBLISHED,
@@ -439,6 +441,7 @@ class AdminAccessTests(TestCase):
             title="Casa filtrada",
             description="Listing outside the selected category.",
             price_amount="20.00",
+            zone=self.zone,
             seller=self.user,
             category=property_category,
             status=Listing.Status.PUBLISHED,
@@ -463,6 +466,7 @@ class AdminAccessTests(TestCase):
             title="Anuncio activo",
             description="Published listing shown as active.",
             price_amount="10.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.PUBLISHED,
@@ -471,6 +475,7 @@ class AdminAccessTests(TestCase):
             title="Anuncio borrador",
             description="Draft listing hidden from active filter.",
             price_amount="20.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.DRAFT,
@@ -479,6 +484,7 @@ class AdminAccessTests(TestCase):
             title="Anuncio archivado",
             description="Archived listing hidden from active filter.",
             price_amount="30.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.ARCHIVED,
@@ -512,7 +518,7 @@ class AdminAccessTests(TestCase):
             title="Admin detail listing",
             description="Listing rendered in the dedicated admin detail view.",
             price_amount="42.00",
-            location="Quito Norte",
+            zone=MarketZone.objects.get(slug="norte-centro"),
             seller=self.user,
             category=category,
             status=Listing.Status.PUBLISHED,
@@ -528,7 +534,7 @@ class AdminAccessTests(TestCase):
         self.assertEqual(response.context["admin_section"], "listings")
         self.assertContains(response, "Admin detail listing")
         self.assertContains(response, "Detail category")
-        self.assertContains(response, "Quito Norte")
+        self.assertContains(response, "Norte centro")
         self.assertContains(response, "user@example.com")
         self.assertContains(response, "Ver anuncio público")
         self.assertContains(response, f'href="{listing.get_absolute_url()}"')
@@ -548,6 +554,7 @@ class AdminAccessTests(TestCase):
             title="Toggle me",
             description="Listing visibility toggled from the status column.",
             price_amount="15.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.PUBLISHED,
@@ -572,6 +579,7 @@ class AdminAccessTests(TestCase):
             title="Archive me",
             description="Listing archived from the actions column.",
             price_amount="15.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.PUBLISHED,
@@ -603,6 +611,7 @@ class AdminAccessTests(TestCase):
             title="Unarchive me",
             description="Listing restored from the actions column.",
             price_amount="15.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.ARCHIVED,
@@ -630,6 +639,7 @@ class AdminAccessTests(TestCase):
             title="No archive from status",
             description="Archived status must be handled by the action endpoint.",
             price_amount="15.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.PUBLISHED,
@@ -656,6 +666,7 @@ class AdminAccessTests(TestCase):
             title="Delete me listing",
             description="Listing removed from the admin table.",
             price_amount="15.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.PUBLISHED,
@@ -787,6 +798,7 @@ class AdminAccessTests(TestCase):
             title="User listing",
             description="Listing created for admin table tests.",
             price_amount="10.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.PUBLISHED,
@@ -850,6 +862,7 @@ class AdminAccessTests(TestCase):
             title="Visible listing",
             description="Listing that should be mentioned in the confirmation.",
             price_amount="10.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.PUBLISHED,
@@ -872,6 +885,7 @@ class AdminAccessTests(TestCase):
             title="Active listing",
             description="Listing that should be archived when user is deactivated.",
             price_amount="10.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.PUBLISHED,
@@ -880,6 +894,7 @@ class AdminAccessTests(TestCase):
             title="Hidden listing",
             description="Listing that should remain hidden.",
             price_amount="20.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.ARCHIVED,
@@ -910,6 +925,7 @@ class AdminAccessTests(TestCase):
             title="Archived listing",
             description="Listing that should remain archived after reactivation.",
             price_amount="10.00",
+            zone=self.zone,
             seller=self.user,
             category=category,
             status=Listing.Status.ARCHIVED,

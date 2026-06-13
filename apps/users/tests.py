@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from apps.categories.models import Category
 from apps.listings.listing_card_dto import build_card_context
-from apps.listings.models import Listing, ListingLead
+from apps.listings.models import Listing, ListingLead, MarketZone
 
 from .forms import RegisterStepOneForm, UserCreationForm
 from .models import User, UserLoginOTP, UserVerification
@@ -335,6 +335,7 @@ class AccountContactPreferenceTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.category = Category.objects.create(name="Hogar", slug="hogar")
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -356,7 +357,7 @@ class AccountContactPreferenceTests(TestCase):
             description="Silla en buen estado",
             price_amount="35.00",
             currency="USD",
-            location="Guayaquil",
+            zone=self.zone,
             seller=self.user,
             category=self.category,
             status=Listing.Status.PUBLISHED,

@@ -128,6 +128,11 @@ select.form-control {
   box-shadow: 0 0 0 3px rgba(214, 64, 69, 0.15);
 }
 
+.custom-select__trigger[aria-invalid="true"] {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px rgba(214, 64, 69, 0.15);
+}
+
 select.form-control {
   cursor: pointer;
 }
@@ -359,6 +364,69 @@ select.form-control {
   accent-color: var(--color-primary);
 }
 
+.account-contact-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.stack-form .field .account-contact-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: fit-content;
+  margin-bottom: 0;
+}
+
+.account-contact-checkbox__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.account-contact-checkbox__box {
+  display: inline-grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-success-text);
+}
+
+.account-contact-checkbox__check {
+  font-size: 0.7rem;
+  line-height: 1;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.account-contact-checkbox__input:checked + .account-contact-checkbox__box {
+  border-color: var(--color-success-text);
+  background: var(--color-success-bg);
+}
+
+.account-contact-checkbox__input:checked + .account-contact-checkbox__box .account-contact-checkbox__check {
+  opacity: 1;
+  visibility: visible;
+}
+
+.account-contact-checkbox__input:focus-visible + .account-contact-checkbox__box {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.account-contact-checkbox__text {
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
 .form-errors,
 .errorlist {
   color: var(--color-error);
@@ -485,6 +553,11 @@ select.form-control {
     align-items: end;
   }
 
+  .property-specific__row--coordinates {
+    grid-template-columns: 9rem 9rem;
+    align-items: end;
+  }
+
   .vehicle-specific__row--year-km {
     grid-template-columns: 7.5rem minmax(0, 1fr);
     align-items: end;
@@ -575,7 +648,7 @@ select.form-control {
   max-width: 10rem;
 }
 
-.property-specific__row--furnished-state .field--checkbox-inline {
+.field--checkbox-inline {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
@@ -584,8 +657,56 @@ select.form-control {
   margin-bottom: 0;
 }
 
-.property-specific__row--furnished-state .field--checkbox-inline > label {
+.field--checkbox-inline > label {
   margin-bottom: 0;
+}
+
+.listing-location-fields {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.listing-location-fields[hidden] {
+  display: none !important;
+}
+
+.property-address-geocoder {
+  position: relative;
+}
+
+.property-address-geocoder__suggestions {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% - 0.35rem);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0.35rem 0;
+  list-style: none;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.property-address-geocoder__option {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.property-address-geocoder__option:hover,
+.property-address-geocoder__option:focus-visible {
+  background: var(--color-primary-faint);
+  outline: none;
 }
 
 /* Precio: símbolo $ solo visual */
@@ -734,6 +855,18 @@ select.form-control {
   overflow: hidden;
   aspect-ratio: 1 / 1;
   box-shadow: var(--shadow-sm);
+  cursor: grab;
+  transition:
+    box-shadow var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.image-preview.is-dragging {
+  opacity: 0.72;
+  cursor: grabbing;
+  transform: scale(0.98);
+  box-shadow: var(--shadow-md);
 }
 
 .image-preview__remove {
@@ -767,6 +900,43 @@ select.form-control {
   transform: scale(1.04);
 }
 
+.image-preview__order-actions {
+  position: absolute;
+  right: 0.35rem;
+  bottom: 0.35rem;
+  z-index: 2;
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.image-preview__order-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-text);
+  font: 700 0.85rem/1 var(--font-body);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.image-preview__order-btn:hover,
+.image-preview__order-btn:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-muted);
+}
+
+.image-preview__order-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
 .image-preview__badge {
   position: absolute;
   left: 0.35rem;
@@ -779,6 +949,10 @@ select.form-control {
   font: 600 0.68rem/1.2 var(--font-body);
   letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+
+.image-preview__badge--cover {
+  background: var(--color-primary);
 }
 
 .image-preview--existing {

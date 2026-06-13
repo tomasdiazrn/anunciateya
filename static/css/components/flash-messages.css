@@ -1,0 +1,63 @@
+/*
+ * Avisos flash (django.contrib.messages) — un solo sistema en todo el sitio.
+ * Markup: templates/components/messages.html
+ */
+
+.auth-messages {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0 0 var(--space-3);
+}
+
+.auth-message {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.auth-message--info {
+  border-color: rgba(48, 189, 105, 0.24);
+  background: rgba(48, 189, 105, 0.08);
+}
+
+.auth-message--success {
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+}
+
+.auth-message--warning {
+  border-color: rgba(245, 158, 11, 0.34);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.auth-message--error {
+  border-color: rgba(214, 64, 69, 0.28);
+  background: rgba(214, 64, 69, 0.08);
+  color: var(--color-error);
+}
+
+/* Sitio público (base.html) */
+.site-main > .auth-messages {
+  width: min(var(--layout-content-max-width), 100% - 2 * var(--space-2));
+  margin-inline: auto;
+  margin-bottom: var(--space-3);
+}
+
+@media (max-width: 799px) {
+  .site-main > .auth-messages {
+    width: min(var(--layout-content-max-width), 100% - 2 * var(--space-1));
+  }
+}
+
+/* Mi cuenta (account_app.html) */
+.account-app-main > .auth-messages {
+  flex-shrink: 0;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}

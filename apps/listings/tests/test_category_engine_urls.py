@@ -50,7 +50,8 @@ class CategoryEngineURLTests(TestCase):
         response = self.client.get("/anuncios/")
 
         self.assertContains(response, 'aria-label="Filtrar anuncios por categoría"')
-        self.assertContains(response, 'data-href="/autos/"')
+        self.assertContains(response, 'name="category"')
+        self.assertContains(response, 'name="area"')
 
     def test_browse_category_query_redirects_to_hub(self) -> None:
         response = self.client.get("/anuncios/?category=autos", follow=False)
@@ -64,7 +65,16 @@ class CategoryEngineURLTests(TestCase):
         self.assertEqual(response.status_code, 301)
         self.assertEqual(response["Location"], "/autos/?q=toyota")
 
-    def test_browse_category_query_drops_legacy_location(self) -> None:
+    def test_browse_category_query_preserves_area(self) -> None:
+        response = self.client.get(
+            "/anuncios/?category=autos&area=urdesa",
+            follow=False,
+        )
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], "/autos/?area=urdesa")
+
+    def test_browse_category_query_drops_noncanonical_location(self) -> None:
         response = self.client.get(
             "/anuncios/?category=autos&location=guayaquil",
             follow=False,

@@ -31,6 +31,7 @@ from .models import (
     ListingLead,
     MarketBrand,
     MarketModel,
+    MarketZone,
     MotorcycleListing,
     PropertyListing,
     VehicleListing,
@@ -38,7 +39,10 @@ from .models import (
 from .market_taxonomy import market_brand_queryset, market_model_queryset
 
 # Parámetros GET del filtro de autos (MVP).
+LOCATION_FILTER_GET_KEYS = ("area",)
+
 VEHICLE_FILTER_GET_KEYS = (
+    *LOCATION_FILTER_GET_KEYS,
     "brand",
     "model",
     "year_from",
@@ -50,6 +54,7 @@ VEHICLE_FILTER_GET_KEYS = (
 
 # Parámetros GET del filtro de inmuebles (MVP). `operation` y `operacion` son alias.
 PROPERTY_FILTER_GET_KEYS = (
+    *LOCATION_FILTER_GET_KEYS,
     "tipo",
     "operation",
     "operacion",
@@ -60,6 +65,7 @@ PROPERTY_FILTER_GET_KEYS = (
 )
 
 MOTORCYCLE_FILTER_GET_KEYS = (
+    *LOCATION_FILTER_GET_KEYS,
     "brand",
     "model",
     "year_from",
@@ -76,6 +82,7 @@ MOTORCYCLE_FILTER_GET_KEYS = (
 )
 
 ELECTRONICS_FILTER_GET_KEYS = (
+    *LOCATION_FILTER_GET_KEYS,
     "item_type",
     "brand",
     "model",
@@ -86,6 +93,7 @@ ELECTRONICS_FILTER_GET_KEYS = (
 )
 
 HOME_FILTER_GET_KEYS = (
+    *LOCATION_FILTER_GET_KEYS,
     "item_type",
     "brand",
     "model",
@@ -186,7 +194,7 @@ def compute_listing_quality_score(listing: Listing) -> float:
         score += 1.0
     if listing.price_amount is not None:
         score += 1.0
-    if (listing.location or "").strip():
+    if (listing.public_location or "").strip():
         score += 1.0
     score += _extension_complete_bonus(listing)
     return float(score)
@@ -253,6 +261,36 @@ def record_listing_whatsapp_lead(listing: Listing, buyer_user=None) -> ListingLe
     )
 
 
+def market_zone_queryset() -> QuerySet[MarketZone]:
+    return MarketZone.objects.filter(is_active=True).order_by("sort_order", "name")
+
+
+def _market_zone_by_slug(area_slug: str | None) -> MarketZone | None:
+    slug = (area_slug or "").strip()
+    if not slug:
+        return None
+    return MarketZone.objects.filter(slug=slug, is_active=True).first()
+
+
+def parse_location_filter_params(get_params: QueryDict) -> dict:
+    zone = _market_zone_by_slug(get_params.get("area"))
+    return {
+        "area": zone.slug if zone else None,
+        "area_name": zone.name if zone else None,
+        "zone_id": zone.pk if zone else None,
+    }
+
+
+def apply_location_filter(qs: QuerySet, parsed: dict) -> QuerySet:
+    if parsed.get("zone_id"):
+        return qs.filter(zone_id=parsed["zone_id"])
+    return qs
+
+
+def location_browse_filters_active(parsed: dict) -> bool:
+    return bool(parsed and parsed.get("zone_id"))
+
+
 def parse_property_list_filter_params(get_params: QueryDict) -> dict:
     """Lee GET para filtros de inmuebles; valores inválidos → None (se ignoran)."""
     tipo_raw = (get_params.get("tipo") or "").strip()
@@ -272,6 +310,7 @@ def parse_property_list_filter_params(get_params: QueryDict) -> dict:
         price_from, price_to = price_to, price_from
 
     return {
+        **parse_location_filter_params(get_params),
         "property_type": property_type,
         "operation_type": operation_type,
         "rooms_min": rooms_min,
@@ -283,6 +322,7 @@ def parse_property_list_filter_params(get_params: QueryDict) -> dict:
 
 def apply_property_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
     """Restringe queryset según PropertyListing. Llamar solo con categoría inmuebles."""
+    qs = apply_location_filter(qs, parsed)
     if parsed.get("property_type"):
         qs = qs.filter(property__property_type=parsed["property_type"])
     if parsed.get("operation_type"):
@@ -387,6 +427,7 @@ def parse_motorcycle_list_filter_params(get_params: QueryDict) -> dict:
         price_from, price_to = price_to, price_from
 
     return {
+        **parse_location_filter_params(get_params),
         "brand": brand,
         "model": model,
         "brand_id": brand_id,
@@ -407,6 +448,7 @@ def parse_motorcycle_list_filter_params(get_params: QueryDict) -> dict:
 
 def apply_motorcycle_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
     """Restringe queryset según MotorcycleListing. Solo categoría motos."""
+    qs = apply_location_filter(qs, parsed)
     if parsed.get("brand_id"):
         qs = qs.filter(motorcycle__brand_fk_id=parsed["brand_id"])
     if parsed.get("model_id"):
@@ -464,6 +506,7 @@ def parse_electronics_list_filter_params(get_params: QueryDict) -> dict:
     if price_from is not None and price_to is not None and price_from > price_to:
         price_from, price_to = price_to, price_from
     return {
+        **parse_location_filter_params(get_params),
         "item_type": item_type,
         "brand": brand,
         "model": model,
@@ -477,6 +520,7 @@ def parse_electronics_list_filter_params(get_params: QueryDict) -> dict:
 
 
 def apply_electronics_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
+    qs = apply_location_filter(qs, parsed)
     if parsed.get("item_type"):
         qs = qs.filter(electronics__item_type=parsed["item_type"])
     if parsed.get("brand_id"):
@@ -508,6 +552,8 @@ def apply_electronics_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
 def electronics_browse_filters_active(parsed: dict) -> bool:
     if not parsed:
         return False
+    if location_browse_filters_active(parsed):
+        return True
     if parsed.get("item_type"):
         return True
     if parsed.get("brand"):
@@ -585,7 +631,7 @@ def build_electronics_browse_heading(
             head = f"{head} · desde USD {pf}"
         elif pt is not None:
             head = f"{head} · hasta USD {pt}"
-    return f"{head} en {city}"
+    return f"{head} en {_market_place_label(city, parsed)}"
 
 
 def build_electronics_meta_description(
@@ -616,6 +662,7 @@ def parse_home_filters(get_params: QueryDict) -> dict:
     if price_from is not None and price_to is not None and price_from > price_to:
         price_from, price_to = price_to, price_from
     return {
+        **parse_location_filter_params(get_params),
         "item_type": item_type,
         "brand": brand or None,
         "model": model or None,
@@ -628,6 +675,7 @@ def parse_home_filters(get_params: QueryDict) -> dict:
 
 
 def apply_home_filters(qs: QuerySet, parsed: dict) -> QuerySet:
+    qs = apply_location_filter(qs, parsed)
     if parsed.get("item_type"):
         qs = qs.filter(homegoods__item_type=parsed["item_type"])
     if parsed.get("brand_id"):
@@ -650,6 +698,8 @@ def apply_home_filters(qs: QuerySet, parsed: dict) -> QuerySet:
 def home_browse_filters_active(parsed: dict) -> bool:
     if not parsed:
         return False
+    if location_browse_filters_active(parsed):
+        return True
     if parsed.get("item_type"):
         return True
     if parsed.get("brand"):
@@ -720,7 +770,7 @@ def build_home_browse_heading(
             head = f"{head} · desde USD {pf}"
         elif pt is not None:
             head = f"{head} · hasta USD {pt}"
-    return f"{head} en {city}"
+    return f"{head} en {_market_place_label(city, parsed)}"
 
 
 def build_home_meta_description(
@@ -817,6 +867,7 @@ def parse_vehicle_list_filter_params(get_params: QueryDict) -> dict:
     transmission = tx_raw if tx_raw in valid_tx else None
 
     return {
+        **parse_location_filter_params(get_params),
         "brand": brand,
         "model": model,
         "brand_id": brand_id,
@@ -834,6 +885,7 @@ def apply_vehicle_list_filters(qs: QuerySet, parsed: dict) -> QuerySet:
     Restringe queryset a anuncios con VehicleListing según filtros validados.
     Llamar solo cuando la categoría ya está acotada a autos.
     """
+    qs = apply_location_filter(qs, parsed)
     if parsed.get("brand_id"):
         qs = qs.filter(vehicle__brand_fk_id=parsed["brand_id"])
     if parsed.get("model_id"):
@@ -862,6 +914,7 @@ def vehicle_browse_filters_active(parsed: dict) -> bool:
     return any(
         parsed.get(k)
         for k in (
+            "zone_id",
             "brand_id",
             "model_id",
             "year_from",
@@ -880,6 +933,7 @@ def property_browse_filters_active(parsed: dict) -> bool:
     return any(
         parsed.get(k)
         for k in (
+            "zone_id",
             "property_type",
             "operation_type",
             "rooms_min",
@@ -896,6 +950,7 @@ def motorcycle_browse_filters_active(parsed: dict) -> bool:
     return any(
         parsed.get(k)
         for k in (
+            "zone_id",
             "brand_id",
             "model_id",
             "year_from",
@@ -997,6 +1052,13 @@ def build_category_hero(
     return title, subtitle
 
 
+def _market_place_label(city: str, parsed: dict) -> str:
+    area_name = (parsed.get("area_name") or "").strip()
+    if area_name:
+        return f"{area_name}, {city}"
+    return city
+
+
 def build_autos_browse_heading(
     *,
     city: str,
@@ -1033,7 +1095,7 @@ def build_autos_browse_heading(
             head = f"{head} · desde USD {pf}"
         elif pt is not None:
             head = f"{head} · hasta USD {pt}"
-    return f"{head} en {city}"
+    return f"{head} en {_market_place_label(city, parsed)}"
 
 
 def build_autos_meta_description(
@@ -1076,7 +1138,8 @@ def build_property_browse_heading(
     }
     suffix = operation_suffixes.get(op, "")
 
-    head = f"{base} {suffix} en {city}" if suffix else f"{base} en {city}"
+    place = _market_place_label(city, parsed)
+    head = f"{base} {suffix} en {place}" if suffix else f"{base} en {place}"
 
     if parsed.get("price_from") or parsed.get("price_to"):
         pf = parsed.get("price_from")
@@ -1156,7 +1219,7 @@ def build_motorcycle_browse_heading(
             head = f"{head} · desde USD {pf}"
         elif pt is not None:
             head = f"{head} · hasta USD {pt}"
-    return f"{head} en {city}"
+    return f"{head} en {_market_place_label(city, parsed)}"
 
 
 def build_motorcycle_meta_description(
@@ -1176,7 +1239,7 @@ def user_listings_queryset(user):
     """Dashboard: all listings for a seller."""
     return (
         Listing.objects.filter(seller=user)
-        .select_related("category")
+        .select_related("category", "zone")
         .prefetch_related("images")
         .order_by("-created_at")
     )
@@ -1187,6 +1250,7 @@ def get_owned_listing(user, slug):
     return get_object_or_404(
         Listing.objects.select_related(
             "category",
+            "zone",
             "seller",
             "vehicle",
             "property",
@@ -1327,6 +1391,33 @@ def parse_remove_image_ids(post_data) -> list[int]:
     return ids
 
 
+NEW_IMAGE_ORDER_TOKEN = "__new__"
+
+
+def parse_listing_image_order(post_data) -> list[int | None]:
+    """Orden enviado por el editor: IDs existentes y placeholders de fotos nuevas."""
+    order: list[int | None] = []
+    seen_existing: set[int] = set()
+    for raw in post_data.getlist("image_order"):
+        for part in str(raw).split(","):
+            token = part.strip()
+            if not token:
+                continue
+            if token == NEW_IMAGE_ORDER_TOKEN:
+                order.append(None)
+                continue
+            if token.startswith("existing:"):
+                token = token.removeprefix("existing:")
+            if not token.isdigit():
+                continue
+            image_id = int(token)
+            if image_id in seen_existing:
+                continue
+            seen_existing.add(image_id)
+            order.append(image_id)
+    return order
+
+
 def resolve_listing_image_removals(listing: Listing, remove_ids: list[int]) -> list[int]:
     """Solo IDs que pertenecen al anuncio (ignora IDs ajenos o inválidos)."""
     if not remove_ids:
@@ -1337,6 +1428,52 @@ def resolve_listing_image_removals(listing: Listing, remove_ids: list[int]) -> l
             id__in=remove_ids,
         ).values_list("id", flat=True)
     )
+
+
+def apply_listing_image_order(
+    listing: Listing,
+    image_order: list[int | None],
+    new_images: list[ListingImage] | None = None,
+) -> None:
+    """Normaliza sort_order respetando ownership y dejando fotos no mencionadas al final."""
+    if not image_order:
+        return
+    existing = list(
+        ListingImage.objects.filter(listing_id=listing.pk).order_by("sort_order", "id")
+    )
+    if not existing:
+        return
+
+    by_id = {img.pk: img for img in existing}
+    pending_new = list(new_images or [])
+    ordered: list[ListingImage] = []
+    seen: set[int] = set()
+
+    for token in image_order:
+        img = None
+        if token is None:
+            img = pending_new.pop(0) if pending_new else None
+        else:
+            img = by_id.get(token)
+        if not img or img.pk in seen:
+            continue
+        ordered.append(img)
+        seen.add(img.pk)
+
+    for img in existing:
+        if img.pk in seen:
+            continue
+        ordered.append(img)
+        seen.add(img.pk)
+
+    changed: list[ListingImage] = []
+    for idx, img in enumerate(ordered):
+        if img.sort_order == idx:
+            continue
+        img.sort_order = idx
+        changed.append(img)
+    if changed:
+        ListingImage.objects.bulk_update(changed, ["sort_order"])
 
 
 def remove_listing_images(listing: Listing, image_ids: list[int]) -> int:
@@ -1373,20 +1510,22 @@ def commit_listing_image_changes(request: HttpRequest, listing: Listing) -> None
         listing, parse_remove_image_ids(request.POST)
     )
     remove_listing_images(listing, remove_ids)
+    image_order = parse_listing_image_order(request.POST)
     agg = listing.images.aggregate(mx=Max("sort_order"))
     start_order = (agg["mx"] if agg["mx"] is not None else -1) + 1
-    attach_listing_images(
+    new_images = create_listing_images(
         listing,
         request.FILES.getlist("images"),
         start_order=start_order,
     )
+    apply_listing_image_order(listing, image_order, new_images)
 
 
-def attach_listing_images(listing, files, start_order: int = 0) -> int:
-    """Create ListingImage rows from uploaded file list; returns new count."""
+def create_listing_images(listing, files, start_order: int = 0) -> list[ListingImage]:
+    """Create ListingImage rows from uploaded file list; returns created rows."""
     from .image_processing import generate_listing_image_variants
 
-    count = 0
+    created: list[ListingImage] = []
     for idx, f in enumerate(files):
         if not f:
             continue
@@ -1418,5 +1557,10 @@ def attach_listing_images(listing, files, start_order: int = 0) -> int:
         except Exception:
             # Keep original upload; variants remain null.
             pass
-        count += 1
-    return count
+        created.append(li)
+    return created
+
+
+def attach_listing_images(listing, files, start_order: int = 0) -> int:
+    """Create ListingImage rows from uploaded file list; returns new count."""
+    return len(create_listing_images(listing, files, start_order=start_order))

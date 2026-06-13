@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from apps.categories.models import Category
-from apps.listings.models import Listing
+from apps.listings.models import Listing, MarketZone
 
 User = get_user_model()
 
@@ -15,6 +15,7 @@ class ListingNotFoundTests(TestCase):
             password="test-pass-123",
         )
         cls.category = Category.objects.create(name="Hogar", slug="hogar")
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
 
     def _listing(self, status):
         return Listing.objects.create(
@@ -22,7 +23,7 @@ class ListingNotFoundTests(TestCase):
             description="Detalle breve",
             price_amount="100.00",
             currency="USD",
-            location="Guayaquil",
+            zone=self.zone,
             seller=self.seller,
             category=self.category,
             status=status,

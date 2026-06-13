@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from django import forms
 from django.utils.safestring import mark_safe
@@ -12,6 +13,11 @@ from .category_extensions import (
     PROPERTY_SLUG,
     VEHICLE_SLUG,
 )
+from .location_geocoding import (
+    MAPBOX_PROVIDER,
+    apply_mapbox_geocoding_metadata,
+    coordinates_within_ecuador,
+)
 from .models import (
     ElectronicsItemType,
     ElectronicsListing,
@@ -21,6 +27,7 @@ from .models import (
     Listing,
     MarketBrand,
     MarketModel,
+    MarketZone,
     MotorcycleListing,
     PropertyListing,
     VehicleListing,
@@ -41,7 +48,7 @@ _DEFAULT_LISTING_PLACEHOLDERS = {
     "title": "Artículo en buen estado, listo para entregar",
     "description": "Estado, medidas, uso, entrega o retiro, forma de pago…",
     "price_amount": "120",
-    "location": "Urdesa, Guayaquil",
+    "location_reference": "Ej. frente al parque o punto de encuentro",
 }
 
 _CATEGORY_LISTING_PLACEHOLDERS = {
@@ -49,7 +56,7 @@ _CATEGORY_LISTING_PLACEHOLDERS = {
         "title": "Toyota Corolla 2018 automático, excelente estado",
         "description": "Kilometraje, mantenimiento, extras, papeles y forma de pago…",
         "price_amount": "18500",
-        "location": "Urdesa, Guayaquil",
+        "location_reference": "Ej. cerca de San Marino",
     },
     PROPERTY_SLUG: {
         "title": "Casa 3 habitaciones en Samborondón",
@@ -57,25 +64,25 @@ _CATEGORY_LISTING_PLACEHOLDERS = {
             "Ambientes, metros, amenities, estado del inmueble y condiciones…"
         ),
         "price_amount": "85000",
-        "location": "Samborondón, Guayaquil",
+        "location_reference": "Ej. conjunto cerrado, km 5",
     },
     MOTORCYCLE_SLUG: {
         "title": "Honda CB 190R 2021, papeles al día",
         "description": "Cilindrada, kilometraje, mantenimiento, accesorios y papeles…",
         "price_amount": "3200",
-        "location": "Alborada, Guayaquil",
+        "location_reference": "Ej. retiro en centro comercial",
     },
     ELECTRONICS_SLUG: {
         "title": "iPhone 13 Pro 128 GB en excelente estado",
         "description": "Estado, accesorios incluidos, garantía, batería y detalles…",
         "price_amount": "520",
-        "location": "Ceibos, Guayaquil",
+        "location_reference": "Ej. entrega en mall o parque",
     },
     HOMEGOODS_SLUG: {
         "title": "Sofá de 3 cuerpos en buen estado",
         "description": "Medidas, material, estado, tiempo de uso, retiro o entrega…",
         "price_amount": "180",
-        "location": "Kennedy, Guayaquil",
+        "location_reference": "Ej. retirar en edificio con ascensor",
     },
 }
 
@@ -157,6 +164,21 @@ class ListingInterestForm(forms.Form):
 class BaseListingForm(forms.ModelForm):
     """Campos comunes del anuncio (sin categoría; la fija la URL o la vista)."""
 
+    add_location = forms.BooleanField(
+        label="Agregar ubicación",
+        required=False,
+        widget=forms.CheckboxInput(attrs={"class": "account-contact-checkbox__input"}),
+    )
+    zone = forms.ModelChoiceField(
+        label="Ubicación",
+        queryset=MarketZone.objects.none(),
+        empty_label="Selecciona ubicación",
+        required=False,
+        error_messages={
+            "invalid_choice": "Elige una ubicación válida.",
+        },
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
     publish_state = forms.ChoiceField(
         label="Publicación",
         choices=[
@@ -178,14 +200,16 @@ class BaseListingForm(forms.ModelForm):
             "description",
             "price_amount",
             "currency",
-            "location",
+            "zone",
+            "location_reference",
         ]
         labels = {
             "title": "Título del anuncio",
             "description": "Descripción",
             "price_amount": "Precio",
             "currency": "Moneda",
-            "location": "Ubicación",
+            "zone": "Ubicación",
+            "location_reference": "Referencia",
         }
         help_texts = {
             "title": (
@@ -193,7 +217,8 @@ class BaseListingForm(forms.ModelForm):
             ),
             "description": "Describe el artículo, defectos, entrega o retiro.",
             "price_amount": "",
-            "location": "Ciudad, sector o punto de encuentro (obligatorio).",
+            "zone": "",
+            "location_reference": "Opcional: punto de encuentro o referencia cercana.",
         }
         error_messages = {
             "title": {
@@ -207,9 +232,8 @@ class BaseListingForm(forms.ModelForm):
                 "required": _MSG_REQUIRED,
                 "invalid": "Introduce un precio válido.",
             },
-            "location": {
-                "required": _MSG_REQUIRED,
-                "max_length": "La ubicación no puede superar %(limit_value)d caracteres.",
+            "location_reference": {
+                "max_length": "La referencia no puede superar %(limit_value)d caracteres.",
             },
         }
         widgets = {
@@ -240,10 +264,10 @@ class BaseListingForm(forms.ModelForm):
                     **_DIGITS_ONLY_ATTRS,
                 }
             ),
-            "location": forms.TextInput(
+            "location_reference": forms.TextInput(
                 attrs={
                     "class": "form-control",
-                    "placeholder": _DEFAULT_LISTING_PLACEHOLDERS["location"],
+                    "placeholder": _DEFAULT_LISTING_PLACEHOLDERS["location_reference"],
                 }
             ),
         }
@@ -253,8 +277,9 @@ class BaseListingForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         title_f = Listing._meta.get_field("title")
         self.fields["title"].widget.attrs["maxlength"] = title_f.max_length
-        loc_f = Listing._meta.get_field("location")
-        self.fields["location"].widget.attrs["maxlength"] = loc_f.max_length
+        ref_f = Listing._meta.get_field("location_reference")
+        self.fields["location_reference"].widget.attrs["maxlength"] = ref_f.max_length
+        self.fields["zone"].queryset = MarketZone.objects.filter(is_active=True)
         self.fields["currency"].widget = forms.HiddenInput()
         self.fields["currency"].required = False
         if not self.instance.pk:
@@ -264,6 +289,13 @@ class BaseListingForm(forms.ModelForm):
             self.fields["publish_state"].initial = (
                 self.instance.status or Listing.Status.DRAFT
             )
+        self.fields["add_location"].initial = bool(
+            self.instance.pk
+            and (
+                getattr(self.instance, "zone_id", None)
+                or (self.instance.location_reference or "").strip()
+            )
+        )
         if not category_slug and getattr(self.instance, "category_id", None):
             category_slug = getattr(self.instance.category, "slug", None)
         self._apply_category_placeholders(category_slug)
@@ -285,11 +317,25 @@ class BaseListingForm(forms.ModelForm):
             raise forms.ValidationError("Ingresa un precio mayor que cero.")
         return value
 
-    def clean_location(self):
-        loc = (self.cleaned_data.get("location") or "").strip()
-        if not loc:
-            raise forms.ValidationError("La ubicación es obligatoria.")
-        return loc
+    def clean_location_reference(self):
+        return (self.cleaned_data.get("location_reference") or "").strip()
+
+    def clean(self):
+        cleaned = super().clean()
+        explicit_location_toggle = "add_location_present" in self.data
+        add_location = bool(cleaned.get("add_location"))
+        zone = cleaned.get("zone")
+        reference = (cleaned.get("location_reference") or "").strip()
+        if not explicit_location_toggle and (zone is not None or reference):
+            add_location = True
+            cleaned["add_location"] = True
+        if not add_location:
+            cleaned["zone"] = None
+            cleaned["location_reference"] = ""
+            return cleaned
+        if zone is None:
+            self.add_error("zone", "Elige la ubicación del anuncio.")
+        return cleaned
 
 
 class ListingForm(BaseListingForm):
@@ -302,7 +348,8 @@ class ListingForm(BaseListingForm):
             "price_amount",
             "currency",
             "category",
-            "location",
+            "zone",
+            "location_reference",
         ]
         labels = {
             **BaseListingForm.Meta.labels,
@@ -513,6 +560,13 @@ class PropertyListingForm(forms.ModelForm):
             "parking_spaces",
             "furnished",
             "property_condition",
+            "address_line",
+            "address_place_label",
+            "location_precision",
+            "latitude",
+            "longitude",
+            "geocoding_provider",
+            "geocoding_place_id",
         ]
         labels = {
             "property_type": "Tipo de propiedad",
@@ -523,6 +577,11 @@ class PropertyListingForm(forms.ModelForm):
             "parking_spaces": "Parqueaderos",
             "furnished": "Amoblado",
             "property_condition": "Estado",
+            "address_line": "Dirección del inmueble",
+            "address_place_label": "Nombre del lugar o edificio",
+            "location_precision": "Visibilidad de ubicación",
+            "latitude": "Latitud",
+            "longitude": "Longitud",
         }
         help_texts = {name: "" for name in fields}
         error_messages = {
@@ -545,6 +604,9 @@ class PropertyListingForm(forms.ModelForm):
             "operation_type": {"invalid_choice": "Elegí una opción válida."},
             "property_condition": {"invalid_choice": "Elegí una opción válida."},
             "parking_spaces": {"invalid": "Introduce un número válido."},
+            "location_precision": {"invalid_choice": "Elegí una opción válida."},
+            "latitude": {"invalid": "Introduce una latitud válida."},
+            "longitude": {"invalid": "Introduce una longitud válida."},
         }
         widgets = {
             "property_type": forms.Select(attrs={"class": "form-control"}),
@@ -593,6 +655,24 @@ class PropertyListingForm(forms.ModelForm):
                 attrs={"class": "checkbox-input"}
             ),
             "property_condition": forms.Select(attrs={"class": "form-control"}),
+            "address_line": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "autocomplete": "street-address",
+                    "placeholder": "Ej. Av. Samborondón km 5, conjunto privado",
+                }
+            ),
+            "address_place_label": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Ej. Edificio Central Park",
+                }
+            ),
+            "location_precision": forms.HiddenInput(),
+            "latitude": forms.HiddenInput(),
+            "longitude": forms.HiddenInput(),
+            "geocoding_provider": forms.HiddenInput(),
+            "geocoding_place_id": forms.HiddenInput(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -614,6 +694,14 @@ class PropertyListingForm(forms.ModelForm):
             PropertyListing.PropertyConditionChoice.choices,
         )
         self.fields["parking_spaces"].required = False
+        self.fields["address_line"].required = False
+        self.fields["address_place_label"].required = False
+        self.fields["latitude"].required = False
+        self.fields["longitude"].required = False
+        self.fields["location_precision"].required = False
+        self.fields["geocoding_provider"].required = False
+        self.fields["geocoding_place_id"].required = False
+        self.fields["location_precision"].choices = PropertyListing.LocationPrecision.choices
 
     def clean_operation_type(self):
         v = self.cleaned_data.get("operation_type")
@@ -658,6 +746,81 @@ class PropertyListingForm(forms.ModelForm):
         if v < 1:
             raise forms.ValidationError("La superficie debe ser mayor que cero.")
         return v
+
+    def clean_address_line(self):
+        return (self.cleaned_data.get("address_line") or "").strip()
+
+    def clean_address_place_label(self):
+        return (self.cleaned_data.get("address_place_label") or "").strip()
+
+    def _clean_coordinate(self, field_name: str, minimum: Decimal, maximum: Decimal):
+        value = self.cleaned_data.get(field_name)
+        if value in (None, ""):
+            return None
+        if value < minimum or value > maximum:
+            label = "latitud" if field_name == "latitude" else "longitud"
+            raise forms.ValidationError(f"La {label} está fuera de rango.")
+        return value
+
+    def clean_latitude(self):
+        return self._clean_coordinate("latitude", Decimal("-90"), Decimal("90"))
+
+    def clean_longitude(self):
+        return self._clean_coordinate("longitude", Decimal("-180"), Decimal("180"))
+
+    def clean(self):
+        cleaned = super().clean()
+        address = (cleaned.get("address_line") or "").strip()
+        place = (cleaned.get("address_place_label") or "").strip()
+        lat = cleaned.get("latitude")
+        lng = cleaned.get("longitude")
+        provider = (cleaned.get("geocoding_provider") or "").strip()
+        place_id = (cleaned.get("geocoding_place_id") or "").strip()
+
+        if address:
+            cleaned["location_precision"] = PropertyListing.LocationPrecision.EXACT
+        elif place:
+            cleaned["location_precision"] = PropertyListing.LocationPrecision.APPROXIMATE
+        else:
+            cleaned["location_precision"] = PropertyListing.LocationPrecision.SECTOR
+
+        if (lat is None) != (lng is None):
+            self.add_error(
+                "latitude" if lat is None else "longitude",
+                "Completa latitud y longitud, o deja ambas vacías.",
+            )
+
+        if lat is not None and lng is not None and not coordinates_within_ecuador(lat, lng):
+            self.add_error("latitude", "La ubicación debe estar dentro de Ecuador.")
+
+        if provider and provider != MAPBOX_PROVIDER:
+            cleaned["geocoding_provider"] = ""
+            cleaned["geocoding_place_id"] = ""
+        elif provider == MAPBOX_PROVIDER and (lat is None or lng is None):
+            cleaned["geocoding_provider"] = ""
+            cleaned["geocoding_place_id"] = ""
+        elif provider == MAPBOX_PROVIDER:
+            cleaned["geocoding_place_id"] = place_id
+
+        if lat is None and provider:
+            cleaned["geocoding_provider"] = ""
+            cleaned["geocoding_place_id"] = ""
+
+        return cleaned
+
+    def save(self, commit=True):
+        obj = super().save(commit=False)
+        provider = (self.cleaned_data.get("geocoding_provider") or "").strip()
+        place_id = (self.cleaned_data.get("geocoding_place_id") or "").strip()
+        apply_mapbox_geocoding_metadata(
+            obj,
+            provider=provider,
+            place_id=place_id,
+        )
+        if commit:
+            obj.save()
+            self.save_m2m()
+        return obj
 
 
 class MotorcycleListingForm(forms.ModelForm):

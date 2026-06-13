@@ -11,7 +11,11 @@ from django.test import Client, RequestFactory, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 
 from apps.categories.models import Category
-from apps.listings.category_engine import build_category_page, build_category_seo_context
+from apps.listings.category_engine import (
+    apply_search,
+    build_category_page,
+    build_category_seo_context,
+)
 from apps.listings.category_engine_validation import EXPECTED_CONTRACT_SLUGS
 from apps.listings.listing_card_dto import LISTING_CARD_DTO_UNIFIED, CardContext, build_card_context
 from apps.listings.models import (
@@ -23,6 +27,7 @@ from apps.listings.models import (
     Listing,
     MarketBrand,
     MarketModel,
+    MarketZone,
     MotorcycleListing,
     PropertyListing,
     VehicleListing,
@@ -50,6 +55,7 @@ class CategoryEngineContractTests(TestCase):
             email="contract_seller@example.com",
             password="test-pass-123",
         )
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
         cats: dict[str, Category] = {}
         for order, slug in enumerate(sorted(EXPECTED_CONTRACT_SLUGS)):
             name = slug.title()
@@ -66,7 +72,7 @@ class CategoryEngineContractTests(TestCase):
                 description="d",
                 price_amount="1000.00",
                 currency="USD",
-                location="Guayaquil",
+                zone=cls.zone,
                 seller=cls.seller,
                 category=cat,
                 status=Listing.Status.PUBLISHED,
@@ -201,6 +207,44 @@ class CategoryEngineContractTests(TestCase):
             self.assertFalse(card.is_promoted_boost)
             self.assertEqual(card.listing_id, listing.pk)
             self.assertIsInstance(card.publisher_label, str)
+
+    def test_card_location_omits_reference_detail(self) -> None:
+        listing = self.listings_by_slug["hogar"]
+        listing.location_reference = "frente al parque"
+        listing.save(update_fields=["location_reference", "updated_at"])
+
+        card = build_card_context(listing, "hogar", trust_map={})
+
+        self.assertEqual(card.location, listing.zone.name)
+        self.assertNotIn("frente al parque", card.location)
+
+    def test_public_search_ignores_location_reference(self) -> None:
+        listing = self.listings_by_slug["hogar"]
+        listing.location_reference = "kiosco x9 privado"
+        listing.save(update_fields=["location_reference", "updated_at"])
+
+        qs = Listing.objects.published()
+        by_reference = apply_search(qs, "kiosco x9 privado", "hogar")
+        by_zone = apply_search(qs, listing.zone.name, "hogar")
+
+        self.assertNotIn(listing, by_reference)
+        self.assertIn(listing, by_zone)
+
+    def test_public_search_ignores_property_exact_address(self) -> None:
+        listing = self.listings_by_slug["inmuebles"]
+        listing.property.address_line = "Av. Privada x9"
+        listing.property.location_precision = PropertyListing.LocationPrecision.EXACT
+        listing.property.save(
+            update_fields=[
+                "address_line",
+                "location_precision",
+            ]
+        )
+
+        qs = Listing.objects.published()
+        by_address = apply_search(qs, "Av. Privada x9", "inmuebles")
+
+        self.assertNotIn(listing, by_address)
 
     def test_category_hub_seo_bundle_canonical_absolute(self) -> None:
         rf = RequestFactory()

@@ -17,7 +17,7 @@ from apps.listings.forms import (
     PropertyListingForm,
     VehicleListingForm,
 )
-from apps.listings.models import Listing
+from apps.listings.models import Listing, MarketZone
 
 User = get_user_model()
 
@@ -48,12 +48,13 @@ class ListingFormPlaceholderTests(TestCase):
             password="test-pass-123",
         )
         category = Category.objects.create(name="Hogar", slug=HOMEGOODS_SLUG)
+        zone = MarketZone.objects.get(slug="otro-guayaquil")
         listing = Listing.objects.create(
             title="Mesa usada",
             description="Mesa en buen estado.",
             price_amount="80.00",
             currency="USD",
-            location="Guayaquil",
+            zone=zone,
             seller=seller,
             category=category,
             status=Listing.Status.PUBLISHED,
@@ -71,7 +72,8 @@ class ListingFormPlaceholderTests(TestCase):
             "title": "Mesa usada",
             "description": "Mesa en buen estado.",
             "currency": "USD",
-            "location": "Guayaquil",
+            "zone": MarketZone.objects.get(slug="otro-guayaquil").pk,
+            "location_reference": "",
             "publish_state": Listing.Status.PUBLISHED,
         }
 
@@ -133,3 +135,107 @@ class ListingFormPlaceholderTests(TestCase):
                     self.assertEqual(empty_value, "")
                     self.assertEqual(empty_label, expected_label)
                     self.assertNotIn("-", empty_label)
+
+    def test_location_toggle_off_clears_zone(self):
+        zone = MarketZone.objects.get(slug="otro-guayaquil")
+        form = BaseListingForm(
+            data={
+                "title": "Mesa usada",
+                "description": "Mesa en buen estado.",
+                "price_amount": "49",
+                "currency": "USD",
+                "zone": zone.pk,
+                "location_reference": "frente al parque",
+                "publish_state": Listing.Status.PUBLISHED,
+                "add_location_present": "1",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertIsNone(form.cleaned_data["zone"])
+        self.assertEqual(form.cleaned_data["location_reference"], "")
+
+    def test_location_toggle_on_requires_zone(self):
+        form = BaseListingForm(
+            data={
+                "title": "Mesa usada",
+                "description": "Mesa en buen estado.",
+                "price_amount": "49",
+                "currency": "USD",
+                "zone": "",
+                "location_reference": "",
+                "publish_state": Listing.Status.PUBLISHED,
+                "add_location": "on",
+                "add_location_present": "1",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("zone", form.errors)
+
+    def test_property_coordinates_must_be_complete_pair(self):
+        form = PropertyListingForm(
+            data={
+                "property_type": "casa",
+                "operation_type": "",
+                "rooms": "3",
+                "bathrooms": "2",
+                "area_m2": "120",
+                "parking_spaces": "",
+                "furnished": "",
+                "property_condition": "",
+                "address_line": "Av. Principal 123",
+                "address_place_label": "",
+                "location_precision": "exact",
+                "latitude": "-2.189400",
+                "longitude": "",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("longitude", form.errors)
+
+    def test_property_exact_location_valid_without_coordinates(self):
+        form = PropertyListingForm(
+            data={
+                "property_type": "casa",
+                "operation_type": "",
+                "rooms": "3",
+                "bathrooms": "2",
+                "area_m2": "120",
+                "parking_spaces": "",
+                "furnished": "",
+                "property_condition": "",
+                "address_line": "Av. Principal 123",
+                "address_place_label": "Edificio Norte",
+                "location_precision": "exact",
+                "latitude": "",
+                "longitude": "",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_property_address_becomes_exact_location(self):
+        form = PropertyListingForm(
+            data={
+                "property_type": "casa",
+                "operation_type": "",
+                "rooms": "3",
+                "bathrooms": "2",
+                "area_m2": "120",
+                "parking_spaces": "",
+                "furnished": "",
+                "property_condition": "",
+                "address_line": "Av. Principal 123",
+                "address_place_label": "",
+                "latitude": "",
+                "longitude": "",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(
+            form.cleaned_data["location_precision"],
+            "exact",
+        )

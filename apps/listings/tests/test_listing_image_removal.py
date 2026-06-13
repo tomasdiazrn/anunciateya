@@ -8,9 +8,11 @@ from django.utils.datastructures import MultiValueDict
 from PIL import Image
 
 from apps.categories.models import Category
-from apps.listings.models import Listing, ListingImage
+from apps.listings.models import Listing, ListingImage, MarketZone
 from apps.listings.services import (
+    apply_listing_image_order,
     commit_listing_image_changes,
+    parse_listing_image_order,
     parse_remove_image_ids,
     remove_listing_images,
     resolve_listing_image_removals,
@@ -48,6 +50,7 @@ class ListingImageRemovalTests(TestCase):
             slug="hogar",
             defaults={"name": "Hogar", "order": 0},
         )
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
 
     def _listing(self) -> Listing:
         return Listing.objects.create(
@@ -55,7 +58,7 @@ class ListingImageRemovalTests(TestCase):
             description="Mesa en buen estado.",
             price_amount="80.00",
             currency="USD",
-            location="Guayaquil",
+            zone=self.zone,
             seller=self.seller,
             category=self.category,
             status=Listing.Status.PUBLISHED,
@@ -76,6 +79,15 @@ class ListingImageRemovalTests(TestCase):
                 return []
 
         self.assertEqual(parse_remove_image_ids(Post()), [3, 7])
+
+    def test_parse_listing_image_order_accepts_existing_and_new_tokens(self):
+        class Post:
+            def getlist(self, key):
+                if key == "image_order":
+                    return ["existing:3,__new__,7,existing:3,x"]
+                return []
+
+        self.assertEqual(parse_listing_image_order(Post()), [3, None, 7])
 
     def test_resolve_listing_image_removals_ignores_foreign_ids(self):
         listing = self._listing()
@@ -106,6 +118,20 @@ class ListingImageRemovalTests(TestCase):
         self.assertTrue(ListingImage.objects.filter(pk=second.pk).exists())
         self.assertFalse(default_storage.exists(first_path))
         self.assertTrue(default_storage.exists(second_path))
+
+    def test_apply_listing_image_order_ignores_foreign_ids_and_normalizes_order(self):
+        listing = self._listing()
+        other = self._listing()
+        first = self._create_image(listing, sort_order=0)
+        second = self._create_image(listing, sort_order=1)
+        third = self._create_image(listing, sort_order=2)
+        foreign = self._create_image(other, sort_order=0)
+
+        apply_listing_image_order(listing, [third.pk, foreign.pk, first.pk])
+
+        ordered_ids = list(listing.images.values_list("id", flat=True))
+        self.assertEqual(ordered_ids, [third.pk, first.pk, second.pk])
+        self.assertEqual(list(listing.images.values_list("sort_order", flat=True)), [0, 1, 2])
 
     def test_validate_listing_image_changes_respects_remaining_slots(self):
         listing = self._listing()
@@ -140,3 +166,23 @@ class ListingImageRemovalTests(TestCase):
         self.assertFalse(ListingImage.objects.filter(pk=old.pk).exists())
         self.assertEqual(listing.images.count(), 1)
         self.assertTrue(listing.images.first().image.name.endswith(".png"))
+
+    def test_commit_listing_image_changes_applies_mixed_existing_and_new_order(self):
+        listing = self._listing()
+        first = self._create_image(listing, sort_order=0)
+        second = self._create_image(listing, sort_order=1)
+        upload = _png_upload("nueva.png")
+
+        class Post:
+            POST = MultiValueDict(
+                {"image_order": [f"{second.pk},__new__,{first.pk}"]}
+            )
+            FILES = MultiValueDict({"images": [upload]})
+
+        commit_listing_image_changes(Post(), listing)
+
+        ordered = list(listing.images.all())
+        self.assertEqual([img.pk for img in ordered[:1]], [second.pk])
+        self.assertTrue(ordered[1].image.name.endswith(".png"))
+        self.assertEqual(ordered[2].pk, first.pk)
+        self.assertEqual([img.sort_order for img in ordered], [0, 1, 2])

@@ -169,6 +169,37 @@ def _prune_json_ld(obj):
     return obj
 
 
+def _property_place_json_ld(listing):
+    if getattr(listing.category, "slug", "") != PROPERTY_SLUG:
+        return None
+    try:
+        prop = listing.property
+    except ObjectDoesNotExist:
+        return None
+    if (
+        prop.location_precision != PropertyListing.LocationPrecision.EXACT
+        or not (prop.address_line or "").strip()
+    ):
+        return None
+    place = {
+        "@type": "Place",
+        "address": {
+            "@type": "PostalAddress",
+            "streetAddress": (prop.address_line or "").strip(),
+            "addressLocality": listing.zone.city if listing.zone_id else "",
+        },
+    }
+    if prop.latitude is not None and prop.longitude is not None:
+        place["geo"] = {
+            "@type": "GeoCoordinates",
+            "latitude": float(prop.latitude),
+            "longitude": float(prop.longitude),
+        }
+    if (prop.address_place_label or "").strip():
+        place["name"] = prop.address_place_label.strip()
+    return place
+
+
 def _build_listing_json_ld(request, listing, trust):
     brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
     abs_listing = request.build_absolute_uri(listing.get_absolute_url())
@@ -215,6 +246,9 @@ def _build_listing_json_ld(request, listing, trust):
         "itemCondition": "https://schema.org/UsedCondition",
         "seller": {"@id": abs_listing + "#seller"},
     }
+    place_node = _property_place_json_ld(listing)
+    if place_node is not None:
+        offer["availableAtOrFrom"] = place_node
 
     desc_plain = strip_tags(listing.description or "").strip()
     desc_plain = " ".join(desc_plain.split())[:2000]
@@ -287,7 +321,7 @@ def listing_detail_seo(request, category_slug, listing_slug):
 def listing_detail_legacy(request, slug):
     """Legacy /listings/<slug>/ detail: 301 redirect to SEO URL."""
     listing = get_object_or_404(
-        Listing.objects.select_related("category"),
+        Listing.objects.select_related("category", "zone"),
         slug=slug,
     )
     if not _is_listing_public(listing) and not _is_listing_owner(request, listing):
@@ -366,7 +400,7 @@ def listing_contact_panel(request, slug):
     - buyer/visitor → interest form
     """
     listing = get_object_or_404(
-        Listing.objects.published().select_related("seller"),
+        Listing.objects.published().select_related("seller", "zone"),
         slug=slug,
     )
     seller_trust = seller_trust_bundle(listing.seller)
@@ -497,7 +531,7 @@ def _listing_whatsapp_href(listing):
 
 def listing_whatsapp_redirect(request, slug):
     listing = get_object_or_404(
-        Listing.objects.published().select_related("seller", "seller__verification"),
+        Listing.objects.published().select_related("seller", "seller__verification", "zone"),
         slug=slug,
     )
     href = _listing_whatsapp_href(listing)
@@ -780,6 +814,7 @@ def create_listing_in_category(
                         )
                         prop = specific.save(commit=False)
                         prop.listing = listing
+                        _sync_property_location_from_base(prop, base)
                         prop.save()
                         attach_listing_images(
                             listing, request.FILES.getlist("images")
@@ -995,6 +1030,14 @@ def _cleanup_extensions_if_category_changed(listing, old_slug: str, new_slug: st
         HomeGoodsListing.objects.filter(listing=listing).delete()
 
 
+def _sync_property_location_from_base(prop, base_form) -> None:
+    if base_form.cleaned_data.get("add_location"):
+        return
+    from apps.listings.location_geocoding import clear_property_geocoding
+
+    clear_property_geocoding(prop)
+
+
 @login_required
 def listing_edit_legacy_redirect(request, slug):
     """Legado /listings/<slug>/edit/ → edición en Mi cuenta (URL en español)."""
@@ -1095,6 +1138,8 @@ def _listing_edit_with_specific_form(
                 base.save()
                 obj = specific.save(commit=False)
                 obj.listing = listing
+                if isinstance(obj, PropertyListing):
+                    _sync_property_location_from_base(obj, base)
                 obj.save()
                 commit_listing_image_changes(request, listing)
                 messages.success(request, "Anuncio actualizado.")

@@ -19,6 +19,9 @@ urlpatterns = [
     ),
     path("robots.txt", core_views.robots_txt, name="robots_txt"),
     path("llms.txt", core_views.llms_txt, name="llms_txt"),
+    path("manifest.webmanifest", core_views.webmanifest, name="webmanifest"),
+    path("service-worker.js", core_views.service_worker, name="service_worker"),
+    path("offline/", core_views.offline, name="offline"),
     path("", core_views.home, name="root_home"),
     # Panel staff; antes del catch-all <slug:slug>/.
     path("admin/", include("apps.adminapp.urls", namespace="adminapp")),

@@ -24,7 +24,43 @@
   {% if include_category is not False %}
     {% include "components/ui/form_field.html" with field=form.category %}
   {% endif %}
-  {% include "components/ui/form_field.html" with field=form.location %}
+  <div class="field listing-location-toggle">
+    <input type="hidden" name="add_location_present" value="1">
+    <label class="account-contact-checkbox">
+      {{ form.add_location }}
+      <span class="account-contact-checkbox__box" aria-hidden="true">
+        <i class="fa-solid fa-check account-contact-checkbox__check"></i>
+      </span>
+      <span class="account-contact-checkbox__text">
+        {% if form_layout == "property" %}Agregar ubicación del inmueble{% else %}Agregar punto de encuentro{% endif %}
+      </span>
+    </label>
+    {% if form.add_location.errors %}
+      <div class="form-errors" role="alert">{{ form.add_location.errors }}</div>
+    {% endif %}
+  </div>
+  <div class="listing-location-fields" data-listing-location-fields {% if not form.add_location.value %}hidden{% endif %}>
+    {% include "components/ui/form_field.html" with field=form.zone %}
+    {% include "components/ui/form_field.html" with field=form.location_reference %}
+    {% if specific_form and form_layout == "property" %}
+      {{ specific_form.location_precision }}
+      <div class="property-address-geocoder" data-property-address-geocoder>
+        {% include "components/ui/form_field.html" with field=specific_form.address_line %}
+        <ul
+          class="property-address-geocoder__suggestions"
+          data-property-address-suggestions
+          hidden
+          role="listbox"
+          aria-label="Sugerencias de dirección"
+        ></ul>
+      </div>
+      {% include "components/ui/form_field.html" with field=specific_form.address_place_label %}
+      {{ specific_form.latitude }}
+      {{ specific_form.longitude }}
+      {{ specific_form.geocoding_provider }}
+      {{ specific_form.geocoding_place_id }}
+    {% endif %}
+  </div>
 </div>
 
 {% if specific_form %}
@@ -133,7 +169,7 @@
   <div class="image-dropzone" id="image-dropzone">
     <p class="image-dropzone__title">Fotos del anuncio</p>
     <p class="small muted image-dropzone__hint" id="id_images_help">
-      Hasta 10 fotos · 5 MB c/u · JPG, PNG o WEBP{% if listing %} · Quita con × y guarda para liberar espacio{% endif %}
+      Hasta 10 fotos · 5 MB c/u · JPG, PNG o WEBP{% if listing %} · Arrastra para ordenar: la primera será la portada{% endif %}
     </p>
     <div class="image-dropzone__actions">
       <button class="image-dropzone__button" type="button" data-image-picker-trigger>
@@ -157,6 +193,7 @@
       aria-describedby="id_images_help image-dropzone-status"
     >
     <p class="small image-dropzone__status" id="image-dropzone-status" role="status" aria-live="polite" hidden></p>
+    <input type="hidden" name="image_order" id="image-order-input" value="">
     <div id="image-remove-fields" hidden aria-hidden="true"></div>
     {% if listing and listing.images.exists %}
       <script type="application/json" id="listing-existing-images-json">

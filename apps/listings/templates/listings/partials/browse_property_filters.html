@@ -15,6 +15,7 @@
     <details class="browse-filters-accordion" open>
       <summary class="browse-filters-summary">Filtrar inmuebles</summary>
       <div class="browse-filters-inner">
+        {% include "listings/partials/browse_location_filter.html" with location_filter_id="id_browse_area_property" %}
         <div class="form-group">
           <label for="id_browse_prop_tipo">Tipo de propiedad</label>
           <select class="form-control" name="tipo" id="id_browse_prop_tipo">

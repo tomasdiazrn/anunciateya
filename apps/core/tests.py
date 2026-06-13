@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from apps.analytics.models import Event
 from apps.categories.models import Category
-from apps.listings.models import Listing
+from apps.listings.models import Listing, MarketZone
 
 from .emails import send_user_otp_email
 from .models import NewsletterSubscriber
@@ -71,6 +71,16 @@ class SocialShareMetaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assert_social_share_meta(response, "/")
+        self.assertContains(
+            response,
+            '<link rel="manifest" href="/manifest.webmanifest">',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<meta name="theme-color" content="#3CBB6B">',
+            html=True,
+        )
 
     def test_auth_base_pages_render_social_share_image(self):
         response = self.client.get(reverse("users:login"))
@@ -195,6 +205,64 @@ class PageNotFoundTests(TestCase):
         self.assertContains(response, "Ir al home", status_code=404)
 
 
+@override_settings(
+    SEO_BRAND_NAME="AnunciateYa",
+    SEO_MARKET_CITY="Guayaquil",
+    BRAND_THEME_COLOR="#3CBB6B",
+    BRAND_FAVICON_PATH="img/AnunciateYa_Favicon.png",
+)
+class ProgressiveWebAppTests(TestCase):
+    def test_webmanifest_uses_branding_and_favicon_icons(self):
+        response = self.client.get(reverse("webmanifest"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/manifest+json")
+        payload = response.json()
+        self.assertEqual(payload["name"], "AnunciateYa")
+        self.assertEqual(payload["short_name"], "AnunciateYa")
+        self.assertEqual(payload["start_url"], "/")
+        self.assertEqual(payload["scope"], "/")
+        self.assertEqual(payload["display"], "standalone")
+        self.assertEqual(payload["theme_color"], "#3CBB6B")
+        self.assertIn(
+            {
+                "src": "/static/img/AnunciateYa_Favicon.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any",
+            },
+            payload["icons"],
+        )
+        self.assertTrue(any(icon["purpose"] == "maskable" for icon in payload["icons"]))
+        self.assertEqual(payload["shortcuts"][0]["url"], "/publicar/")
+
+    def test_service_worker_is_root_scoped_and_does_not_cache_html_pages(self):
+        response = self.client.get(reverse("service_worker"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"],
+            "application/javascript; charset=utf-8",
+        )
+        self.assertEqual(response["Service-Worker-Allowed"], "/")
+        body = response.content.decode()
+        self.assertIn('const OFFLINE_URL = "/offline/";', body)
+        self.assertIn('request.mode === "navigate"', body)
+        self.assertIn('fetch(request).catch(function ()', body)
+        self.assertIn('requestUrl.pathname.startsWith(STATIC_PATH_PREFIX)', body)
+
+    def test_offline_page_is_noindex(self):
+        response = self.client.get(reverse("offline"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Sin conexión")
+        self.assertContains(
+            response,
+            '<meta name="robots" content="noindex, nofollow">',
+            html=True,
+        )
+
+
 class LegalPageTests(TestCase):
     def test_terms_page_renders(self):
         response = self.client.get(reverse("core:terms"))
@@ -226,12 +294,13 @@ class PublicDiscoveryTests(TestCase):
             slug="autos",
             order=1,
         )
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
         cls.published_listing = Listing.objects.create(
             title="Toyota Publico",
             description="Auto publicado para sitemap.",
             price_amount="12000.00",
             currency="USD",
-            location="Guayaquil",
+            zone=cls.zone,
             seller=cls.seller,
             category=cls.category,
             status=Listing.Status.PUBLISHED,
@@ -241,7 +310,7 @@ class PublicDiscoveryTests(TestCase):
             description="Auto no publico.",
             price_amount="9000.00",
             currency="USD",
-            location="Guayaquil",
+            zone=cls.zone,
             seller=cls.seller,
             category=cls.category,
             status=Listing.Status.DRAFT,

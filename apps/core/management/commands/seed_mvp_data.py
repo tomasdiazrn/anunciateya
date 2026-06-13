@@ -26,6 +26,7 @@ from apps.listings.models import (
     Listing,
     MarketBrand,
     MarketModel,
+    MarketZone,
     MotorcycleListing,
     PropertyListing,
     VehicleListing,
@@ -36,16 +37,21 @@ from apps.users.models import User, UserVerification
 
 # Dominio reservado para poder borrar todo con --clear sin tocar cuentas reales.
 SEED_EMAIL_DOMAIN = "mvp-seed.local"
-# Guayaquil / Samborondón
-LOCATIONS = [
-    "Urdesa Central, Guayaquil",
-    "Puerto Santa Ana, Guayaquil",
-    "Samborondón — La Puntilla",
-    "Samborondón — km 10 vía a Daule",
-    "Garzota, Guayaquil",
-    "Entrada de la 8, Guayaquil",
-    "Ciudadela Kennedy Norte, Guayaquil",
-    "Vía Samborondón, sector Batán",
+ZONE_SLUGS = [
+    "urdesa",
+    "puerto-santa-ana",
+    "samborondon",
+    "garzota",
+    "entrada-de-la-8",
+    "kennedy",
+    "via-a-la-costa",
+    "duran",
+]
+LOCATION_REFERENCES = [
+    "",
+    "punto de encuentro acordado",
+    "cerca de centro comercial",
+    "retiro coordinado con el vendedor",
 ]
 
 # (título base, descripción, marca, modelo, año) — coherentes con VehicleListing
@@ -343,12 +349,20 @@ class Command(BaseCommand):
             elif cat.slug == "hogar":
                 price = random.randint(45, 2800)
 
+            zone = MarketZone.objects.filter(
+                slug=random.choice(ZONE_SLUGS),
+                is_active=True,
+            ).first()
+            if zone is None:
+                zone = MarketZone.objects.filter(is_active=True).order_by("sort_order").first()
+
             listing = Listing.objects.create(
                 title=title[:200],
                 description=desc,
                 price_amount=price,
                 currency="USD",
-                location=random.choice(LOCATIONS),
+                zone=zone,
+                location_reference=random.choice(LOCATION_REFERENCES),
                 seller=seller,
                 category=cat,
                 status=Listing.Status.PUBLISHED,

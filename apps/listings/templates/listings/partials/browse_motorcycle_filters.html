@@ -15,6 +15,7 @@
     <details class="browse-filters-accordion" open>
       <summary class="browse-filters-summary">Filtrar motos</summary>
       <div class="browse-filters-inner">
+        {% include "listings/partials/browse_location_filter.html" with location_filter_id="id_browse_area_motorcycle" %}
         <div class="form-group">
           <label for="id_browse_moto_brand">Marca</label>
           <select

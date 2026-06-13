@@ -520,7 +520,7 @@ def account_dashboard(request, section="overview"):
             qs = qs.filter(
                 Q(title__icontains=listings_q)
                 | Q(description__icontains=listings_q)
-                | Q(location__icontains=listings_q)
+                | Q(zone__name__icontains=listings_q)
             )
         paginator = Paginator(qs, 20)
         context["page_obj"] = paginator.get_page(request.GET.get("page") or 1)

@@ -1,23 +1,25 @@
 from django.http import QueryDict
-from django.test import SimpleTestCase
+from django.test import TestCase
 
 from apps.listings.forms import BaseListingForm, PropertyListingForm
-from apps.listings.models import Listing, PropertyListing
+from apps.listings.models import Listing, MarketZone, PropertyListing
 from apps.listings.services import (
     parse_property_list_filter_params,
     parse_vehicle_list_filter_params,
 )
 
 
-class ListingNumericDigitsOnlyTests(SimpleTestCase):
+class ListingNumericDigitsOnlyTests(TestCase):
     def test_listing_price_rejects_decimal_symbol(self):
+        zone = MarketZone.objects.get(slug="otro-guayaquil")
         form = BaseListingForm(
             data={
                 "title": "Anuncio",
                 "description": "Detalle suficiente",
                 "price_amount": "120.50",
                 "currency": "USD",
-                "location": "Guayaquil",
+                "zone": zone.pk,
+                "location_reference": "",
                 "publish_state": Listing.Status.PUBLISHED,
             }
         )

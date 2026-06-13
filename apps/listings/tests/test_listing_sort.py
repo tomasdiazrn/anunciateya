@@ -18,7 +18,7 @@ from apps.listings.listing_sort import (
     parse_sort_param,
     split_featured_block,
 )
-from apps.listings.models import Listing, MarketBrand, MarketModel, VehicleListing
+from apps.listings.models import Listing, MarketBrand, MarketModel, MarketZone, VehicleListing
 
 User = get_user_model()
 
@@ -48,6 +48,7 @@ class ListingSortOrderTests(TestCase):
             slug=VEHICLE_SLUG,
             defaults={"name": "Autos", "order": 0},
         )
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
 
     def _vehicle(self, listing: Listing) -> None:
         brand, model = self._market_model("B", "M")
@@ -82,7 +83,7 @@ class ListingSortOrderTests(TestCase):
             description="d",
             price_amount="5000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -95,7 +96,7 @@ class ListingSortOrderTests(TestCase):
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -117,7 +118,7 @@ class ListingSortOrderTests(TestCase):
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -130,7 +131,7 @@ class ListingSortOrderTests(TestCase):
             description="d",
             price_amount="2000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -152,7 +153,7 @@ class ListingSortOrderTests(TestCase):
             description="d",
             price_amount="9000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -163,7 +164,7 @@ class ListingSortOrderTests(TestCase):
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -195,7 +196,7 @@ class ListingSortOrderTests(TestCase):
                     description="d",
                     price_amount=str(1000 + i),
                     currency="USD",
-                    location="Gye",
+                    zone=self.zone,
                     seller=self.seller,
                     category=self.cat,
                     status=Listing.Status.PUBLISHED,
@@ -209,7 +210,7 @@ class ListingSortOrderTests(TestCase):
             description="d",
             price_amount="9999",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -258,6 +259,7 @@ class FeaturedTopCardContextTests(TestCase):
             slug=VEHICLE_SLUG,
             defaults={"name": "Autos", "order": 0},
         )
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
 
     def _vehicle(self, listing: Listing) -> None:
         brand, model = self._market_model("B", "M")
@@ -293,7 +295,7 @@ class FeaturedTopCardContextTests(TestCase):
                 description="d",
                 price_amount=str(2000 + i),
                 currency="USD",
-                location="Gye",
+                zone=self.zone,
                 seller=self.seller,
                 category=self.cat,
                 status=Listing.Status.PUBLISHED,
@@ -314,7 +316,7 @@ class FeaturedTopCardContextTests(TestCase):
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -327,7 +329,7 @@ class FeaturedTopCardContextTests(TestCase):
             description="d",
             price_amount="2000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,

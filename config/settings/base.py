@@ -183,3 +183,11 @@ SOCIAL_LINKEDIN_URL = config("SOCIAL_LINKEDIN_URL", default="")
 
 # django-ratelimit (key="ip"): sin esto, REMOTE_ADDR vacío o XFF multi-hop → 500 en POST.
 RATELIMIT_IP_META_KEY = "apps.core.ip_for_ratelimit.client_ip_for_ratelimit"
+
+# Mapbox (solo inmuebles): token público con restricciones de URL en Mapbox dashboard.
+MAPBOX_ENABLED = config("MAPBOX_ENABLED", default=False, cast=bool)
+MAPBOX_PUBLIC_TOKEN = config("MAPBOX_PUBLIC_TOKEN", default="").strip()
+MAPBOX_STYLE_URL = config(
+    "MAPBOX_STYLE_URL",
+    default="mapbox://styles/mapbox/streets-v12",
+).strip()

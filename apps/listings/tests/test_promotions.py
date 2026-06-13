@@ -18,6 +18,7 @@ from apps.listings.models import (
     ListingPromotion,
     MarketBrand,
     MarketModel,
+    MarketZone,
     VehicleListing,
 )
 from apps.listings.services_promotions import create_listing_promotion
@@ -36,6 +37,7 @@ class PromotionRankingTests(TestCase):
             slug=VEHICLE_SLUG,
             defaults={"name": "Autos", "order": 0},
         )
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
 
     def _vehicle(self, listing: Listing) -> None:
         brand, model = self._market_model("B", "M")
@@ -70,7 +72,7 @@ class PromotionRankingTests(TestCase):
             description="d",
             price_amount="5000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -83,7 +85,7 @@ class PromotionRankingTests(TestCase):
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -110,7 +112,7 @@ class PromotionRankingTests(TestCase):
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -123,7 +125,7 @@ class PromotionRankingTests(TestCase):
             description="d",
             price_amount="2000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -151,7 +153,7 @@ class PromotionRankingTests(TestCase):
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -181,7 +183,7 @@ class PromotionRankingTests(TestCase):
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -216,7 +218,7 @@ class PromotionRankingTests(TestCase):
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat,
             status=Listing.Status.PUBLISHED,
@@ -245,12 +247,13 @@ class ListingPromoteEndpointTests(TestCase):
             slug=VEHICLE_SLUG,
             defaults={"name": "Autos", "order": 0},
         )
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
         cls.listing = Listing.objects.create(
             title="Api listing",
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=cls.zone,
             seller=cls.seller,
             category=cls.cat,
             status=Listing.Status.PUBLISHED,

@@ -342,7 +342,7 @@ def _listing_basics(
     decimals: int = 2,
 ) -> dict[str, Any]:
     cat = listing.category
-    loc = (listing.location or "").strip()
+    loc = (listing.zone.name if getattr(listing, "zone_id", None) else "").strip()
     price_display = _format_money(listing.currency, listing.price_amount, decimals=decimals)
     link = listing.get_absolute_url()
     category_href = cat.get_absolute_url()

@@ -1262,6 +1262,62 @@
   padding-left: 2rem;
 }
 
+.admin-publish-form .account-contact-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: fit-content;
+  cursor: pointer;
+  color: var(--admin-text);
+}
+
+.admin-publish-form .account-contact-checkbox__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.admin-publish-form .account-contact-checkbox__box {
+  display: inline-grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-success);
+}
+
+.admin-publish-form .account-contact-checkbox__check {
+  font-size: 0.7rem;
+  line-height: 1;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.admin-publish-form .account-contact-checkbox__input:checked + .account-contact-checkbox__box {
+  border-color: var(--admin-success);
+  background: var(--admin-success-muted);
+}
+
+.admin-publish-form .account-contact-checkbox__input:checked + .account-contact-checkbox__box .account-contact-checkbox__check {
+  opacity: 1;
+  visibility: visible;
+}
+
+.admin-publish-form .account-contact-checkbox__input:focus-visible + .account-contact-checkbox__box {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 3px;
+}
+
+.admin-publish-form .account-contact-checkbox__text {
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-font-weight-medium);
+}
+
 .admin-publish-form .image-dropzone {
   display: grid;
   gap: var(--admin-space-3);

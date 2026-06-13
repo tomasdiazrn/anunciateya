@@ -1,0 +1,15 @@
+<div class="form-group">
+  <label for="{{ location_filter_id|default:'id_browse_area' }}">Ubicación</label>
+  <select
+    class="form-control"
+    name="area"
+    id="{{ location_filter_id|default:'id_browse_area' }}"
+  >
+    <option value="">Todo Guayaquil</option>
+    {% for zone in market_zone_options %}
+      <option value="{{ zone.slug }}" {% if selected_area == zone.slug %}selected{% endif %}>
+        {{ zone.name }}
+      </option>
+    {% endfor %}
+  </select>
+</div>

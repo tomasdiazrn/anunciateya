@@ -5,10 +5,11 @@
 @import url("tokens.css");
 @import url("base.css");
 @import url("components/buttons.css");
-@import url("components/forms.css?v=5");
+@import url("components/forms.css?v=10");
 @import url("components/cards-listings.css");
 @import url("components/trust.css");
 @import url("components/layout.css");
+@import url("components/flash-messages.css");
 @import url("components/browse-filters.css?v=3");
 @import url("components/category-hero.css");
 @import url("components/home-landing.css");

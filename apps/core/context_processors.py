@@ -171,6 +171,9 @@ def site_metadata(request):
         ),
         "brand_fonts_url": _brand_font_stylesheet_url(),
         "brand_theme_color": getattr(settings, "BRAND_THEME_COLOR", "#3CBB6B"),
+        "pwa_icon_192": getattr(
+            settings, "BRAND_FAVICON_PATH", "img/AnunciateYa_Favicon.png"
+        ),
         "google_tag_manager_id": _google_tag_manager_id_for_request(request),
         "inject_ga4_gtag": _analytics_surface_allowed(request),
         "meta_pixel_id": _meta_pixel_id_for_request(request),
@@ -184,5 +187,23 @@ def site_metadata(request):
         ),
         "footer_social_links": _footer_social_links(),
     }
+    mapbox_token = ""
+    mapbox_enabled = False
+    if getattr(settings, "MAPBOX_ENABLED", False):
+        mapbox_token = (getattr(settings, "MAPBOX_PUBLIC_TOKEN", "") or "").strip()
+        mapbox_enabled = bool(mapbox_token)
+    context["mapbox_enabled"] = mapbox_enabled
+    context["mapbox_public_token"] = mapbox_token if mapbox_enabled else ""
+    context["mapbox_style_url"] = getattr(
+        settings,
+        "MAPBOX_STYLE_URL",
+        "mapbox://styles/mapbox/streets-v12",
+    )
+    if mapbox_enabled:
+        from apps.listings.location_geocoding import ecuador_bbox_querystring
+
+        context["mapbox_ecuador_bbox"] = ecuador_bbox_querystring()
+    else:
+        context["mapbox_ecuador_bbox"] = ""
     context.update(_hosting_alert_context(request))
     return context

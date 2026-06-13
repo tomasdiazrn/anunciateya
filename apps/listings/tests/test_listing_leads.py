@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.categories.models import Category
-from apps.listings.models import Listing, ListingLead
+from apps.listings.models import Listing, ListingLead, MarketZone
 from apps.users.models import UserVerification
 
 User = get_user_model()
@@ -26,6 +26,7 @@ class ListingLeadCaptureTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.category = Category.objects.create(name="Hogar", slug="hogar")
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
 
     def setUp(self):
         mail.outbox = []
@@ -49,7 +50,7 @@ class ListingLeadCaptureTests(TestCase):
             description="Mesa en buen estado",
             price_amount="120.00",
             currency="USD",
-            location="Guayaquil",
+            zone=self.zone,
             seller=self.seller,
             category=self.category,
             status=Listing.Status.PUBLISHED,

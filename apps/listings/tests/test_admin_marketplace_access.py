@@ -4,7 +4,7 @@ from django.urls import reverse
 
 from apps.categories.models import Category
 from apps.listings.listing_card_dto import build_card_context
-from apps.listings.models import Listing
+from apps.listings.models import Listing, MarketZone
 
 User = get_user_model()
 
@@ -20,12 +20,13 @@ class AdminMarketplaceAccessTests(TestCase):
             is_active=True,
         )
         cls.category = Category.objects.create(name="Servicios", slug="servicios")
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
         cls.listing = Listing.objects.create(
             title="Anuncio admin",
             description="No debe editarse desde el marketplace.",
             price_amount="100.00",
             currency="USD",
-            location="Guayaquil",
+            zone=cls.zone,
             seller=cls.admin,
             category=cls.category,
             status=Listing.Status.PUBLISHED,
@@ -70,8 +71,9 @@ class AdminMarketplaceAccessTests(TestCase):
             {
                 "title": "Servicio publicado por admin",
                 "description": "Anuncio creado desde el panel administrativo.",
-                "price_amount": "49.99",
-                "location": "Guayaquil",
+                "price_amount": "49",
+                "zone": self.zone.pk,
+                "location_reference": "",
                 "publish_state": Listing.Status.PUBLISHED,
             },
         )

@@ -12,7 +12,7 @@ from django.utils import timezone
 from apps.categories.models import Category
 from apps.listings.category_engine import apply_category_pipeline
 from apps.listings.category_extensions import VEHICLE_SLUG
-from apps.listings.models import Listing, MarketBrand, MarketModel, VehicleListing
+from apps.listings.models import Listing, MarketBrand, MarketModel, MarketZone, VehicleListing
 from apps.listings.services import compute_listing_quality_score
 
 User = get_user_model()
@@ -29,6 +29,7 @@ class ListingRankingTests(TestCase):
             slug=VEHICLE_SLUG,
             defaults={"name": "Autos", "order": 0},
         )
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
 
     def _vehicle_ext(self, listing: Listing) -> None:
         brand, model = self._market_model("B", "M")
@@ -63,7 +64,7 @@ class ListingRankingTests(TestCase):
             description="x" * 50,
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat_autos,
             status=Listing.Status.PUBLISHED,
@@ -76,7 +77,7 @@ class ListingRankingTests(TestCase):
             description="y" * 50,
             price_amount="2000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat_autos,
             status=Listing.Status.PUBLISHED,
@@ -97,7 +98,7 @@ class ListingRankingTests(TestCase):
             description="a" * 121,
             price_amount=Decimal("50.00"),
             currency="USD",
-            location="Cuenca",
+            zone=self.zone,
             title="T",
             slug="tmp-qual",
             seller_id=self.seller.id,
@@ -128,7 +129,7 @@ class ListingRankingTests(TestCase):
             description="h" * 130,
             price_amount="3000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat_autos,
             status=Listing.Status.PUBLISHED,
@@ -141,7 +142,7 @@ class ListingRankingTests(TestCase):
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=self.zone,
             seller=self.seller,
             category=self.cat_autos,
             status=Listing.Status.PUBLISHED,

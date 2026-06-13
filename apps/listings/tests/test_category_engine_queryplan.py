@@ -17,6 +17,7 @@ from apps.listings.models import (
     Listing,
     MarketBrand,
     MarketModel,
+    MarketZone,
     MotorcycleListing,
     PropertyListing,
     VehicleListing,
@@ -46,6 +47,7 @@ class BrowseQueryPlanQueryBudgetTests(TestCase):
             slug=MOTORCYCLE_SLUG,
             defaults={"name": "Motos", "order": 2},
         )
+        cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
 
         def market_model(brand_name: str, model_name: str, category_slug: str):
             brand, _ = MarketBrand.objects.get_or_create(
@@ -66,7 +68,7 @@ class BrowseQueryPlanQueryBudgetTests(TestCase):
             description="d",
             price_amount="1000",
             currency="USD",
-            location="Gye",
+            zone=cls.zone,
             seller=cls.seller,
             category=cls.cat_autos,
             status=Listing.Status.PUBLISHED,
@@ -86,7 +88,7 @@ class BrowseQueryPlanQueryBudgetTests(TestCase):
             description="d",
             price_amount="2000",
             currency="USD",
-            location="Gye",
+            zone=cls.zone,
             seller=cls.seller,
             category=cls.cat_inm,
             status=Listing.Status.PUBLISHED,
@@ -104,7 +106,7 @@ class BrowseQueryPlanQueryBudgetTests(TestCase):
             description="d",
             price_amount="500",
             currency="USD",
-            location="Gye",
+            zone=cls.zone,
             seller=cls.seller,
             category=cls.cat_motos,
             status=Listing.Status.PUBLISHED,

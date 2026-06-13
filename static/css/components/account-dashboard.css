@@ -21,11 +21,6 @@
   overflow: hidden;
 }
 
-/* Mensajes encima del dashboard: no roban el scroll del panel */
-.account-app-main > .messages {
-  flex-shrink: 0;
-}
-
 .account-dashboard {
   --account-sidebar-width: 15.5rem;
   --account-sidebar-bg: var(--color-primary-strong);
@@ -692,11 +687,6 @@
 
 .account-listings__header {
   width: 100%;
-}
-
-.account-leads__subtitle {
-  margin: 0.35rem 0 0;
-  font-size: 0.9375rem;
 }
 
 .account-main__body--listings {
