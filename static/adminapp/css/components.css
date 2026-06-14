@@ -1045,6 +1045,19 @@
   margin-top: var(--admin-space-4);
 }
 
+.admin-inline-form {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--admin-space-2);
+}
+
+.admin-btn--compact {
+  min-height: 2rem;
+  padding: 0.25rem 0.625rem;
+  font-size: var(--admin-font-size-sm);
+}
+
 .admin-stat-list {
   list-style: none;
   margin: 0;

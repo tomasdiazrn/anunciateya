@@ -345,11 +345,11 @@ msgstr "Mensaje enviado"
 
 #: apps/listings/templates/listings/partials/contact_success.html:5
 msgid ""
-"The seller will reply when they can. Always check trust (verified, reviews) "
-"on future contacts."
+"The seller will reply when they can. Always check trust signals before future "
+"contacts."
 msgstr ""
-"El vendedor responderá cuando pueda. Revisa siempre la confianza "
-"(verificado, opiniones) en futuros contactos."
+"El vendedor responderá cuando pueda. Revisa siempre si tiene teléfono "
+"verificado antes de futuros contactos."
 
 #: apps/listings/templates/listings/partials/contact_success.html:8
 msgid "Back to listing"
@@ -460,15 +460,6 @@ msgstr "Spam"
 msgid "Incorrect or misleading information"
 msgstr "Información incorrecta o engañosa"
 
-#: apps/trust/services.py:91
-#, python-format
-msgid "Member since %(year)s"
-msgstr "Miembro desde %(year)s"
-
-#: apps/trust/services.py:91
-msgid "New account"
-msgstr "Cuenta nueva"
-
 #: apps/users/forms.py:15 apps/users/forms.py:30
 msgid "Email"
 msgstr "Correo electrónico"
@@ -539,77 +530,30 @@ msgstr "Mensaje para %(name)s"
 msgid "Send secure message"
 msgstr "Enviar mensaje seguro"
 
-#: templates/components/marketplace/contact_seller_trust.html:3
-msgid "Seller trust"
-msgstr "Confianza del vendedor"
+#: templates/components/marketplace/contact_seller_verification.html:3
+msgid "Seller verification"
+msgstr "Verificación del vendedor"
 
-#: templates/components/marketplace/contact_seller_trust.html:6
+#: templates/components/marketplace/contact_seller_verification.html:6
 #: templates/components/marketplace/listing_card.html:22
 #: templates/components/marketplace/seller_sidebar.html:10
 #: templates/users/profile_detail.html:11
 msgid "Verified"
 msgstr "Verificado"
 
-#: templates/components/marketplace/contact_seller_trust.html:8
+#: templates/components/marketplace/contact_seller_verification.html:8
 #: templates/components/marketplace/seller_sidebar.html:12
 #: templates/users/profile_detail.html:13
 msgid "Phone not verified"
 msgstr "Teléfono no verificado"
 
-#: templates/components/marketplace/contact_seller_trust.html:11
-#: templates/components/marketplace/seller_sidebar.html:18
-#: templates/users/profile_detail.html:18
-msgid "reviews"
-msgstr "opiniones"
-
-#: templates/components/marketplace/contact_seller_trust.html:13
-#: templates/components/marketplace/seller_sidebar.html:21
-#: templates/users/profile_detail.html:21
-msgid "No reviews yet"
-msgstr "Sin opiniones aún"
-
-#: templates/components/marketplace/contact_seller_trust.html:19
-#: templates/components/marketplace/seller_sidebar.html:29
-#: templates/users/profile_detail.html:27
-msgid "High trust"
-msgstr "Confianza alta"
-
-#: templates/components/marketplace/contact_seller_trust.html:21
-#: templates/components/marketplace/seller_sidebar.html:31
-#: templates/users/profile_detail.html:29
-msgid "Medium trust"
-msgstr "Confianza media"
-
-#: templates/components/marketplace/contact_seller_trust.html:23
-#: templates/components/marketplace/seller_sidebar.html:33
-#: templates/users/profile_detail.html:31
-msgid "Low trust"
-msgstr "Confianza baja"
-
-#: templates/components/marketplace/listing_card.html:24
-msgid "Average rating"
-msgstr "Valoración media"
-
-#: templates/components/marketplace/listing_card.html:27
-msgid "High"
-msgstr "Alta"
-
-#: templates/components/marketplace/listing_card.html:27
-msgid "Medium"
-msgstr "Media"
-
-#: templates/components/marketplace/listing_card.html:27
-msgid "Low"
-msgstr "Baja"
-
 #: templates/components/marketplace/report_trust_note.html:3
 msgid ""
 "Reports from several users flag this listing for review. Check the seller’s "
-"trust (verified, reviews, High/Medium/Low) before you contact them."
+"phone verification status before you contact them."
 msgstr ""
-"Los reportes de varios usuarios marcan este anuncio para revisión. Revisa la"
-" confianza del vendedor (verificado, opiniones, Alta/Media/Baja) antes de "
-"contactar."
+"Los reportes de varios usuarios marcan este anuncio para revisión. Revisa si"
+" el vendedor tiene teléfono verificado antes de contactar."
 
 #: templates/components/marketplace/seller_sidebar.html:2
 msgid "Seller information"

@@ -1,5 +1,5 @@
 (function () {
-  var SELECT_SELECTOR = ".listing-editor select.form-control, .browse-filter-form select.form-control, .browse-sort-select";
+  var SELECT_SELECTOR = ".listing-editor select.form-control, .browse-filter-form select.form-control, .browse-sort-select, .listing-report-form select.form-control";
   var DIGITS_SELECTOR = "[data-digits-only='true']";
   var OPEN_CLASS = "is-open";
   var SELECT_INIT = "customSelectInit";
@@ -7,6 +7,7 @@
   var SEARCH_MAX_LENGTH = 48;
   var SEARCH_MIN_OPTIONS = 5;
   var REQUIRED_ERROR = "Este campo es obligatorio.";
+  var FILTERS_MOBILE_MEDIA = "(max-width: 899.98px)";
 
   function closestField(el) {
     return el && el.closest ? el.closest(".field") : null;
@@ -53,6 +54,17 @@
   function initDigitsOnlyInputs(root) {
     var scope = root && root.querySelectorAll ? root : document;
     scope.querySelectorAll(DIGITS_SELECTOR).forEach(sanitizeDigitsOnlyInput);
+  }
+
+  function closeBrowseFiltersOnMobile(root) {
+    if (!window.matchMedia || !window.matchMedia(FILTERS_MOBILE_MEDIA).matches) return;
+    var scope = root && root.querySelectorAll ? root : document;
+    if (scope.matches && scope.matches(".browse-filters-accordion[open]")) {
+      scope.removeAttribute("open");
+    }
+    scope.querySelectorAll(".browse-filters-accordion[open]").forEach(function (details) {
+      details.removeAttribute("open");
+    });
   }
 
   function shouldAllowDigitKey(event) {
@@ -1205,6 +1217,7 @@
   function boot() {
     initListingControls(document);
     initEditorEnhancements(document);
+    closeBrowseFiltersOnMobile(document);
 
     document.addEventListener("click", function (event) {
       if (!event.target.closest(".custom-select")) {
@@ -1308,6 +1321,7 @@
     document.body.addEventListener("htmx:load", function (event) {
       initListingControls(event.target || document);
       initEditorEnhancements(event.target || document);
+      closeBrowseFiltersOnMobile(event.target || document);
     });
 
     document.body.addEventListener("htmx:afterSwap", function (event) {
@@ -1328,12 +1342,14 @@
       }
       initListingControls(target || document);
       initEditorEnhancements(target || document);
+      closeBrowseFiltersOnMobile(target || document);
     });
 
     document.body.addEventListener("htmx:afterSettle", function (event) {
       var target = event.detail && event.detail.elt ? event.detail.elt : event.target;
       initListingControls(target || document);
       initEditorEnhancements(target || document);
+      closeBrowseFiltersOnMobile(target || document);
     });
   }
 

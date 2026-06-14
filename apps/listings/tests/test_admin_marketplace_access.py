@@ -92,7 +92,7 @@ class AdminMarketplaceAccessTests(TestCase):
         card = build_card_context(
             self.listing,
             self.listing.category.slug,
-            trust_map={},
+            seller_verification_map={},
         )
 
         self.assertEqual(card.publisher_label, "Publicado por AnunciateYa")

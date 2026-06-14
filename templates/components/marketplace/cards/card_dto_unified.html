@@ -62,14 +62,10 @@
       <p class="card-listing__publisher">{{ card.publisher_label }}</p>
     {% endif %}
 
-    {% if card.trust_label %}
-      {% with t=card.trust_label|trust_parts %}
-        <p class="card-listing__trust small">
-          {% if t.verified %}<span class="card-listing__trust-verified">✔ Verificado</span>{% endif %}
-          {% if t.rating %}{% if t.verified %}<span class="card-listing__trust-sep" aria-hidden="true"> · </span>{% endif %}<span class="card-listing__trust-rating">{{ t.rating }}</span>{% endif %}
-          {% if t.confidence %}{% if t.verified or t.rating %}<span class="card-listing__trust-sep" aria-hidden="true"> · </span>{% endif %}<span class="card-listing__trust-confidence">{{ t.confidence }}</span>{% endif %}
-        </p>
-      {% endwith %}
+    {% if card.seller_verification_label %}
+      <p class="card-listing__trust small">
+        <span class="card-listing__trust-verified">✔ {{ card.seller_verification_label }}</span>
+      </p>
     {% endif %}
 
     <div class="card-listing__actions" aria-label="Acciones del anuncio">

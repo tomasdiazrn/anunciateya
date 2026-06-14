@@ -14,27 +14,16 @@ from django.core.cache import cache
 from django.test import Client
 
 from apps.listings.models import Listing
-from apps.trust.models import ListingReport, Review
+from apps.trust.models import ListingReport
 from apps.trust.services import (
-    TRUST_CACHE_KEY,
-    bulk_seller_trust,
-    seller_trust_bundle,
+    VERIFICATION_CACHE_KEY,
+    bulk_seller_verification,
+    seller_verification_bundle,
 )
 from apps.users.models import User, UserVerification
 
 # Mismo dominio que seed_mvp_data (evita tocar cuentas reales).
 SEED_EMAIL_DOMAIN = "mvp-seed.local"
-
-def _trust_label_card() -> dict[str, str]:
-    return {"high": "Alta", "medium": "Media", "low": "Baja"}
-
-
-def _trust_label_detail() -> dict[str, str]:
-    return {
-        "high": "Confianza alta",
-        "medium": "Confianza media",
-        "low": "Confianza baja",
-    }
 
 
 def _banner_flagged_text() -> str:
@@ -114,14 +103,20 @@ def _slug_desde_tarjeta(card_html: str) -> str | None:
 
 def comprobar_etiquetas_en_listados(client: Client, report: QaReport) -> None:
     """
-    Cada anuncio semilla en el listado paginado debe mostrar Alta/Media/Baja
-    alineada con bulk_seller_trust (sin número trust_score en el HTML de tarjeta).
+    Cada anuncio semilla en el listado paginado debe mostrar la verificación
+    del vendedor cuando corresponde, sin score ni niveles de confianza.
     """
     pagina = 1
     vistos_slugs: set[str] = set()
     total_esperado = seed_listing_queryset().count()
-    card_score_fails = 0
-    label_mismatch: list[str] = []
+    forbidden_terms = (
+        "trust_" + "score",
+        "Confianza " + "alta",
+        "Confianza " + "media",
+        "Confianza " + "baja",
+    )
+    forbidden_fails = 0
+    verification_mismatch: list[str] = []
 
     while True:
         r = client.get("/listings/", {"page": pagina})
@@ -147,8 +142,8 @@ def comprobar_etiquetas_en_listados(client: Client, report: QaReport) -> None:
             break
 
         for card in bloques:
-            if "trust_score" in card.lower():
-                card_score_fails += 1
+            if any(term in card for term in forbidden_terms):
+                forbidden_fails += 1
             slug = _slug_desde_tarjeta(card)
             if not slug:
                 continue
@@ -160,15 +155,13 @@ def comprobar_etiquetas_en_listados(client: Client, report: QaReport) -> None:
                 continue
 
             vistos_slugs.add(slug)
-            bundle = bulk_seller_trust([listing.seller_id]).get(listing.seller_id)
+            bundle = bulk_seller_verification([listing.seller_id]).get(listing.seller_id)
             if not bundle:
-                label_mismatch.append(f"{slug}:sin_bundle")
+                verification_mismatch.append(f"{slug}:sin_bundle")
                 continue
 
-            label = bundle["trust_label"]
-            esperado = _trust_label_card()[label]
-            if esperado not in card:
-                label_mismatch.append(f"{slug}:esperado_{esperado}")
+            if bundle["verified"] and "Verificado" not in card:
+                verification_mismatch.append(f"{slug}:sin_verificado")
 
         if f">{_pager_next_label()}</a>" not in body:
             break
@@ -177,18 +170,18 @@ def comprobar_etiquetas_en_listados(client: Client, report: QaReport) -> None:
             break
 
     report.add(
-        "CARD_TRUST_SCORE",
-        card_score_fails == 0,
-        "Ninguna tarjeta del listado expone la cadena trust_score.",
-        f"tarjetas afectadas: {card_score_fails}" if card_score_fails else "",
+        "CARD_NO_TRUST_LEVELS",
+        forbidden_fails == 0,
+        "Ninguna tarjeta del listado expone score ni niveles de confianza.",
+        f"tarjetas afectadas: {forbidden_fails}" if forbidden_fails else "",
     )
     report.add(
-        "CARD_LABELS_ALL",
-        len(label_mismatch) == 0,
-        "Todas las tarjetas semilla muestran Alta/Media/Baja coherente con el servicio."
-        if not label_mismatch
-        else f"{len(label_mismatch)} tarjetas con etiqueta incorrecta o sin bundle.",
-        "; ".join(label_mismatch[:8]) + ("…" if len(label_mismatch) > 8 else ""),
+        "CARD_VERIFICATION_ALL",
+        len(verification_mismatch) == 0,
+        "Todas las tarjetas semilla muestran verificación telefónica cuando corresponde."
+        if not verification_mismatch
+        else f"{len(verification_mismatch)} tarjetas con verificación incorrecta o sin bundle.",
+        "; ".join(verification_mismatch[:8]) + ("…" if len(verification_mismatch) > 8 else ""),
     )
 
     semilla_slugs = set(seed_listing_queryset().values_list("slug", flat=True))
@@ -204,10 +197,16 @@ def comprobar_etiquetas_en_listados(client: Client, report: QaReport) -> None:
 
 
 def comprobar_ficha_detalle(client: Client, report: QaReport) -> None:
-    """Ficha: sin trust_score visible, bloque vendedor, microcopy; bandera si is_flagged."""
-    trust_score_slugs: list[str] = []
+    """Ficha: sin score/niveles, bloque vendedor, microcopy; bandera si is_flagged."""
+    forbidden_slugs: list[str] = []
     detail_issues: list[str] = []
     banner_issues: list[str] = []
+    forbidden_terms = (
+        "trust_" + "score",
+        "Confianza " + "alta",
+        "Confianza " + "media",
+        "Confianza " + "baja",
+    )
 
     for listing in seed_listing_queryset().order_by("pk"):
         slug = listing.slug
@@ -217,29 +216,15 @@ def comprobar_ficha_detalle(client: Client, report: QaReport) -> None:
             continue
 
         text = r.content.decode()
-        if "trust_score" in text:
-            trust_score_slugs.append(slug)
+        if any(term in text for term in forbidden_terms):
+            forbidden_slugs.append(slug)
 
-        bundle = seller_trust_bundle(listing.seller)
-        det_label = _trust_label_detail()[bundle["trust_label"]]
+        bundle = seller_verification_bundle(listing.seller)
         if _microcopy_safety() not in text:
             detail_issues.append(f"{slug}:microcopy")
-        if det_label not in text:
-            detail_issues.append(f"{slug}:etiqueta_confianza")
-        member_line = f"Miembro desde {listing.seller.date_joined.year}"
-        if member_line not in text and "Cuenta nueva" not in text:
-            detail_issues.append(f"{slug}:antigüedad")
         if bundle["verified"]:
             if "Verificado" not in text or "✔" not in text:
                 detail_issues.append(f"{slug}:verificado")
-        if bundle["review_count"]:
-            if "opiniones" not in text:
-                detail_issues.append(f"{slug}:opiniones")
-            if "⭐" not in text:
-                detail_issues.append(f"{slug}:estrella")
-        else:
-            if "Sin opiniones aún" not in text:
-                detail_issues.append(f"{slug}:sin_opiniones")
 
         flagged_en_html = _banner_flagged_text() in text
         if listing.is_flagged and not flagged_en_html:
@@ -248,15 +233,15 @@ def comprobar_ficha_detalle(client: Client, report: QaReport) -> None:
             banner_issues.append(f"{slug}:banner_indebido")
 
     report.add(
-        "DETAIL_ALL_NO_TRUST_SCORE",
-        len(trust_score_slugs) == 0,
-        "Ninguna ficha HTML contiene la cadena trust_score (puntuación solo en admin/caché).",
-        ", ".join(trust_score_slugs[:6]) + ("…" if len(trust_score_slugs) > 6 else ""),
+        "DETAIL_NO_TRUST_LEVELS",
+        len(forbidden_slugs) == 0,
+        "Ninguna ficha HTML contiene score ni niveles de confianza.",
+        ", ".join(forbidden_slugs[:6]) + ("…" if len(forbidden_slugs) > 6 else ""),
     )
     report.add(
         "DETAIL_SELLER_BLOCK",
         len(detail_issues) == 0,
-        "Bloque vendedor: microcopy, etiqueta Confianza alta/media/baja, antigüedad y reseñas/verificado."
+        "Bloque vendedor: microcopy y verificación telefónica."
         if not detail_issues
         else f"{len(detail_issues)} incidencias en fichas.",
         "; ".join(detail_issues[:10]) + ("…" if len(detail_issues) > 10 else ""),
@@ -377,7 +362,7 @@ def comprobar_contacto_htmx(client: Client, report: QaReport) -> None:
 
 
 def comprobar_cache_semilla(report: QaReport) -> None:
-    """Tras bulk_seller_trust, cada vendedor semilla con anuncio debe tener clave en caché."""
+    """Tras bulk_seller_verification, cada vendedor semilla con anuncio debe tener clave en caché."""
     seller_ids = sorted(
         set(seed_listing_queryset().values_list("seller_id", flat=True))
     )
@@ -385,9 +370,9 @@ def comprobar_cache_semilla(report: QaReport) -> None:
         report.add("CACHE_SELLERS", False, "No hay vendedores semilla.", "")
         return
 
-    bulk_seller_trust(seller_ids)
+    bulk_seller_verification(seller_ids)
     for sid in seller_ids:
-        key = TRUST_CACHE_KEY.format(id=sid)
+        key = VERIFICATION_CACHE_KEY.format(id=sid)
         hit = cache.get(key)
         report.add(
             f"CACHE_KEY_{sid}",
@@ -399,23 +384,10 @@ def comprobar_cache_semilla(report: QaReport) -> None:
 
 def comprobar_integridad_datos_semilla(report: QaReport) -> None:
     """
-    Solo lectura: no duplicados (revisor, vendedor) ni (reporter, listing);
+    Solo lectura: no duplicados (reporter, listing);
     is_flagged coherente con conteo de reportes.
     """
     from django.db.models import Count
-
-    dup_reviews = (
-        Review.objects.values("reviewer_id", "seller_id")
-        .annotate(c=Count("id"))
-        .filter(c__gt=1)
-        .exists()
-    )
-    report.add(
-        "DATA_REVIEW_UNIQUE",
-        not dup_reviews,
-        "En BD no hay pares duplicados (revisor, vendedor) en reseñas.",
-        "",
-    )
 
     dup_reports = (
         ListingReport.objects.values("reporter_id", "listing_id")

@@ -22,7 +22,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from apps.categories.models import Category
 from apps.categories.services import root_categories
-from apps.trust.services import bulk_seller_trust
+from apps.trust.services import bulk_seller_verification
 
 from . import services as listing_services
 from .category_contract import CategoryContractSpec
@@ -601,17 +601,17 @@ def _split_listings_page_bundle(
     seller_ids: set[int] = set()
     for row in featured_rows + normal_rows:
         seller_ids.add(row.seller_id)
-    trust_map = bulk_seller_trust(list(seller_ids))
+    seller_verification_map = bulk_seller_verification(list(seller_ids))
 
     feat_pks = frozenset(int(r.pk) for r in featured_rows if r.pk)
     featured_cards = build_listing_cards_for_listings(
         featured_rows,
-        trust_map=trust_map,
+        seller_verification_map=seller_verification_map,
         featured_top_ids=feat_pks,
     )
     normal_cards = build_listing_cards_for_listings(
         normal_rows,
-        trust_map=trust_map,
+        seller_verification_map=seller_verification_map,
         featured_top_ids=frozenset(),
     )
     featured_ids_render = {c.listing_id for c in featured_cards}
@@ -649,10 +649,10 @@ def _split_listings_page_bundle(
             )
             if fb_rows:
                 s2 = {r.seller_id for r in fb_rows}
-                trust_merged = bulk_seller_trust(list(seller_ids | s2))
+                trust_merged = bulk_seller_verification(list(seller_ids | s2))
                 suggestion_cards = build_listing_cards_for_listings(
                     fb_rows,
-                    trust_map=trust_merged,
+                    seller_verification_map=trust_merged,
                     featured_top_ids=frozenset(),
                 )
                 listings_render["listings_suggestions_heading"] = "Sugerencias"

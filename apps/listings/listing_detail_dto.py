@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.utils.html import escape
 
 from apps.core.seo_copy import CATEGORY_EXPLORE_LABELS
-from apps.trust.services import bulk_seller_trust
+from apps.trust.services import bulk_seller_verification
 
 from .category_engine_queryplan import (
     LISTING_LIST_BASE_PLAN,
@@ -54,6 +54,14 @@ class ListingDetailCta:
     label: str
     htmx_url: str
     scroll_href: str
+
+
+@dataclass(frozen=True)
+class ListingDetailSpec:
+    """Dato técnico del anuncio, listo para renderizar como label + valor."""
+
+    label: str
+    value: str
 
 
 @dataclass(frozen=True)
@@ -108,7 +116,7 @@ class ListingDetailContext:
     seller_safety_microcopy: str
 
     # UX
-    quick_attributes: tuple[str, ...]
+    technical_specs: tuple[ListingDetailSpec, ...]
     attributes: tuple[str, ...]
     badges: tuple[str, ...]
 
@@ -120,10 +128,6 @@ class ListingDetailContext:
 
     # Seller
     seller_name: str
-    seller_trust_summary: str
-    seller_rating: float | None
-    seller_reviews_count: int
-    seller_joined: str
     is_verified: bool
     seller_profile_href: str
 
@@ -234,21 +238,35 @@ def _description_short(text: str, *, limit: int = 200) -> str:
     return (cut or t[:limit]) + "…"
 
 
-def _detail_chip_attributes(listing: Listing, slug: str) -> tuple[str, ...]:
-    """Chips para fila rápida (misma semántica que cards, extendida)."""
+def _spec(label: str, value: Any) -> ListingDetailSpec | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    return ListingDetailSpec(label=escape(label), value=escape(text))
+
+
+def _format_int(value: Any) -> str:
+    return f"{int(value):,}"
+
+
+def _detail_technical_specs(listing: Listing, slug: str) -> tuple[ListingDetailSpec, ...]:
+    """Ficha técnica del detalle: labels explícitos, sin iconos ni emojis."""
     if slug == PROPERTY_SLUG:
         try:
             p = listing.property  # type: ignore[attr-defined]
         except ObjectDoesNotExist:
             return ()
-        chips = [
-            f"🛏 {p.rooms} hab",
-            f"🛁 {p.bathrooms} baños",
-            f"📐 {p.area_m2} m²",
+        specs = [
+            _spec("Tipo", p.get_property_type_display()),
+            _spec("Operación", p.get_operation_type_display() if p.operation_type else ""),
+            _spec("Habitaciones", p.rooms),
+            _spec("Baños", p.bathrooms),
+            _spec("Superficie", f"{_format_int(p.area_m2)} m²"),
+            _spec("Parqueaderos", p.parking_spaces if p.parking_spaces is not None else ""),
+            _spec("Estado", p.get_property_condition_display() if p.property_condition else ""),
+            _spec("Amoblado", "Sí" if p.furnished else ""),
         ]
-        if p.parking_spaces is not None:
-            chips.append(f"🚗 {p.parking_spaces} parqueo")
-        return tuple(escape(x) for x in chips)
+        return tuple(x for x in specs if x)
     if slug == VEHICLE_SLUG:
         try:
             v = listing.vehicle  # type: ignore[attr-defined]
@@ -256,11 +274,16 @@ def _detail_chip_attributes(listing: Listing, slug: str) -> tuple[str, ...]:
             return ()
         brand = v.brand_fk.name.strip()
         model = v.model_fk.name.strip()
-        head = escape(f"🚗 {brand} {model}".strip())
-        out = [head, escape(f"📅 {v.year}")]
-        if v.mileage is not None:
-            out.append(escape(f"📏 {int(v.mileage):,} km"))
-        return tuple(out)
+        specs = [
+            _spec("Marca", brand),
+            _spec("Modelo", model),
+            _spec("Año", v.year),
+            _spec("Kilometraje", f"{_format_int(v.mileage)} km" if v.mileage is not None else ""),
+            _spec("Transmisión", v.get_transmission_display()),
+            _spec("Combustible", v.get_fuel_type_display() if v.fuel_type else ""),
+            _spec("Puertas", v.doors),
+        ]
+        return tuple(x for x in specs if x)
     if slug == MOTORCYCLE_SLUG:
         try:
             m = listing.motorcycle  # type: ignore[attr-defined]
@@ -268,49 +291,53 @@ def _detail_chip_attributes(listing: Listing, slug: str) -> tuple[str, ...]:
             return ()
         brand = m.brand_fk.name.strip()
         model = m.model_fk.name.strip()
-        out = [
-            escape(f"🏍 {brand} {model}".strip()),
-            escape(f"📅 {m.year}"),
+        specs = [
+            _spec("Marca", brand),
+            _spec("Modelo", model),
+            _spec("Año", m.year),
+            _spec("Cilindrada", f"{_format_int(m.engine_cc)} cc" if m.engine_cc is not None else ""),
+            _spec("Kilometraje", f"{_format_int(m.mileage)} km" if m.mileage is not None else ""),
+            _spec("Transmisión", m.get_transmission_display()),
+            _spec("Combustible", m.get_fuel_type_display()),
+            _spec("Condición", m.get_condition_display()),
         ]
-        if m.engine_cc is not None:
-            out.append(escape(f"⚙️ {m.engine_cc} cc"))
-        if m.mileage is not None:
-            out.append(escape(f"📏 {int(m.mileage):,} km"))
-        return tuple(out)
+        return tuple(x for x in specs if x)
     if slug == ELECTRONICS_SLUG:
         try:
             e = listing.electronics  # type: ignore[attr-defined]
         except ObjectDoesNotExist:
             return ()
-        parts: list[str] = []
-        if e.item_type:
-            parts.append(escape(f"📱 {e.get_item_type_display()}"))
         brand = e.brand_fk.name.strip()
         model = e.model_fk.name.strip()
-        parts.extend(
-            [
-                escape(f"💻 {brand} {model}".strip()),
-                escape(str(e.get_condition_display())),
-            ]
-        )
-        return tuple(parts)
+        specs = [
+            _spec("Tipo", e.get_item_type_display() if e.item_type else ""),
+            _spec("Marca", brand),
+            _spec("Modelo", model),
+            _spec("Condición", e.get_condition_display()),
+            _spec("Garantía", f"{e.warranty_months} meses" if e.warranty_months else ("Sí" if e.warranty else "")),
+        ]
+        return tuple(x for x in specs if x)
     if slug == HOMEGOODS_SLUG:
         try:
             h = listing.homegoods  # type: ignore[attr-defined]
         except ObjectDoesNotExist:
             return ()
-        parts: list[str] = []
-        if h.item_type:
-            parts.append(escape(f"🏠 {h.get_item_type_display()}"))
         brand = h.brand_fk.name.strip() if h.brand_fk_id else ""
         model = h.model_fk.name.strip() if h.model_fk_id else ""
-        if brand:
-            parts.append(escape(f"🏷 {brand}"))
-        if model:
-            parts.append(escape(f"Modelo: {model}"))
-        parts.append(escape(str(h.get_condition_display())))
-        return tuple(parts)[:6]
+        specs = [
+            _spec("Tipo", h.get_item_type_display() if h.item_type else ""),
+            _spec("Marca", brand),
+            _spec("Modelo", model),
+            _spec("Condición", h.get_condition_display()),
+            _spec("Material", h.material),
+            _spec("Dimensiones", h.dimensions),
+        ]
+        return tuple(x for x in specs if x)[:6]
     return ()
+
+
+def _technical_specs_as_attributes(specs: tuple[ListingDetailSpec, ...]) -> tuple[str, ...]:
+    return tuple(f"{x.label}: {x.value}" for x in specs)
 
 
 def _extended_attributes(card_attrs: tuple[str, ...], chips: tuple[str, ...]) -> tuple[str, ...]:
@@ -399,19 +426,6 @@ def _detail_badges(listing: Listing, trust: dict[str, Any] | None) -> tuple[str,
     return tuple(escape(str(x)) for x in ordered[:3])
 
 
-def _seller_trust_summary(trust: dict[str, Any] | None) -> str:
-    if not trust:
-        return ""
-    label = trust.get("trust_label") or ""
-    if label == "high":
-        return "Confianza alta"
-    if label == "medium":
-        return "Confianza media"
-    if label == "low":
-        return "Confianza baja"
-    return ""
-
-
 def _similar_listings_rows(listing: Listing) -> list[Listing]:
     slug = listing.category.slug
     plan = _hub_plan_for_category_slug(slug)
@@ -427,31 +441,30 @@ def _similar_listings_rows(listing: Listing) -> list[Listing]:
 def build_listing_detail_context(
     listing: Listing,
     *,
-    trust_map: dict[int, dict[str, Any]],
+    seller_verification_map: dict[int, dict[str, Any]],
     is_owner: bool = False,
     visible_to_public: bool = True,
 ) -> ListingDetailContext:
     cat = listing.category
     slug = cat.slug
     seller = listing.seller
-    tm: dict[int, dict[str, Any]] = dict(trust_map)
+    tm: dict[int, dict[str, Any]] = dict(seller_verification_map)
     similar_rows = _similar_listings_rows(listing)
     need_ids = {seller.pk} | {row.seller_id for row in similar_rows}
     missing = [sid for sid in need_ids if sid not in tm]
     if missing:
-        tm.update(bulk_seller_trust(missing))
+        tm.update(bulk_seller_verification(missing))
 
-    seller_trust = tm.get(seller.pk) or {}
+    seller_verification = tm.get(seller.pk) or {}
     card = build_card_context(
         listing,
         slug,
-        trust_map=tm,
+        seller_verification_map=tm,
         featured_top_ids=frozenset(),
     )
-    chips = _detail_chip_attributes(listing, slug)
-    quick_attributes = chips
-    attributes = _extended_attributes(card.attributes, chips)
-    badges = _detail_badges(listing, seller_trust)
+    technical_specs = _detail_technical_specs(listing, slug)
+    attributes = _extended_attributes(card.attributes, _technical_specs_as_attributes(technical_specs))
+    badges = _detail_badges(listing, seller_verification)
 
     urls = ordered_listing_image_urls(listing, variant="medium")
     urls_webp = ordered_listing_image_urls(listing, variant="medium_webp")
@@ -476,12 +489,6 @@ def build_listing_detail_context(
     desc_raw = (listing.description or "").strip()
     desc_short = _description_short(desc_raw)
 
-    rv = seller_trust.get("avg_rating")
-    if rv is None:
-        rv = seller_trust.get("rating_avg")
-    rating_f = float(rv) if rv is not None else None
-    reviews = int(seller_trust.get("review_count") or 0)
-
     promo_f, promo_b = _promo_flags(listing)
     is_featured = bool(_card_is_featured(listing)) or promo_f
 
@@ -493,7 +500,7 @@ def build_listing_detail_context(
         build_card_context(
             row,
             row.category.slug,
-            trust_map=tm,
+            seller_verification_map=tm,
             featured_top_ids=frozenset(),
         )
         for row in similar_rows
@@ -517,7 +524,6 @@ def build_listing_detail_context(
         owner_edit = str(reverse("users:account_listing_edit", kwargs={"slug": listing_slug}))
         owner_delete = str(reverse("listings:delete", kwargs={"slug": listing_slug}))
 
-    trust_summary = escape(_seller_trust_summary(seller_trust))
     try:
         verification = seller.verification
     except ObjectDoesNotExist:
@@ -574,9 +580,9 @@ def build_listing_detail_context(
         contact_url=contact_path,
         phone_url=None,
         report_url=str(reverse("listings:report", kwargs={"slug": listing_slug})),
-        contact_trust_microcopy="Revisa confianza y envía un mensaje seguro.",
+        contact_trust_microcopy="Revisa si el vendedor tiene teléfono verificado antes de contactar.",
         seller_safety_microcopy="Nunca envíes dinero por adelantado sin verificar al vendedor.",
-        quick_attributes=tuple(quick_attributes),
+        technical_specs=tuple(technical_specs),
         attributes=tuple(attributes),
         badges=tuple(badges),
         description=desc_raw,
@@ -584,14 +590,12 @@ def build_listing_detail_context(
         show_description_expand=show_expand,
         safety_notice=(
             "Nunca envíes dinero por adelantado ni compartas datos bancarios sin ver al vendedor "
-            "y verificar el bien. Preferí encuentros en lugares públicos y seguros."
+            "y verificar el bien. Preferí encuentros en lugares públicos y seguros. "
+            "Los acuerdos, pagos y entregas se realizan entre usuarios; AnunciateYa no interviene "
+            "ni se hace responsable por esas operaciones."
         ),
         seller_name=escape(str(seller_name)),
-        seller_trust_summary=trust_summary,
-        seller_rating=rating_f,
-        seller_reviews_count=reviews,
-        seller_joined=escape(str(seller_trust.get("member_since_display") or "")),
-        is_verified=bool(seller_trust.get("verified")),
+        is_verified=bool(seller_verification.get("verified")),
         seller_profile_href=seller_profile_href,
         is_owner=is_owner,
         visible_to_public=visible_to_public,

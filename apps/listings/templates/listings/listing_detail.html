@@ -38,6 +38,12 @@
 
   <div class="container detail-layout listing-detail-page">
     <div class="listing-detail__gallery-row">
+      <nav class="listing-detail__gallery-breadcrumb" aria-label="Ruta del anuncio">
+        <a href="{{ detail.category_href }}" data-event="category_click" data-event-detail="gallery_breadcrumb">
+          <i class="fa-solid fa-arrow-left-long" aria-hidden="true"></i>
+          Volver a {{ detail.category_label }}
+        </a>
+      </nav>
       {% include "listings/partials/listing_gallery.html" %}
     </div>
     <article class="listing-detail" aria-labelledby="listing-title">
@@ -50,31 +56,10 @@
         <p class="listing-detail__owner-banner">Solo tú ves este anuncio: no aparece en el listado público.</p>
       {% endif %}
 
-      <p class="listing-detail__breadcrumb muted small">
-        <a href="{{ detail.category_href }}" data-event="category_click" data-event-detail="breadcrumb">
-          <i class="fa-solid fa-arrow-left-long" aria-hidden="true"></i>
-          {{ detail.category_label }}
-        </a>
-      </p>
-
       <div class="listing-detail__hero listing-hero">
         <div class="listing-detail__hero-main listing-hero__conversion">
-          <p class="listing-detail__eyebrow">Anuncio local</p>
           <p class="listing-detail__price listing-hero__price">{{ detail.price_display }}</p>
           <h1 class="listing-detail__title listing-hero__title" id="listing-title">{{ detail.title }}</h1>
-          {% if detail.gallery_count %}
-            <p class="listing-detail__photo-meta muted small" aria-live="polite">{{ detail.gallery_count }} {% if detail.gallery_count == 1 %}foto{% else %}fotos{% endif %}</p>
-          {% elif detail.gallery_show_placeholder %}
-            <p class="listing-detail__photo-meta listing-detail__photo-meta--empty muted small">Sin fotos subidas</p>
-          {% endif %}
-          {% if detail.location %}
-            <p class="listing-detail__location listing-hero__location">{{ detail.location }}</p>
-          {% endif %}
-          {% if detail.location_reference %}
-            <p class="listing-detail__location-reference muted small">
-              Referencia: {{ detail.location_reference }}
-            </p>
-          {% endif %}
           {% if detail.badges %}
             <div class="listing-detail__badges badge-row">
               {% for b in detail.badges %}
@@ -82,43 +67,23 @@
               {% endfor %}
             </div>
           {% endif %}
-          {% if detail.quick_attributes %}
-            <p class="listing-detail__quick-attr quick-attributes">{{ detail.quick_attributes|join:" · " }}</p>
-          {% endif %}
-
-          {% if not detail.is_owner %}
-            <div class="listing-detail__hero-cta">
-              <button
-                type="button"
-                class="button btn-primary listing-detail__btn-primary"
-                hx-get="{{ detail.primary_cta.htmx_url }}?surface=modal"
-                hx-target="#listing-contact-modal-body"
-                hx-swap="innerHTML"
-                hx-indicator="#listing-contact-modal-spinner"
-                aria-label="{{ detail.primary_cta.label }}"
-                aria-haspopup="dialog"
-                data-contact-modal-open
-                data-contact-whatsapp-url="{{ detail.phone_url|default:'' }}"
-                data-event="contact_click"
-                data-event-detail="hero_contact_modal"
-              >
-                {{ detail.primary_cta.label }}
-                <i class="fa-regular fa-envelope" aria-hidden="true"></i>
-              </button>
-              {% if detail.secondary_cta %}
-                <a class="button btn-secondary listing-detail__btn-secondary" href="{{ detail.secondary_cta.scroll_href }}">
-                  {{ detail.secondary_cta.label }}
-                  <i class="fa-solid fa-arrow-right-long" aria-hidden="true"></i>
-                </a>
-              {% endif %}
-            </div>
+          {% if detail.technical_specs %}
+            <section class="listing-detail__technical-card" aria-label="Características del anuncio">
+              <dl class="listing-detail__technical-grid">
+                {% for spec in detail.technical_specs %}
+                  <div class="listing-detail__technical-item">
+                    <dt>{{ spec.label }}</dt>
+                    <dd>{{ spec.value }}</dd>
+                  </div>
+                {% endfor %}
+              </dl>
+            </section>
           {% endif %}
         </div>
       </div>
 
       {% if detail.description %}
         <section class="listing-detail__desc" aria-labelledby="listing-desc-heading">
-          <p class="listing-detail__section-eyebrow">Detalle</p>
           <h2 class="h-section" id="listing-desc-heading">Descripción del anuncio</h2>
           {% if detail.show_description_expand %}
             <p class="listing-detail__desc-preview">{{ detail.description_short }}</p>
@@ -153,14 +118,8 @@
       {% endif %}
 
       <section class="listing-detail__safety" aria-label="Consejos de seguridad">
-        <span class="listing-detail__safety-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" focusable="false">
-            <path d="M12 3.4 18.6 6v5.2c0 4.2-2.7 7.9-6.6 9.2-3.9-1.3-6.6-5-6.6-9.2V6L12 3.4Z" />
-            <path d="m9.4 12.1 1.7 1.7 3.8-4" />
-          </svg>
-        </span>
         <div>
-          <p class="listing-detail__safety-title">Compra con confianza</p>
+          <p class="listing-detail__safety-title">Compra con cuidado</p>
           <p class="listing-detail__safety-copy">{{ detail.safety_notice }}</p>
         </div>
       </section>
@@ -192,44 +151,28 @@
             </div>
           </div>
           <p class="visually-hidden" id="similar-carousel-help">Desliza, arrastra o usa las flechas para recorrer anuncios similares.</p>
-          <div class="listing-detail__similar-progress" aria-hidden="true">
-            <span data-carousel-progress></span>
-          </div>
         </section>
       {% endif %}
 
       <p class="listing-detail__footer-seo seo-internal muted small">
         <a href="{{ detail.category_href }}" data-event="category_click" data-event-detail="footer_category">{{ detail.category_explore_label }}</a>
         ·
-        <a href="{% url 'browse' %}">Ver más anuncios</a>
+        <a href="{% url 'browse' %}">Ver otros anuncios</a>
+        {% if not detail.is_owner %}
+          ·
+          <button
+            type="button"
+            class="listing-detail__report-link"
+            data-report-modal-open
+            aria-haspopup="dialog"
+            aria-controls="listing-report-modal"
+            data-event="report_click"
+            data-event-detail="listing_detail_report_open"
+          >
+            Reportar anuncio
+          </button>
+        {% endif %}
       </p>
-
-      <div class="listing-detail__report-zone">
-        <details class="listing-detail__report-panel">
-          <summary class="listing-detail__report-summary">Reportar anuncio</summary>
-          <div class="listing-detail__report-body">
-            {% if report_form %}
-              <p class="small muted">Ayúdanos a mantener {{ seo_brand_name }} seguro.</p>
-              {% include "components/marketplace/report_trust_note.html" %}
-              <form method="post" action="{{ detail.report_url }}" class="stack-form">
-                {% csrf_token %}
-                {% if report_form.non_field_errors %}
-                  <div class="form-errors" role="alert" aria-live="assertive">{{ report_form.non_field_errors }}</div>
-                {% endif %}
-                {% for field in report_form %}
-                  {% include "components/ui/form_field.html" with field=field %}
-                {% endfor %}
-                <p class="form-actions-row">
-                  <button type="submit" class="button btn-primary">Enviar reporte</button>
-                </p>
-              </form>
-            {% else %}
-              <p class="small muted">Para reportar contenido, iniciá sesión.</p>
-              <p><a class="button btn-secondary btn-compact" href="{% url 'users:login' %}?next={{ request.path|urlencode }}">Iniciar sesión</a></p>
-            {% endif %}
-          </div>
-        </details>
-      </div>
     </article>
 
     <aside class="listing-detail__aside listing-sidebar card seller-card" id="listing-contact" aria-label="Información del vendedor">
@@ -249,31 +192,6 @@
           {% endif %}
         </div>
       </div>
-
-      <div class="seller-card__signals" aria-label="Señales de confianza">
-        {% if detail.seller_reviews_count %}
-          <p class="listing-detail__rating seller-card__rating" data-event="trust_label_click" data-event-detail="rating">
-            <i class="fa-solid fa-star" aria-hidden="true"></i>
-            <span>{{ detail.seller_rating }} <span class="muted">({{ detail.seller_reviews_count }} opiniones)</span></span>
-          </p>
-        {% else %}
-          <p class="listing-detail__meta-line seller-card__rating">
-            <i class="fa-regular fa-star" aria-hidden="true"></i>
-            <span>Sin opiniones aún</span>
-          </p>
-        {% endif %}
-
-        <p class="listing-detail__meta-line seller-card__member-since">
-          <i class="fa-regular fa-calendar" aria-hidden="true"></i>
-          <span>{{ detail.seller_joined }}</span>
-        </p>
-      </div>
-
-      {% if detail.seller_trust_summary %}
-        <div class="seller-card__trust-panel">
-          <p class="listing-detail__meta-line seller-card__trust-summary">{{ detail.seller_trust_summary }}</p>
-        </div>
-      {% endif %}
 
       <p class="listing-detail__contact-nudge">{{ detail.contact_trust_microcopy }}</p>
 
@@ -343,6 +261,56 @@
       </div>
     </section>
   </div>
+
+  {% if not detail.is_owner %}
+    <div
+      id="listing-report-modal"
+      class="listing-contact-modal listing-report-modal"
+      data-report-modal
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="listing-report-modal-title"
+    >
+      <div class="listing-contact-modal__backdrop" data-report-modal-close aria-hidden="true"></div>
+      <section class="listing-contact-modal__panel listing-report-modal__panel" role="document">
+        <button
+          type="button"
+          class="listing-contact-modal__close"
+          data-report-modal-close
+          aria-label="Cerrar reporte"
+        >×</button>
+
+        <div class="listing-contact-modal__body listing-report-modal__body">
+          <p class="listing-report-modal__eyebrow">Moderación comunitaria</p>
+          <h2 id="listing-report-modal-title" class="listing-report-modal__title">Reportar anuncio</h2>
+          <p class="small muted">Ayúdanos a mantener {{ seo_brand_name }} seguro.</p>
+          {% include "components/marketplace/report_trust_note.html" %}
+
+          {% if report_form %}
+            <form method="post" action="{{ detail.report_url }}" class="stack-form listing-report-form">
+              {% csrf_token %}
+              {% if report_form.non_field_errors %}
+                <div class="form-errors" role="alert" aria-live="assertive">{{ report_form.non_field_errors }}</div>
+              {% endif %}
+              {% for field in report_form %}
+                {% include "components/ui/form_field.html" with field=field %}
+              {% endfor %}
+              <p class="form-actions-row listing-report-modal__actions">
+                <button type="submit" class="button btn-primary">Enviar reporte</button>
+                <button type="button" class="button btn-secondary" data-report-modal-close>Cancelar</button>
+              </p>
+            </form>
+          {% else %}
+            <div class="listing-report-modal__auth">
+              <p class="small muted">Para reportar contenido, iniciá sesión.</p>
+              <a class="button btn-primary" href="{% url 'users:login' %}?next={{ request.path|urlencode }}">Iniciar sesión</a>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+  {% endif %}
 
   <script>
     (function () {
@@ -758,4 +726,5 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
     <script src="{% static 'js/property_listing_map.js' %}?v=1" defer></script>
   {% endif %}
+  <script src="{% static 'js/report_modal.js' %}?v=1" defer></script>
 {% endblock %}

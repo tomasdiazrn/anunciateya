@@ -28,26 +28,31 @@ class HtmxClientRedirectMiddleware:
 
 
 class ContentSecurityPolicyMiddleware:
-    """Append a strict-but-practical CSP for GTM, Pixel, CDNs, and inline bootstraps."""
+    """Append a strict-but-practical CSP for GTM, Pixel, Mapbox, CDNs, and inline bootstraps."""
 
     _policy_parts = (
         "default-src 'self'",
         "base-uri 'self'",
-        "form-action 'self'",
+        "form-action 'self' https://www.facebook.com",
         "object-src 'none'",
-        "frame-src https://www.googletagmanager.com",
+        "frame-src https://www.googletagmanager.com https://www.facebook.com",
+        "child-src blob:",
+        "worker-src blob:",
         # GA4 + GTM (Google): subdominios de recogida; ver
         # https://developers.google.com/tag-platform/security/guides/csp
         "script-src 'self' 'unsafe-inline' https://*.googletagmanager.com "
-        "https://connect.facebook.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+        "https://connect.facebook.net https://cdn.jsdelivr.net https://cdnjs.cloudflare.com "
+        "https://api.mapbox.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com "
-        "https://cdnjs.cloudflare.com",
+        "https://cdnjs.cloudflare.com https://api.mapbox.com",
         "font-src 'self' https://fonts.gstatic.com https://cdn.fontshare.com "
         "https://cdnjs.cloudflare.com data:",
-        "img-src 'self' data: https: https://*.google-analytics.com https://*.googletagmanager.com",
+        "img-src 'self' data: blob: https: https://*.google-analytics.com "
+        "https://*.googletagmanager.com",
         "connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com "
         "https://*.googletagmanager.com https://www.google.com "
-        "https://www.facebook.com https://connect.facebook.net",
+        "https://www.facebook.com https://connect.facebook.net "
+        "https://api.mapbox.com https://*.tiles.mapbox.com https://events.mapbox.com",
     )
 
     def __init__(self, get_response):

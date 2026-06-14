@@ -149,6 +149,7 @@ BRAND_LOGO_WHITE_PATH = config(
     default="img/AnunciateYa_Logo_White.png",
 )
 BRAND_FAVICON_PATH = config("BRAND_FAVICON_PATH", default="img/AnunciateYa_Favicon.png")
+BRAND_PWA_ICON_PATH = "img/AnunciateYa_PWA_Icon.png"
 BRAND_HERO_BG_PATH = config(
     "BRAND_HERO_BG_PATH",
     default="img/AnunciateYa_HeroBackground.webp",
@@ -187,7 +188,4 @@ RATELIMIT_IP_META_KEY = "apps.core.ip_for_ratelimit.client_ip_for_ratelimit"
 # Mapbox (solo inmuebles): token público con restricciones de URL en Mapbox dashboard.
 MAPBOX_ENABLED = config("MAPBOX_ENABLED", default=False, cast=bool)
 MAPBOX_PUBLIC_TOKEN = config("MAPBOX_PUBLIC_TOKEN", default="").strip()
-MAPBOX_STYLE_URL = config(
-    "MAPBOX_STYLE_URL",
-    default="mapbox://styles/mapbox/streets-v12",
-).strip()
+MAPBOX_STYLE_URL = "mapbox://styles/mapbox/streets-v12"

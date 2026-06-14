@@ -36,7 +36,6 @@
     var track = root.querySelector("[data-carousel-track]");
     var prev = root.querySelector("[data-carousel-prev]");
     var next = root.querySelector("[data-carousel-next]");
-    var progress = root.querySelector("[data-carousel-progress]");
     if (!track) return;
 
     var dragging = false;
@@ -54,12 +53,10 @@
       var maxScroll = getMaxScroll();
       var hasOverflow = maxScroll > 2;
       var scrollLeft = clamp(track.scrollLeft, 0, maxScroll);
-      var ratio = hasOverflow ? scrollLeft / maxScroll : 1;
 
       root.classList.toggle("has-carousel-overflow", hasOverflow);
       if (prev) prev.disabled = !hasOverflow || scrollLeft <= 2;
       if (next) next.disabled = !hasOverflow || scrollLeft >= maxScroll - 2;
-      if (progress) progress.style.setProperty("--carousel-progress", ratio.toFixed(4));
     }
 
     function requestUpdate() {

@@ -38,6 +38,7 @@
         No
       {% endif %}
     </dd>
+    <dt>Reportes</dt><dd>{{ listing_reports_count }}</dd>
     <dt>Ubicación</dt>
     <dd>
       {% if listing.location_with_reference %}
@@ -58,4 +59,65 @@
       rel="noopener noreferrer"
     >Ver anuncio público</a>
   </div>
+</div>
+
+<div class="admin-card">
+  <h3 class="admin-card__title">Reportes de usuarios</h3>
+  {% if listing_reports %}
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Motivo</th>
+            <th>Usuario</th>
+            <th>Estado</th>
+            <th>Revisión</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for report in listing_reports %}
+            {% url 'adminapp:listing_report_set_status' listing.pk report.pk as report_status_url %}
+            <tr>
+              <td>{{ report.created_at|date:"Y-m-d H:i" }}</td>
+              <td>{{ report.get_reason_display }}</td>
+              <td>{{ report.reporter.email }}</td>
+              <td>
+                <form
+                  class="admin-inline-form"
+                  method="post"
+                  action="{{ report_status_url }}"
+                  hx-post="{{ report_status_url }}"
+                  hx-target="#admin-main-content"
+                  hx-swap="innerHTML"
+                  hx-indicator="#admin-loading"
+                >
+                  {% csrf_token %}
+                  <select class="admin-select" name="status" aria-label="Estado del reporte">
+                    {% for value, label in report_status_options %}
+                      <option value="{{ value }}"{% if value == report.status %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="admin-btn admin-btn--secondary admin-btn--compact">Guardar</button>
+                </form>
+              </td>
+              <td>
+                {% if report.reviewed_at %}
+                  {{ report.reviewed_at|date:"Y-m-d H:i" }}
+                  {% if report.reviewed_by %}
+                    <span class="admin-table__subtext">{{ report.reviewed_by.email }}</span>
+                  {% endif %}
+                {% else %}
+                  <span class="admin-text-muted">Sin revisar</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="admin-page-lead">Los reportes descartados no cuentan para marcar el anuncio como reportado.</p>
+  {% else %}
+    <p class="admin-text-muted">Este anuncio todavía no tiene reportes.</p>
+  {% endif %}
 </div>

@@ -213,7 +213,7 @@ class UserPasswordlessAuthTests(TestCase):
         )
 
         self.assertContains(response, "Si la cuenta existe")
-        self.assertContains(response, "intentamos enviar un código de acceso")
+        self.assertContains(response, "enviamos un código de acceso")
         self.assertContains(response, "<strong>missing@example.com</strong>", html=True)
         self.assertEqual(UserLoginOTP.objects.count(), 0)
         self.assertEqual(len(mail.outbox), 0)
@@ -507,7 +507,7 @@ class AccountContactPreferenceTests(TestCase):
         card = build_card_context(
             listing,
             self.category.slug,
-            trust_map={},
+            seller_verification_map={},
         )
 
         self.assertIsNone(card.contact_whatsapp_url)

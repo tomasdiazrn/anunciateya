@@ -18,7 +18,7 @@ def listing_card_template(listing):
 )
 def render_listing_card_from_dto(context, listing):
     """Card de listado 100 % DTO: sin acceso a extensiones ORM en plantillas."""
-    trust_map = context.get("trust_map") or {}
+    seller_verification_map = context.get("seller_verification_map") or {}
     slug = listing.category.slug
-    card = build_card_context(listing, slug, trust_map=trust_map)
+    card = build_card_context(listing, slug, seller_verification_map=seller_verification_map)
     return {"card": card}

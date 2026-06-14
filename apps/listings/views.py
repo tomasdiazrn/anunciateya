@@ -19,7 +19,7 @@ from django.views.decorators.http import require_POST
 from apps.categories.models import Category
 from apps.categories.services import root_categories
 from apps.trust.models import ListingReport
-from apps.trust.services import bulk_seller_trust, seller_trust_bundle, sync_listing_flag
+from apps.trust.services import bulk_seller_verification, seller_verification_bundle, sync_listing_flag
 from apps.users.models import UserVerification
 
 from .category_engine import (
@@ -140,10 +140,10 @@ def _contact_success_related_cards(listing, *, limit=3):
     rows = list(rows_qs.order_by("-created_at")[:limit])
     if not rows:
         return []
-    trust_map = bulk_seller_trust([row.seller_id for row in rows])
+    seller_verification_map = bulk_seller_verification([row.seller_id for row in rows])
     return build_listing_cards_for_listings(
         rows,
-        trust_map=trust_map,
+        seller_verification_map=seller_verification_map,
         featured_top_ids=frozenset(),
     )
 
@@ -270,18 +270,6 @@ def _build_listing_json_ld(request, listing, trust):
     if trust.get("verified"):
         data["seller"]["description"] = f"Vendedor verificado en {brand}."
 
-    rv = trust.get("avg_rating")
-    if rv is None:
-        rv = trust.get("rating_avg")
-    if trust.get("review_count") and rv is not None:
-        data["aggregateRating"] = {
-            "@type": "AggregateRating",
-            "ratingValue": float(rv),
-            "reviewCount": int(trust["review_count"]),
-            "bestRating": 5,
-            "worstRating": 1,
-        }
-
     return json.dumps(_prune_json_ld(data), ensure_ascii=False)
 
 
@@ -337,8 +325,8 @@ def listing_detail(request, slug):
     if not is_public and not is_owner:
         return _render_listing_not_found(request)
 
-    seller_trust = seller_trust_bundle(listing.seller)
-    listing_json_ld = _build_listing_json_ld(request, listing, seller_trust)
+    seller_verification = seller_verification_bundle(listing.seller)
+    listing_json_ld = _build_listing_json_ld(request, listing, seller_verification)
 
     report_form = None
     if request.user.is_authenticated and not is_owner:
@@ -353,7 +341,7 @@ def listing_detail(request, slug):
 
     detail = build_listing_detail_context(
         listing,
-        trust_map={},
+        seller_verification_map={},
         is_owner=is_owner,
         visible_to_public=is_public,
     )
@@ -403,7 +391,7 @@ def listing_contact_panel(request, slug):
         Listing.objects.published().select_related("seller", "zone"),
         slug=slug,
     )
-    seller_trust = seller_trust_bundle(listing.seller)
+    seller_verification = seller_verification_bundle(listing.seller)
     contact_surface = (
         request.POST.get("surface")
         if request.method == "POST"
@@ -429,13 +417,13 @@ def listing_contact_panel(request, slug):
             return render(
                 request,
                 "listings/partials/contact_self.html",
-                {"listing": listing, "seller_trust": seller_trust, **contact_context},
+                {"listing": listing, "seller_verification": seller_verification, **contact_context},
             )
         if request.htmx:
             return render(
                 request,
                 "listings/partials/contact_self.html",
-                {"listing": listing, "seller_trust": seller_trust, **contact_context},
+                {"listing": listing, "seller_verification": seller_verification, **contact_context},
             )
         messages.error(request, "No puedes enviarte un mensaje a ti mismo.")
         return redirect(listing)
@@ -456,7 +444,7 @@ def listing_contact_panel(request, slug):
             {
                 "listing": listing,
                 "form": form,
-                "seller_trust": seller_trust,
+                "seller_verification": seller_verification,
                 **contact_context,
             },
         )
@@ -495,7 +483,7 @@ def listing_contact_panel(request, slug):
                 {
                     "listing": listing,
                     "form": form,
-                    "seller_trust": seller_trust,
+                    "seller_verification": seller_verification,
                     **contact_context,
                 },
                 status=400,

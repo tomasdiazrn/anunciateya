@@ -1,5 +1,5 @@
 """
-Genera datos de demostración en español para probar confianza, reseñas y anuncios marcados.
+Genera datos de demostración en español para probar confianza y anuncios marcados.
 
 Uso:
   python manage.py seed_mvp_data
@@ -31,8 +31,8 @@ from apps.listings.models import (
     PropertyListing,
     VehicleListing,
 )
-from apps.trust.models import ListingReport, Review
-from apps.trust.services import bulk_seller_trust, sync_listing_flag
+from apps.trust.models import ListingReport
+from apps.trust.services import bulk_seller_verification, sync_listing_flag
 from apps.users.models import User, UserVerification
 
 # Dominio reservado para poder borrar todo con --clear sin tocar cuentas reales.
@@ -95,17 +95,8 @@ HOGAR = [
     ("Juego de ollas antiadherentes", "7 piezas, aptas inducción."),
 ]
 
-REVIEW_COMMENTS = [
-    "Muy buena comunicación y entrega puntual.",
-    "Producto tal como en fotos. Recomendado.",
-    "Vendedor serio, sin problemas.",
-    "Todo correcto, volvería a comprar.",
-    "Rápido en responder mensajes.",
-]
-
-
 class Command(BaseCommand):
-    help = "Crea usuarios, categorías, anuncios, reseñas y reportes de prueba (español, confianza variada)."
+    help = "Crea usuarios, categorías, anuncios y reportes de prueba (español, confianza variada)."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -151,7 +142,6 @@ class Command(BaseCommand):
             users = self._seed_users()
             self._apply_user_profiles(users)
             listings = self._seed_listings(users, categories, n_listings)
-            self._seed_reviews(users, listings)
             self._seed_flagged_listings(users, listings)
 
         # Refresca banderas por si el conteo de reportes lo requiere
@@ -163,7 +153,7 @@ class Command(BaseCommand):
         user_ids = list(
             User.objects.filter(email__endswith=f"@{SEED_EMAIL_DOMAIN}").values_list("pk", flat=True)
         )
-        bulk_seller_trust(user_ids)
+        bulk_seller_verification(user_ids)
 
         self._print_summary(users, listings, categories)
 
@@ -177,8 +167,6 @@ class Command(BaseCommand):
 
         ListingReport.objects.filter(reporter_id__in=user_ids).delete()
         ListingReport.objects.filter(listing__seller_id__in=user_ids).delete()
-        Review.objects.filter(reviewer_id__in=user_ids).delete()
-        Review.objects.filter(seller_id__in=user_ids).delete()
         Listing.objects.filter(seller_id__in=user_ids).delete()
         UserVerification.objects.filter(user_id__in=user_ids).delete()
         qs.delete()
@@ -259,17 +247,8 @@ class Command(BaseCommand):
         return users
 
     def _apply_user_profiles(self, users: list[User]) -> None:
-        """
-        Perfiles para cubrir Alta / Media / Baja confianza:
-        - índices 0–1: cuenta >30 d, verificados (reseñas después)
-        - 2–3: >30 d, verificados
-        - 4–6: >30 d, sin verificar
-        - 7–8: recientes, verificados
-        - 9–17: recientes, sin verificar
-        """
+        """Perfiles semilla con una mezcla de teléfonos verificados y no verificados."""
         now = timezone.now()
-        old = now - timedelta(days=45)
-        recent = now - timedelta(days=5)
 
         verified_phones = [
             "+593 98 100 0001",
@@ -279,10 +258,6 @@ class Command(BaseCommand):
             "+593 98 100 0007",
             "+593 98 100 0008",
         ]
-
-        for idx, user in enumerate(users):
-            is_old = idx <= 6
-            User.objects.filter(pk=user.pk).update(date_joined=old if is_old else recent)
 
         UserVerification.objects.filter(user__in=users).delete()
 
@@ -319,7 +294,7 @@ class Command(BaseCommand):
             HOGAR,
         ]
         listings: list[Listing] = []
-        # Solo los primeros 15 usuarios publican más anuncios; el resto puede ser solo reseñadores
+        # Solo los primeros 15 usuarios publican más anuncios; el resto completa la muestra.
         seller_pool = users[:15]
         seq = 0
         n_cats = len(cat_cycle)
@@ -557,76 +532,6 @@ class Command(BaseCommand):
             )
         return model
 
-    def _seed_reviews(self, users: list[User], listings: list[Listing]) -> None:
-        """
-        Reseñas únicas (revisor, vendedor). Distribución orientada al trust score:
-        - vendedores 0–1: 6 reseñas, nota 5
-        - 2–3: 3 reseñas, nota 5
-        - 4–6: 6 reseñas, nota 4–5 (media alta sin verificación)
-        - 7–8: sin reseñas (solo verificación + cuenta nueva = media)
-        - 9–12: 2 reseñas, nota 3 (baja)
-        - 13–17: 0 o 1 reseña baja
-        """
-        by_seller = {u.pk: [L for L in listings if L.seller_id == u.pk] for u in users}
-
-        def pick_listing(seller: User) -> Listing:
-            pool = by_seller.get(seller.pk) or listings
-            return random.choice(pool)
-
-        def add_review(reviewer: User, seller: User, rating: int) -> None:
-            if reviewer.pk == seller.pk:
-                return
-            listing = pick_listing(seller)
-            Review.objects.update_or_create(
-                reviewer=reviewer,
-                seller=seller,
-                defaults={
-                    "listing": listing,
-                    "rating": rating,
-                    "comment": random.choice(REVIEW_COMMENTS),
-                },
-            )
-
-        # Grupos de revisores (índices en users)
-        all_indices = list(range(len(users)))
-
-        def other_than(seller_idx: int, count: int) -> list[int]:
-            opts = [i for i in all_indices if i != seller_idx]
-            random.shuffle(opts)
-            return opts[:count]
-
-        # Sellers 0–1: alta confianza
-        for sidx in (0, 1):
-            seller = users[sidx]
-            for ridx in other_than(sidx, 6):
-                add_review(users[ridx], seller, 5)
-
-        # 2–3: borde alto
-        for sidx in (2, 3):
-            seller = users[sidx]
-            for ridx in other_than(sidx, 3):
-                add_review(users[ridx], seller, 5)
-
-        # 4–6: media (sin tel verificado en perfil, muchas reseñas buenas)
-        for sidx in (4, 5, 6):
-            seller = users[sidx]
-            for ridx in other_than(sidx, 6):
-                add_review(users[ridx], seller, random.choice([4, 4, 5]))
-
-        # 7–8: sin reseñas (confianza media por verificación)
-
-        # 9–12: baja media de estrellas
-        for sidx in range(9, 13):
-            seller = users[sidx]
-            for ridx in other_than(sidx, 2):
-                add_review(users[ridx], seller, 3)
-
-        # 13–17: 0–1 reseña débil
-        for sidx in range(13, 18):
-            seller = users[sidx]
-            for ridx in other_than(sidx, 1):
-                add_review(users[ridx], seller, 2)
-
     def _seed_flagged_listings(self, users: list[User], listings: list[Listing]) -> None:
         """Varios anuncios con ≥3 reportes distintos → is_flagged vía sync_listing_flag."""
         candidates = [L for L in listings if L.seller_id != users[0].pk][:8]
@@ -660,11 +565,10 @@ class Command(BaseCommand):
         listings: list[Listing],
         categories: dict,
     ) -> None:
-        from apps.trust.services import seller_trust_bundle
+        from apps.trust.services import seller_verification_bundle
 
         n_users = len(users)
         n_listings = len(listings)
-        n_reviews = Review.objects.filter(seller__email__endswith=f"@{SEED_EMAIL_DOMAIN}").count()
         n_flagged = Listing.objects.filter(
             seller__email__endswith=f"@{SEED_EMAIL_DOMAIN}",
             is_flagged=True,
@@ -677,19 +581,16 @@ class Command(BaseCommand):
         self.stdout.write(f"  Usuarios:        {n_users}")
         self.stdout.write(f"  Categorías:      {len(categories)}")
         self.stdout.write(f"  Anuncios:        {n_listings}")
-        self.stdout.write(f"  Reseñas:         {n_reviews}")
         self.stdout.write(f"  Reportes:        {n_reports}")
         self.stdout.write(f"  Anuncios marcados: {n_flagged}")
         self.stdout.write("  Acceso:          OTP por correo (sin contraseña)")
         self.stdout.write(f"  Correo patrón:   vendedorXX@{SEED_EMAIL_DOMAIN}")
 
-        self.stdout.write("\n  Muestra confianza por vendedor (etiqueta + score interno):")
+        self.stdout.write("\n  Muestra verificación por vendedor:")
         for u in users[:6]:
-            b = seller_trust_bundle(u)
+            b = seller_verification_bundle(u)
             self.stdout.write(
                 f"    - {u.get_full_name() or u.email}: "
-                f"{b['trust_label']} (score {b['trust_score']}) | "
-                f"verif={'sí' if b['verified'] else 'no'} | "
-                f"opiniones={b['review_count']}"
+                f"teléfono verificado={'sí' if b['verified'] else 'no'}"
             )
         self.stdout.write(self.style.SUCCESS("=== Fin ===\n"))

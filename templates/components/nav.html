@@ -51,8 +51,7 @@
       </div>
 
       {% if footer_nav_categories %}
-        <div class="nav-links__categories" aria-labelledby="nav-categories-heading">
-          <span class="nav-mobile-section-title" id="nav-categories-heading">Categorías</span>
+        <div class="nav-links__categories" aria-label="Secciones de anuncios">
           <div class="nav-category-grid">
             {% for category in footer_nav_categories|slice:":6" %}
               <a

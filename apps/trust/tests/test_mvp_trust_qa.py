@@ -1,5 +1,5 @@
 """
-Pruebas automatizadas: restricciones de modelo, invalidación de caché de confianza,
+Pruebas automatizadas: restricciones de reportes, invalidación de caché de confianza,
 sync_listing_flag y (opcional) re-ejecución del informe semilla vía Client.
 
 Los mensajes de aserción están en español donde aportan contexto al fallo.
@@ -12,23 +12,23 @@ from django.utils import timezone
 
 from apps.categories.models import Category
 from apps.listings.models import Listing, MarketZone
-from apps.trust.models import ListingReport, Review
+from apps.trust.models import ListingReport
 from apps.trust.qa_mvp import (
     ejecutar_informe_semilla,
     tiene_datos_semilla,
 )
 from apps.trust.services import (
-    TRUST_CACHE_KEY,
-    bulk_seller_trust,
-    invalidate_seller_trust_cache,
-    seller_trust_bundle,
+    VERIFICATION_CACHE_KEY,
+    bulk_seller_verification,
+    invalidate_seller_verification_cache,
+    seller_verification_bundle,
     sync_listing_flag,
 )
 from apps.users.models import User, UserVerification
 
 
 class TrustModelConstraintsTests(TestCase):
-    """Una reseña por par (revisor, vendedor); un reporte por par (usuario, anuncio)."""
+    """Un reporte por par (usuario, anuncio)."""
 
     def setUp(self):
         self.cat = Category.objects.create(name="QA Cat", slug="qa-cat-trust")
@@ -36,7 +36,7 @@ class TrustModelConstraintsTests(TestCase):
             email="seller_qa@example.com",
             password="x",
         )
-        self.reviewer = User.objects.create_user(
+        self.reporter = User.objects.create_user(
             email="buyer_qa@example.com",
             password="x",
         )
@@ -52,34 +52,16 @@ class TrustModelConstraintsTests(TestCase):
             status=Listing.Status.PUBLISHED,
         )
 
-    def test_segunda_resena_mismo_par_integrity_error(self):
-        Review.objects.create(
-            listing=self.listing,
-            reviewer=self.reviewer,
-            seller=self.seller,
-            rating=5,
-            comment="ok",
-        )
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                Review.objects.create(
-                    listing=self.listing,
-                    reviewer=self.reviewer,
-                    seller=self.seller,
-                    rating=4,
-                    comment="dup",
-                )
-
     def test_segundo_reporte_mismo_usuario_integrity_error(self):
         ListingReport.objects.create(
-            reporter=self.reviewer,
+            reporter=self.reporter,
             listing=self.listing,
             reason=ListingReport.Reason.SPAM,
         )
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 ListingReport.objects.create(
-                    reporter=self.reviewer,
+                    reporter=self.reporter,
                     listing=self.listing,
                     reason=ListingReport.Reason.SCAM,
                 )
@@ -139,9 +121,29 @@ class SyncListingFlagTests(TestCase):
             "Con menos de 3 reportes, is_flagged debe ser False.",
         )
 
+    def test_reportes_descartados_no_cuentan_para_marca(self):
+        for u in self.reporters:
+            ListingReport.objects.create(
+                reporter=u,
+                listing=self.listing,
+                reason=ListingReport.Reason.SPAM,
+            )
+        self.listing.refresh_from_db()
+        self.assertTrue(self.listing.is_flagged)
+
+        report = ListingReport.objects.filter(listing=self.listing).first()
+        report.status = ListingReport.Status.DISMISSED
+        report.save(update_fields=["status", "updated_at"])
+
+        self.listing.refresh_from_db()
+        self.assertFalse(
+            self.listing.is_flagged,
+            "Un reporte descartado no debe contar para el umbral de 3 reportes activos.",
+        )
+
 
 class TrustCacheInvalidationTests(TestCase):
-    """La caché por vendedor se rellena con bulk_seller_trust y se invalida con señales."""
+    """La caché por vendedor se rellena con bulk_seller_verification y se invalida con señales."""
 
     def setUp(self):
         cache.clear()
@@ -150,53 +152,30 @@ class TrustCacheInvalidationTests(TestCase):
             email="cache_seller@example.com",
             password="x",
         )
-        self.seller.date_joined = timezone.now() - timezone.timedelta(days=40)
-        self.seller.save(update_fields=["date_joined"])
-        self.reviewer = User.objects.create_user(
-            email="cache_buyer@example.com",
-            password="x",
-        )
-        self.zone = MarketZone.objects.get(slug="otro-guayaquil")
-        self.listing = Listing.objects.create(
-            title="Cache QA",
-            description="D",
-            price_amount=5,
-            currency="USD",
-            zone=self.zone,
-            seller=self.seller,
-            category=self.cat,
-            status=Listing.Status.PUBLISHED,
-        )
 
     def _key(self):
-        return TRUST_CACHE_KEY.format(id=self.seller.pk)
+        return VERIFICATION_CACHE_KEY.format(id=self.seller.pk)
 
-    def test_resena_invalida_cache_y_regenera_bundle(self):
-        bulk_seller_trust([self.seller.pk])
+    def test_bundle_no_expone_campos_de_resenas(self):
+        bulk_seller_verification([self.seller.pk])
         self.assertIsNotNone(
             cache.get(self._key()),
-            "Tras bulk_seller_trust la clave de caché debe existir.",
+            "Tras bulk_seller_verification la clave de caché debe existir.",
         )
-        Review.objects.create(
-            listing=self.listing,
-            reviewer=self.reviewer,
-            seller=self.seller,
-            rating=5,
-            comment="nueva",
+        b = seller_verification_bundle(self.seller)
+        self.assertEqual(
+            set(b),
+            {
+                "verified",
+            },
         )
-        self.assertIsNone(
-            cache.get(self._key()),
-            "Tras crear una reseña, la señal debe borrar la caché del vendedor.",
-        )
-        b = seller_trust_bundle(self.seller)
-        self.assertEqual(b["review_count"], 1)
         self.assertIsNotNone(
             cache.get(self._key()),
-            "seller_trust_bundle / bulk vuelve a poblar la caché.",
+            "seller_verification_bundle / bulk vuelve a poblar la caché.",
         )
 
     def test_verificacion_invalida_cache(self):
-        bulk_seller_trust([self.seller.pk])
+        bulk_seller_verification([self.seller.pk])
         self.assertIsNotNone(cache.get(self._key()))
         UserVerification.objects.create(
             user=self.seller,
@@ -208,13 +187,13 @@ class TrustCacheInvalidationTests(TestCase):
             cache.get(self._key()),
             "Tras guardar UserVerification, la caché del vendedor debe invalidarse.",
         )
-        seller_trust_bundle(self.seller)
+        seller_verification_bundle(self.seller)
         self.assertIsNotNone(cache.get(self._key()))
 
     def test_invalidate_manual(self):
-        bulk_seller_trust([self.seller.pk])
+        bulk_seller_verification([self.seller.pk])
         self.assertIsNotNone(cache.get(self._key()))
-        invalidate_seller_trust_cache(self.seller.pk)
+        invalidate_seller_verification_cache(self.seller.pk)
         self.assertIsNone(cache.get(self._key()))
 
 

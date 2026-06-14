@@ -58,7 +58,7 @@ class CardContext:
     seo_text: str
     category_label: str
     category_href: str
-    trust_label: str | None
+    seller_verification_label: str | None
     contact_whatsapp_url: str | None
     contact_url: str
     is_featured: bool
@@ -239,32 +239,12 @@ def _card_is_featured_top(listing: Listing, featured_top_ids: frozenset[int]) ->
     return int(pk) in featured_top_ids
 
 
-def _trust_label_line(raw: dict[str, Any] | None) -> str | None:
+def _seller_verification_label_line(raw: dict[str, Any] | None) -> str | None:
     if not raw:
         return None
-    parts: list[str] = []
     if raw.get("verified"):
-        parts.append("Verificado")
-    rc = int(raw.get("review_count") or 0)
-    if rc:
-        rv = raw.get("rating_avg")
-        if rv is None:
-            rv = raw.get("avg_rating")
-        if rv is not None:
-            parts.append(f"⭐ {rv} ({rc})")
-    label = raw.get("trust_label") or ""
-    level = ""
-    if label == "high":
-        level = "Confianza alta"
-    elif label == "medium":
-        level = "Confianza media"
-    elif label == "low":
-        level = "Confianza baja"
-    if level:
-        parts.append(level)
-    if not parts:
-        return None
-    return " · ".join(parts)
+        return "Verificado"
+    return None
 
 
 def _finalize(
@@ -282,7 +262,7 @@ def _finalize(
     seo_text: str,
     category_label: str,
     category_href: str,
-    trust_label: str | None,
+    seller_verification_label: str | None,
     is_featured: bool,
     is_featured_top: bool,
 ) -> CardContext:
@@ -296,7 +276,7 @@ def _finalize(
     )
     b_list = [escape(str(x)) for x in merged_badges]
     a_list = [escape(str(x)) for x in attributes[:_MAX_ATTRIBUTES]]
-    tl = escape(str(trust_label)) if trust_label else None
+    tl = escape(str(seller_verification_label)) if seller_verification_label else None
     img = (str(image_url).strip() or None) if image_url else None
     img_webp = _first_image_webp(listing)
     lid = int(listing.pk) if getattr(listing, "pk", None) is not None else 0
@@ -323,7 +303,7 @@ def _finalize(
         seo_text=safe_seo,
         category_label=safe_cat,
         category_href=str(category_href or ""),
-        trust_label=tl,
+        seller_verification_label=tl,
         contact_whatsapp_url=wa_url,
         contact_url=contact_url,
         is_featured=bool(is_featured),
@@ -338,7 +318,7 @@ def _finalize(
 def _listing_basics(
     listing: Listing,
     *,
-    trust_map: dict[int, dict[str, Any]],
+    seller_verification_map: dict[int, dict[str, Any]],
     decimals: int = 2,
 ) -> dict[str, Any]:
     cat = listing.category
@@ -348,7 +328,7 @@ def _listing_basics(
     category_href = cat.get_absolute_url()
     category_label = cat.name
     img_url, _img_alt = _first_image(listing)
-    trust_label = _trust_label_line(trust_map.get(listing.seller_id))
+    seller_verification_label = _seller_verification_label_line(seller_verification_map.get(listing.seller_id))
     return {
         "loc": loc,
         "price_display": price_display,
@@ -356,7 +336,7 @@ def _listing_basics(
         "category_href": category_href,
         "category_label": category_label,
         "img_url": img_url,
-        "trust_label": trust_label,
+        "seller_verification_label": seller_verification_label,
     }
 
 
@@ -365,11 +345,11 @@ def _card_simple(
     *,
     template: str,
     css_modifier: str,
-    trust_map: dict[int, dict[str, Any]],
+    seller_verification_map: dict[int, dict[str, Any]],
     featured_top_ids: frozenset[int],
     decimals: int = 2,
 ) -> CardContext:
-    b = _listing_basics(listing, trust_map=trust_map, decimals=decimals)
+    b = _listing_basics(listing, seller_verification_map=seller_verification_map, decimals=decimals)
     title = listing.title
     seo = _plain_seo_text(title=title, price_display=b["price_display"], location=b["loc"])
     return _finalize(
@@ -386,7 +366,7 @@ def _card_simple(
         seo_text=seo,
         category_label=b["category_label"],
         category_href=b["category_href"],
-        trust_label=b["trust_label"],
+        seller_verification_label=b["seller_verification_label"],
         is_featured=_card_is_featured(listing),
         is_featured_top=_card_is_featured_top(listing, featured_top_ids),
     )
@@ -417,10 +397,10 @@ def _card_vehicle(
     *,
     template: str,
     css_modifier: str,
-    trust_map: dict[int, dict[str, Any]],
+    seller_verification_map: dict[int, dict[str, Any]],
     featured_top_ids: frozenset[int],
 ) -> CardContext:
-    b = _listing_basics(listing, trust_map=trust_map, decimals=2)
+    b = _listing_basics(listing, seller_verification_map=seller_verification_map, decimals=2)
     attrs = _vehicle_attribute_strings(listing)
     title = listing.title
     seo = _plain_seo_text(title=title, price_display=b["price_display"], location=b["loc"])
@@ -440,7 +420,7 @@ def _card_vehicle(
         seo_text=seo.strip(),
         category_label=b["category_label"],
         category_href=b["category_href"],
-        trust_label=b["trust_label"],
+        seller_verification_label=b["seller_verification_label"],
         is_featured=_card_is_featured(listing),
         is_featured_top=_card_is_featured_top(listing, featured_top_ids),
     )
@@ -451,10 +431,10 @@ def _card_property(
     *,
     template: str,
     css_modifier: str,
-    trust_map: dict[int, dict[str, Any]],
+    seller_verification_map: dict[int, dict[str, Any]],
     featured_top_ids: frozenset[int],
 ) -> CardContext:
-    b = _listing_basics(listing, trust_map=trust_map, decimals=0)
+    b = _listing_basics(listing, seller_verification_map=seller_verification_map, decimals=0)
     title = listing.title
     try:
         p = listing.property  # type: ignore[attr-defined]
@@ -465,7 +445,7 @@ def _card_property(
             listing,
             template=template,
             css_modifier=css_modifier,
-            trust_map=trust_map,
+            seller_verification_map=seller_verification_map,
             featured_top_ids=featured_top_ids,
             decimals=0,
         )
@@ -516,7 +496,7 @@ def _card_property(
         seo_text=seo_text,
         category_label=b["category_label"],
         category_href=b["category_href"],
-        trust_label=b["trust_label"],
+        seller_verification_label=b["seller_verification_label"],
         is_featured=_card_is_featured(listing),
         is_featured_top=_card_is_featured_top(listing, featured_top_ids),
     )
@@ -527,10 +507,10 @@ def _card_motorcycle(
     *,
     template: str,
     css_modifier: str,
-    trust_map: dict[int, dict[str, Any]],
+    seller_verification_map: dict[int, dict[str, Any]],
     featured_top_ids: frozenset[int],
 ) -> CardContext:
-    b = _listing_basics(listing, trust_map=trust_map, decimals=0)
+    b = _listing_basics(listing, seller_verification_map=seller_verification_map, decimals=0)
     title = listing.title
     try:
         m = listing.motorcycle  # type: ignore[attr-defined]
@@ -539,7 +519,7 @@ def _card_motorcycle(
             listing,
             template=template,
             css_modifier=css_modifier,
-            trust_map=trust_map,
+            seller_verification_map=seller_verification_map,
             featured_top_ids=featured_top_ids,
             decimals=0,
         )
@@ -587,7 +567,7 @@ def _card_motorcycle(
         seo_text=seo_plain.strip(),
         category_label=b["category_label"],
         category_href=b["category_href"],
-        trust_label=b["trust_label"],
+        seller_verification_label=b["seller_verification_label"],
         is_featured=_card_is_featured(listing),
         is_featured_top=_card_is_featured_top(listing, featured_top_ids),
     )
@@ -598,10 +578,10 @@ def _card_electronics(
     *,
     template: str,
     css_modifier: str,
-    trust_map: dict[int, dict[str, Any]],
+    seller_verification_map: dict[int, dict[str, Any]],
     featured_top_ids: frozenset[int],
 ) -> CardContext:
-    b = _listing_basics(listing, trust_map=trust_map, decimals=0)
+    b = _listing_basics(listing, seller_verification_map=seller_verification_map, decimals=0)
     title = listing.title
     try:
         e = listing.electronics  # type: ignore[attr-defined]
@@ -610,7 +590,7 @@ def _card_electronics(
             listing,
             template=template,
             css_modifier=css_modifier,
-            trust_map=trust_map,
+            seller_verification_map=seller_verification_map,
             featured_top_ids=featured_top_ids,
             decimals=0,
         )
@@ -670,7 +650,7 @@ def _card_electronics(
         seo_text=seo_plain.strip(),
         category_label=b["category_label"],
         category_href=b["category_href"],
-        trust_label=b["trust_label"],
+        seller_verification_label=b["seller_verification_label"],
         is_featured=_card_is_featured(listing),
         is_featured_top=_card_is_featured_top(listing, featured_top_ids),
     )
@@ -681,10 +661,10 @@ def _card_home(
     *,
     template: str,
     css_modifier: str,
-    trust_map: dict[int, dict[str, Any]],
+    seller_verification_map: dict[int, dict[str, Any]],
     featured_top_ids: frozenset[int],
 ) -> CardContext:
-    b = _listing_basics(listing, trust_map=trust_map, decimals=0)
+    b = _listing_basics(listing, seller_verification_map=seller_verification_map, decimals=0)
     title = listing.title
     try:
         h = listing.homegoods  # type: ignore[attr-defined]
@@ -693,7 +673,7 @@ def _card_home(
             listing,
             template=template,
             css_modifier=css_modifier,
-            trust_map=trust_map,
+            seller_verification_map=seller_verification_map,
             featured_top_ids=featured_top_ids,
             decimals=0,
         )
@@ -749,7 +729,7 @@ def _card_home(
         seo_text=seo_plain.strip(),
         category_label=b["category_label"],
         category_href=b["category_href"],
-        trust_label=b["trust_label"],
+        seller_verification_label=b["seller_verification_label"],
         is_featured=_card_is_featured(listing),
         is_featured_top=_card_is_featured_top(listing, featured_top_ids),
     )
@@ -759,7 +739,7 @@ def build_card_context(
     listing: Listing,
     category_slug: str,
     *,
-    trust_map: dict[int, dict[str, Any]],
+    seller_verification_map: dict[int, dict[str, Any]],
     featured_top_ids: frozenset[int] | None = None,
 ) -> CardContext:
     """
@@ -784,7 +764,7 @@ def build_card_context(
         listing,
         template=template,
         css_modifier=css_modifier,
-        trust_map=trust_map,
+        seller_verification_map=seller_verification_map,
         featured_top_ids=ft,
     )
 
@@ -792,12 +772,12 @@ def build_card_context(
 def build_listing_cards_for_page(
     page_obj: Any,
     *,
-    trust_map: dict[int, dict[str, Any]],
+    seller_verification_map: dict[int, dict[str, Any]],
     featured_top_ids: frozenset[int] | None = None,
 ) -> list[CardContext]:
     return build_listing_cards_for_listings(
         page_obj.object_list,
-        trust_map=trust_map,
+        seller_verification_map=seller_verification_map,
         featured_top_ids=featured_top_ids,
     )
 
@@ -805,7 +785,7 @@ def build_listing_cards_for_page(
 def build_listing_cards_for_listings(
     rows: Iterable[Listing],
     *,
-    trust_map: dict[int, dict[str, Any]],
+    seller_verification_map: dict[int, dict[str, Any]],
     featured_top_ids: frozenset[int] | None = None,
 ) -> list[CardContext]:
     ft = featured_top_ids or frozenset()
@@ -813,6 +793,6 @@ def build_listing_cards_for_listings(
     for listing in rows:
         slug = listing.category.slug
         out.append(
-            build_card_context(listing, slug, trust_map=trust_map, featured_top_ids=ft),
+            build_card_context(listing, slug, seller_verification_map=seller_verification_map, featured_top_ids=ft),
         )
     return out

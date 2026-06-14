@@ -172,7 +172,7 @@ def site_metadata(request):
         "brand_fonts_url": _brand_font_stylesheet_url(),
         "brand_theme_color": getattr(settings, "BRAND_THEME_COLOR", "#3CBB6B"),
         "pwa_icon_192": getattr(
-            settings, "BRAND_FAVICON_PATH", "img/AnunciateYa_Favicon.png"
+            settings, "BRAND_PWA_ICON_PATH", "img/AnunciateYa_PWA_Icon.png"
         ),
         "google_tag_manager_id": _google_tag_manager_id_for_request(request),
         "inject_ga4_gtag": _analytics_surface_allowed(request),
@@ -194,11 +194,7 @@ def site_metadata(request):
         mapbox_enabled = bool(mapbox_token)
     context["mapbox_enabled"] = mapbox_enabled
     context["mapbox_public_token"] = mapbox_token if mapbox_enabled else ""
-    context["mapbox_style_url"] = getattr(
-        settings,
-        "MAPBOX_STYLE_URL",
-        "mapbox://styles/mapbox/streets-v12",
-    )
+    context["mapbox_style_url"] = settings.MAPBOX_STYLE_URL
     if mapbox_enabled:
         from apps.listings.location_geocoding import ecuador_bbox_querystring
 

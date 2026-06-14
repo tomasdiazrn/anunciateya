@@ -10,9 +10,17 @@ from django.test import TestCase
 
 from apps.categories.models import Category
 from apps.listings.category_engine_queryplan import LISTING_DETAIL_ORM_PLAN, apply_query_plan
-from apps.listings.category_extensions import PROPERTY_SLUG
+from apps.listings.category_extensions import PROPERTY_SLUG, VEHICLE_SLUG
 from apps.listings.listing_detail_dto import build_listing_detail_context, ordered_listing_image_urls
-from apps.listings.models import Listing, ListingImage, MarketZone, PropertyListing
+from apps.listings.models import (
+    Listing,
+    ListingImage,
+    MarketBrand,
+    MarketModel,
+    MarketZone,
+    PropertyListing,
+    VehicleListing,
+)
 
 User = get_user_model()
 
@@ -38,7 +46,22 @@ class ListingDetailGalleryDtoTests(TestCase):
             slug=PROPERTY_SLUG,
             defaults={"name": "Inmuebles", "order": 1},
         )
+        cls.vehicle_cat, _ = Category.objects.get_or_create(
+            slug=VEHICLE_SLUG,
+            defaults={"name": "Autos", "order": 2},
+        )
         cls.zone = MarketZone.objects.get(slug="otro-guayaquil")
+        cls.vehicle_brand, _ = MarketBrand.objects.get_or_create(
+            name="Chevrolet",
+            defaults={"slug": "chevrolet-test"},
+        )
+        cls.vehicle_model, _ = MarketModel.objects.get_or_create(
+            brand=cls.vehicle_brand,
+            category_slug=VEHICLE_SLUG,
+            item_type="",
+            name="Spark",
+            defaults={"slug": "spark-test"},
+        )
 
     def _published_listing(self, title: str, *, category: Category | None = None) -> Listing:
         return Listing.objects.create(
@@ -61,7 +84,7 @@ class ListingDetailGalleryDtoTests(TestCase):
     def test_zero_images_placeholder_dto(self):
         listing = self._published_listing("Sin fotos")
         listing = self._with_detail_plan(listing)
-        ctx = build_listing_detail_context(listing, trust_map={})
+        ctx = build_listing_detail_context(listing, seller_verification_map={})
         self.assertEqual(ctx.gallery_count, 0)
         self.assertFalse(ctx.gallery_has_multiple)
         self.assertTrue(ctx.gallery_show_placeholder)
@@ -74,11 +97,36 @@ class ListingDetailGalleryDtoTests(TestCase):
         listing.save(update_fields=["location_reference", "updated_at"])
         listing = self._with_detail_plan(listing)
 
-        ctx = build_listing_detail_context(listing, trust_map={})
+        ctx = build_listing_detail_context(listing, seller_verification_map={})
 
         self.assertEqual(ctx.location, self.zone.name)
         self.assertEqual(ctx.location_reference, "frente al kiosco x9")
         self.assertNotIn("frente al kiosco x9", ctx.location)
+
+    def test_vehicle_detail_technical_specs_are_labeled_without_emojis(self):
+        listing = self._published_listing("Spark #71", category=self.vehicle_cat)
+        VehicleListing.objects.create(
+            listing=listing,
+            brand_fk=self.vehicle_brand,
+            model_fk=self.vehicle_model,
+            year=2016,
+            mileage=0,
+            doors=4,
+            transmission=VehicleListing.Transmission.MANUAL,
+            fuel_type=VehicleListing.FuelType.GASOLINA,
+        )
+        listing = self._with_detail_plan(listing)
+
+        ctx = build_listing_detail_context(listing, seller_verification_map={})
+
+        specs = {spec.label: spec.value for spec in ctx.technical_specs}
+        self.assertEqual(specs["Marca"], "Chevrolet")
+        self.assertEqual(specs["Modelo"], "Spark")
+        self.assertEqual(specs["Año"], "2016")
+        self.assertEqual(specs["Kilometraje"], "0 km")
+        rendered = " ".join(f"{spec.label} {spec.value}" for spec in ctx.technical_specs)
+        for emoji in ("🚗", "📅", "📏"):
+            self.assertNotIn(emoji, rendered)
 
     def test_property_exact_location_context_is_public_when_enabled(self):
         listing = self._published_listing("Casa con mapa", category=self.property_cat)
@@ -97,7 +145,7 @@ class ListingDetailGalleryDtoTests(TestCase):
         )
         listing = self._with_detail_plan(listing)
 
-        ctx = build_listing_detail_context(listing, trust_map={})
+        ctx = build_listing_detail_context(listing, seller_verification_map={})
 
         self.assertEqual(ctx.property_location_title, "Dirección del inmueble")
         self.assertIn("Av. Principal 123", ctx.property_location_address)
@@ -118,7 +166,7 @@ class ListingDetailGalleryDtoTests(TestCase):
         )
         listing = self._with_detail_plan(listing)
 
-        ctx = build_listing_detail_context(listing, trust_map={})
+        ctx = build_listing_detail_context(listing, seller_verification_map={})
 
         self.assertEqual(ctx.property_location_address, "")
         self.assertFalse(ctx.property_show_map)
@@ -138,7 +186,7 @@ class ListingDetailGalleryDtoTests(TestCase):
         )
         listing = self._with_detail_plan(listing)
 
-        ctx = build_listing_detail_context(listing, trust_map={})
+        ctx = build_listing_detail_context(listing, seller_verification_map={})
 
         self.assertEqual(ctx.property_location_title, "Ubicación aproximada")
         self.assertEqual(ctx.property_location_address, "Conjunto privado")
@@ -159,7 +207,7 @@ class ListingDetailGalleryDtoTests(TestCase):
         expected = tuple(str(x.image.url) for x in imgs)
         urls = ordered_listing_image_urls(listing)
         self.assertEqual(urls, expected)
-        ctx = build_listing_detail_context(listing, trust_map={})
+        ctx = build_listing_detail_context(listing, seller_verification_map={})
         self.assertEqual(ctx.gallery_images, urls)
         self.assertEqual(ctx.thumbnail_images, urls)
         self.assertEqual(ctx.gallery_count, 2)

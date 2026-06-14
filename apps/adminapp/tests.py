@@ -10,6 +10,7 @@ from django.utils import timezone
 from apps.categories.models import Category
 from apps.core.models import NewsletterSubscriber
 from apps.listings.models import Listing, MarketZone
+from apps.trust.models import ListingReport
 from apps.users.models import User, UserLoginOTP, UserVerification
 
 from .hosting import (
@@ -524,6 +525,16 @@ class AdminAccessTests(TestCase):
             status=Listing.Status.PUBLISHED,
             is_flagged=True,
         )
+        reporter = User.objects.create_user(
+            email="reporter@example.com",
+            password="ignored",
+            is_active=True,
+        )
+        report = ListingReport.objects.create(
+            reporter=reporter,
+            listing=listing,
+            reason=ListingReport.Reason.SCAM,
+        )
         self.client.force_login(self.admin)
         detail_url = reverse("adminapp:listing_detail", kwargs={"pk": listing.pk})
 
@@ -538,6 +549,16 @@ class AdminAccessTests(TestCase):
         self.assertContains(response, "user@example.com")
         self.assertContains(response, "Ver anuncio público")
         self.assertContains(response, f'href="{listing.get_absolute_url()}"')
+        self.assertContains(response, "Reportes de usuarios")
+        self.assertContains(response, "Estafa o fraude")
+        self.assertContains(response, "reporter@example.com")
+        self.assertContains(
+            response,
+            reverse(
+                "adminapp:listing_report_set_status",
+                kwargs={"pk": listing.pk, "report_pk": report.pk},
+            ),
+        )
 
         htmx_response = self.client.get(detail_url, HTTP_HX_REQUEST="true")
 
@@ -547,6 +568,46 @@ class AdminAccessTests(TestCase):
             "adminapp/fragments/listing_detail_main.html",
         )
         self.assertContains(htmx_response, "← Anuncios")
+
+    def test_staff_can_update_listing_report_status(self):
+        category = Category.objects.create(name="Report category", slug="report-category")
+        listing = Listing.objects.create(
+            title="Reported admin listing",
+            description="Listing reported by a user.",
+            price_amount="20.00",
+            zone=self.zone,
+            seller=self.user,
+            category=category,
+            status=Listing.Status.PUBLISHED,
+        )
+        reporter = User.objects.create_user(
+            email="report-status@example.com",
+            password="ignored",
+            is_active=True,
+        )
+        report = ListingReport.objects.create(
+            reporter=reporter,
+            listing=listing,
+            reason=ListingReport.Reason.INCORRECT,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse(
+                "adminapp:listing_report_set_status",
+                kwargs={"pk": listing.pk, "report_pk": report.pk},
+            ),
+            {"status": ListingReport.Status.ACTIONED},
+            HTTP_HX_REQUEST="true",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "adminapp/fragments/listing_detail_main.html")
+        report.refresh_from_db()
+        self.assertEqual(report.status, ListingReport.Status.ACTIONED)
+        self.assertEqual(report.reviewed_by, self.admin)
+        self.assertIsNotNone(report.reviewed_at)
+        self.assertContains(response, "Acción tomada")
 
     def test_staff_can_move_listing_to_draft_from_status_column(self):
         category = Category.objects.create(name="Toggle listing", slug="toggle-listing")

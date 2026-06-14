@@ -188,7 +188,7 @@ class CategoryEngineContractTests(TestCase):
     def test_build_card_context_per_registry_slug(self) -> None:
         for slug in sorted(EXPECTED_CONTRACT_SLUGS):
             listing = self.listings_by_slug[slug]
-            card = build_card_context(listing, slug, trust_map={})
+            card = build_card_context(listing, slug, seller_verification_map={})
             self.assertIsInstance(card, CardContext)
             self.assertEqual(card.template, LISTING_CARD_DTO_UNIFIED)
             self.assertTrue(card.link.startswith("/"))
@@ -213,7 +213,7 @@ class CategoryEngineContractTests(TestCase):
         listing.location_reference = "frente al parque"
         listing.save(update_fields=["location_reference", "updated_at"])
 
-        card = build_card_context(listing, "hogar", trust_map={})
+        card = build_card_context(listing, "hogar", seller_verification_map={})
 
         self.assertEqual(card.location, listing.zone.name)
         self.assertNotIn("frente al parque", card.location)

@@ -6,8 +6,8 @@
 
   function initPropertyMaps() {
     var token = metaContent("mapbox-token");
-    var style = metaContent("mapbox-style") || "mapbox://styles/mapbox/streets-v12";
-    if (!token || typeof mapboxgl === "undefined") return;
+    var style = metaContent("mapbox-style");
+    if (!token || !style || typeof mapboxgl === "undefined") return;
 
     document.querySelectorAll("[data-property-listing-map]").forEach(function (el) {
       if (el.dataset.mapInit === "1") return;

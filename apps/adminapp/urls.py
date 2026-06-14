@@ -18,6 +18,11 @@ urlpatterns = [
     path("anuncios/", views.admin_listings_view, name="listings"),
     path("anuncios/<int:pk>/", views.admin_listing_detail_view, name="listing_detail"),
     path(
+        "anuncios/<int:pk>/reportes/<int:report_pk>/set-status/",
+        views.admin_listing_report_set_status,
+        name="listing_report_set_status",
+    ),
+    path(
         "anuncios/<int:pk>/set-status/",
         views.admin_listing_set_status,
         name="listing_set_status",

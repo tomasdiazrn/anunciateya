@@ -7,7 +7,7 @@ register = template.Library()
 
 @register.filter
 def dict_get(mapping, key):
-    """Lookup dict in templates: {{ trust_map|dict_get:listing.seller_id }}"""
+    """Lookup dict in templates: {{ seller_verification_map|dict_get:listing.seller_id }}"""
     if mapping is None:
         return None
     if key is None:
@@ -36,7 +36,6 @@ def seq_get(seq, idx):
 _RE_TRAILING_INTERNAL_ID = re.compile(r"\s+#\d+\s*$")
 _RE_TRAILING_YEAR = re.compile(r"\s+(19\d{2}|20\d{2})\s*$")
 _RE_MONEY_DECIMALS = re.compile(r"([.,]00)\s*$")
-_RE_RATING = re.compile(r"⭐\s*([0-9]+(?:\.[0-9]+)?)\s*\((\d+)\)")
 
 
 @register.filter
@@ -76,31 +75,6 @@ def price_no_decimals(price_display: str) -> str:
     """
     s = (price_display or "").strip()
     return _RE_MONEY_DECIMALS.sub("", s)
-
-
-@register.filter
-def trust_parts(trust_label: str | None) -> dict[str, str | bool]:
-    """
-    Parseo liviano del trust_label ya renderizado (string):
-    "✔ Verificado · ⭐ 4.3 (6) · Confianza media"
-    Devuelve partes para jerarquía visual sin duplicar data.
-    """
-    raw = (trust_label or "").strip()
-    if not raw:
-        return {"verified": False, "rating": "", "confidence": ""}
-
-    parts = [p.strip() for p in raw.split("·") if p.strip()]
-    verified = any("verificado" in p.lower() for p in parts)
-    rating = ""
-    confidence = ""
-    m = _RE_RATING.search(raw)
-    if m:
-        rating = f"⭐ {m.group(1)} ({m.group(2)})"
-    for p in parts:
-        if "confianza" in p.lower():
-            confidence = p
-            break
-    return {"verified": verified, "rating": rating, "confidence": confidence}
 
 
 @register.filter

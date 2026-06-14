@@ -84,6 +84,22 @@ def _listing_row_ctx(listing):
     }
 
 
+def _listing_detail_context(listing):
+    reports = (
+        ListingReport.objects.filter(listing=listing)
+        .select_related("reporter", "reviewed_by")
+        .order_by("-created_at")
+    )
+    return {
+        "admin_section": "listings",
+        "admin_page_title": f"Anuncio · {listing.title}",
+        "listing": listing,
+        "listing_reports": reports,
+        "listing_reports_count": reports.count(),
+        "report_status_options": ListingReport.Status.choices,
+    }
+
+
 def _user_admin_queryset():
     return User.objects.select_related("verification").annotate(
         listings_count=Count("listings", distinct=True),
@@ -339,17 +355,52 @@ def admin_listing_detail_view(request, pk):
         Listing.objects.select_related("seller", "category", "zone"),
         pk=pk,
     )
-    context = {
-        "admin_section": "listings",
-        "admin_page_title": f"Anuncio · {listing.title}",
-        "listing": listing,
-    }
+    context = _listing_detail_context(listing)
     template = (
         "adminapp/fragments/listing_detail_main.html"
         if request.htmx
         else "adminapp/listings/detail.html"
     )
     return render(request, template, context)
+
+
+@staff_required
+@require_POST
+def admin_listing_report_set_status(request, pk, report_pk):
+    listing = get_object_or_404(
+        Listing.objects.select_related("seller", "category", "zone"),
+        pk=pk,
+    )
+    report = get_object_or_404(ListingReport, pk=report_pk, listing=listing)
+    raw = (request.POST.get("status") or "").strip()
+    valid_statuses = {value for value, _label in ListingReport.Status.choices}
+    if raw not in valid_statuses:
+        messages.error(request, "Estado de reporte no válido.")
+    else:
+        report.status = raw
+        if raw == ListingReport.Status.PENDING:
+            report.reviewed_by = None
+            report.reviewed_at = None
+        else:
+            report.reviewed_by = request.user
+            report.reviewed_at = timezone.now()
+        report.save(
+            update_fields=[
+                "status",
+                "updated_at",
+                "reviewed_by",
+                "reviewed_at",
+            ]
+        )
+        listing.refresh_from_db(fields=["is_flagged"])
+        messages.success(request, "Estado del reporte actualizado.")
+
+    template = (
+        "adminapp/fragments/listing_detail_main.html"
+        if request.htmx
+        else "adminapp/listings/detail.html"
+    )
+    return render(request, template, _listing_detail_context(listing))
 
 
 @staff_required

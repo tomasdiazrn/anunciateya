@@ -4,6 +4,7 @@ from django.contrib.auth.views import LogoutView
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render, resolve_url
 from django.urls import reverse, reverse_lazy
+from django.utils.html import format_html
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
@@ -21,7 +22,7 @@ from apps.listings.views import (
     create_listing_in_category,
     listing_edit,
 )
-from apps.trust.services import seller_trust_bundle
+from apps.trust.services import seller_verification_bundle
 from apps.core.constants import COUNTRY_PHONE_CODES
 
 from .forms import (
@@ -33,9 +34,6 @@ from .forms import (
 )
 from .models import USER_EMAIL_MAX_LENGTH, UserVerification
 from .otp_auth import normalize_email, request_otp_for_user, request_user_otp, verify_user_otp
-
-
-USER_OTP_GENERIC_MESSAGE = "Si la cuenta existe, recibirás un código de acceso."
 
 
 class RegisterView(View):
@@ -241,20 +239,32 @@ def _posted_otp_code(request):
     return "".join(char for char in raw_code if char.isdigit())[:6]
 
 
-def _add_user_otp_request_message(request, result):
+def _generic_user_otp_request_message(email):
+    if email:
+        return format_html(
+            (
+                "Si la cuenta existe, enviamos un código de acceso a "
+                "<strong>{}</strong>. Revisa tu correo antes de pedir otro."
+            ),
+            email,
+        )
+    return (
+        "Si la cuenta existe, enviamos un código de acceso. "
+        "Revisa tu correo antes de pedir otro."
+    )
+
+
+def _add_user_otp_request_message(request, result, *, use_generic_notice=False):
     if result.reason == "sent":
+        if use_generic_notice:
+            messages.success(request, _generic_user_otp_request_message(result.email))
+            return
         messages.success(
             request,
             "Enviamos un nuevo código. Revisa tu correo y usa el más reciente.",
         )
     elif result.reason == "invalid_user":
-        messages.info(
-            request,
-            (
-                "Si la cuenta existe, intentamos enviar un código de acceso. "
-                "Revisa tu correo antes de pedir otro."
-            ),
-        )
+        messages.success(request, _generic_user_otp_request_message(result.email))
     elif result.reason == "resend_cooldown":
         messages.warning(
             request,
@@ -313,7 +323,6 @@ def _login_context(request, *, step=None, email="", next_url=""):
         "login_step": step or ("code" if session_email else "email"),
         "otp_email": email or session_email,
         "otp_next": next_url or request.session.get("user_otp_next", ""),
-        "otp_generic_message": USER_OTP_GENERIC_MESSAGE,
         "user_email_max_length": USER_EMAIL_MAX_LENGTH,
     }
 
@@ -366,7 +375,7 @@ def register_verify_view(request):
 
     if action == "request_code":
         result = request_otp_for_user(user, email)
-        _add_user_otp_request_message(request, result)
+        _add_user_otp_request_message(request, result, use_generic_notice=True)
         return render(request, "users/register_verify.html", _signup_otp_context(request))
 
     if action == "verify_code":
@@ -433,7 +442,7 @@ def email_login_view(request):
         else:
             request.session.pop("user_otp_user_id", None)
         request.session.modified = True
-        _add_user_otp_request_message(request, result)
+        _add_user_otp_request_message(request, result, use_generic_notice=True)
         return render(
             request,
             "users/login.html",
@@ -583,11 +592,11 @@ def profile_detail(request, pk):
         pk=pk,
         is_active=True,
     )
-    trust = seller_trust_bundle(user)
+    trust = seller_verification_bundle(user)
     return render(
         request,
         "users/profile_detail.html",
-        {"profile_user": user, "seller_trust": trust},
+        {"profile_user": user, "seller_verification": trust},
     )
 
 

@@ -1,7 +1,4 @@
-/*
- * Trust UI: verde marca como eje de confianza (badges, pills, niveles Alta/Media/Baja).
- * Contraste accesible; niveles diferenciados por saturación/fondo.
- */
+/* Trust UI: señales simples de verificación del vendedor. */
 .card-trust {
   display: flex;
   flex-wrap: wrap;
@@ -10,76 +7,10 @@
   margin: 0.4rem 0;
 }
 
-/* Pill verificado — confianza (verde marca) */
-.trust-pill {
-  display: inline-block;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  padding: 0.2rem 0.55rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-primary-border);
-  background: var(--color-primary-muted);
-  color: var(--color-primary-hover);
-}
-
-.trust-pill.verified {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
-  color: var(--color-primary-strong);
-}
-
-.trust-rating {
-  color: var(--color-muted);
-  font-size: 0.875rem;
-}
-
 .trust-badge {
   font-weight: 600;
   color: var(--color-primary-hover);
   margin: 0.25rem 0;
-}
-
-.seller-rating-lg {
-  font-size: 1.05rem;
-  margin: 0.35rem 0;
-  color: var(--color-text);
-}
-
-/* Etiquetas Alta / Media / Baja — texto sobre fondo verde suave */
-.trust-label {
-  display: inline-block;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-}
-
-.trust-label-inline {
-  margin-left: 0.15rem;
-}
-
-.trust-level-pill {
-  font-size: 0.875rem;
-}
-
-/* Niveles: misma familia verde, distinta intensidad */
-.trust-high {
-  color: var(--color-primary-strong);
-  background: var(--color-primary-soft);
-  border-color: var(--color-primary);
-}
-
-.trust-medium {
-  color: var(--color-primary-subtle);
-  background: color-mix(in srgb, var(--color-primary) 9%, transparent);
-  border-color: var(--color-primary-border);
-}
-
-.trust-low {
-  color: var(--color-muted);
-  background: #f3f4f6;
-  border-color: var(--color-border-strong);
 }
 
 .seller-box .seller-trust-block {
@@ -92,20 +23,6 @@
   );
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-}
-
-.member-since {
-  margin: 0.35rem 0;
-  font-size: 0.9375rem;
-  color: var(--color-text);
-}
-
-.trust-level-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.5rem 0 0;
 }
 
 .banner-flagged {
@@ -124,7 +41,7 @@
 }
 
 /* CTA textual junto al formulario de contacto — refuerzo, no botón */
-.contact-cta-trust {
+.contact-cta-title {
   font-weight: 600;
   font-family: var(--font-display);
   margin: 0 0 var(--space-1);
@@ -135,7 +52,7 @@
   margin-top: var(--space-2);
 }
 
-.contact-trust-summary {
+.contact-verification-summary {
   padding: var(--card-padding);
   margin-bottom: var(--space-2);
   background: color-mix(in srgb, var(--color-primary) 5%, transparent);
@@ -143,7 +60,7 @@
   border-radius: var(--radius-md);
 }
 
-.contact-trust-title {
+.contact-verification-title {
   font-weight: 600;
   font-family: var(--font-display);
   margin: 0 0 0.35rem;
@@ -151,18 +68,18 @@
   color: var(--color-primary-hover);
 }
 
-.contact-trust-list {
+.contact-verification-list {
   margin: 0;
   padding-left: 1.1rem;
   font-size: 0.875rem;
   color: var(--color-text);
 }
 
-.contact-trust-list li {
+.contact-verification-list li {
   margin-bottom: 0.25rem;
 }
 
-.trust-badge-inline {
+.verification-badge-inline {
   font-weight: 600;
   color: var(--color-primary-hover);
 }

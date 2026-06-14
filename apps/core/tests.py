@@ -209,10 +209,10 @@ class PageNotFoundTests(TestCase):
     SEO_BRAND_NAME="AnunciateYa",
     SEO_MARKET_CITY="Guayaquil",
     BRAND_THEME_COLOR="#3CBB6B",
-    BRAND_FAVICON_PATH="img/AnunciateYa_Favicon.png",
+    BRAND_PWA_ICON_PATH="img/AnunciateYa_PWA_Icon.png",
 )
 class ProgressiveWebAppTests(TestCase):
-    def test_webmanifest_uses_branding_and_favicon_icons(self):
+    def test_webmanifest_uses_branding_and_pwa_icon(self):
         response = self.client.get(reverse("webmanifest"))
 
         self.assertEqual(response.status_code, 200)
@@ -226,7 +226,7 @@ class ProgressiveWebAppTests(TestCase):
         self.assertEqual(payload["theme_color"], "#3CBB6B")
         self.assertIn(
             {
-                "src": "/static/img/AnunciateYa_Favicon.png",
+                "src": "/static/img/AnunciateYa_PWA_Icon.png",
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "any",

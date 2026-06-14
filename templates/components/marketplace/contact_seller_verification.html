@@ -1,0 +1,10 @@
+<div class="contact-seller-verification card-inner">
+  <p class="contact-verification-title">Verificación del vendedor</p>
+  <ul class="contact-verification-list">
+    {% if seller_verification.verified %}
+      <li><span class="verification-badge-inline" data-event="seller_verification_click" data-event-detail="verified">✔ Verificado</span></li>
+    {% else %}
+      <li class="muted small">Teléfono no verificado</li>
+    {% endif %}
+  </ul>
+</div>

@@ -112,7 +112,7 @@ def webmanifest(_request):
     """PWA manifest generated from the same branding settings used by templates."""
     brand = getattr(settings, "SEO_BRAND_NAME", "AnunciateYa")
     city = getattr(settings, "SEO_MARKET_CITY", "Guayaquil")
-    icon_path = getattr(settings, "BRAND_FAVICON_PATH", "img/AnunciateYa_Favicon.png")
+    icon_path = getattr(settings, "BRAND_PWA_ICON_PATH", "img/AnunciateYa_PWA_Icon.png")
     payload = {
         "name": brand,
         "short_name": brand,

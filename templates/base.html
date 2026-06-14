@@ -42,7 +42,7 @@
     <meta name="mapbox-bbox" content="{{ mapbox_ecuador_bbox }}">
     <meta name="mapbox-style" content="{{ mapbox_style_url }}">
   {% endif %}
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=10">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=21">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" referrerpolicy="no-referrer">
   {% block extra_head %}{% endblock %}
 </head>
@@ -69,7 +69,7 @@
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
   <script src="{% static 'js/char_counters.js' %}" defer></script>
   <script src="{% static 'js/form_loading_states.js' %}" defer></script>
-  <script src="{% static 'js/listing_form_controls.js' %}?v=8" defer></script>
+  <script src="{% static 'js/listing_form_controls.js' %}?v=10" defer></script>
   {% if mapbox_enabled and mapbox_public_token %}
     <script src="{% static 'js/property_mapbox_geocoder.js' %}?v=1" defer></script>
   {% endif %}

@@ -23,11 +23,6 @@
       {% include "components/messages.html" %}
 
       {% if login_step == "code" %}
-      {% if otp_email %}
-        <p class="auth-otp-message">
-          Si la cuenta existe, enviamos un código de acceso a <strong>{{ otp_email }}</strong>.
-        </p>
-      {% endif %}
       <form method="post" action="{% url 'users:login' %}" class="stack-form" aria-label="Verificar código de acceso" data-loading-submit>
         {% csrf_token %}
         <input type="hidden" name="action" value="verify_code">
@@ -91,7 +86,6 @@
             required
           >
         </div>
-        <p class="auth-subtitle">{{ otp_generic_message }}</p>
         <div class="form-actions-row">
           <button type="submit" class="button btn-primary auth-submit" data-loading-text="Enviando código...">Enviar código de acceso</button>
         </div>
